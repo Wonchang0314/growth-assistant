@@ -40,3 +40,17 @@ com.growthassistant
 - 기능 설계: `docs/specs/`
 - 아키텍처(C4): `docs/architecture/`
 - 결정 기록(ADR): `docs/adr/`
+
+## 문서 갱신 규칙
+
+코드를 고치면 Stop 훅(`.claude/hooks/`)이 종료 전에 문서 검토를 한 번 요구한다. 코드 파일은 Edit·Write로만 고친다(Bash로 고치면 훅이 기록하지 못한다).
+
+| 바뀐 것 | 검토할 문서 |
+|---|---|
+| 패키지 추가·이동, 기술 스택·의존성, 빌드·실행 명령 | `CLAUDE.md`, `docs/architecture/c4-3-component.md` |
+| 외부 연동, 실행 환경, 컨테이너 구성 | `docs/architecture/c4-2-container.md`, `c4-1-context.md` |
+| 데이터 모델(Flyway), 흐름·정책·스케줄 | `docs/specs/` 설계 문서 |
+| ADR 결정과 다른 선택 | 새 ADR 작성 후 기존 ADR 상태를 `대체됨`으로 (채택된 ADR 본문은 고치지 않음) |
+| 단계 작업 완료 | `docs/roadmap.md` 체크와 현재 위치 |
+
+문서가 지금 코드와 다른 내용을 말하고 있으면 고친다. 이름 변경이나 내부 리팩터처럼 문서에 드러나지 않는 변경이면 고치지 않는다.
