@@ -1,0 +1,35 @@
+# C4 레벨 2: 컨테이너
+
+사용자의 Mac 한 대에서 실행되는 구성 요소.
+
+```mermaid
+flowchart TB
+    discord["Discord API<br/>(게이트웨이·REST)"]
+    notion["Notion API"]
+    velog["velog GraphQL API"]
+
+    subgraph mac["사용자 Mac"]
+        app["Spring Boot 애플리케이션<br/>Kotlin, JDA, launchd로 상시 실행"]
+        db[("PostgreSQL 16<br/>Docker")]
+        cli["claude CLI<br/>서브프로세스 (구독 로그인)"]
+    end
+
+    discord <-- "WebSocket 게이트웨이 + REST" --> app
+    app -- "JPA / JDBC" --> db
+    app -- "stdin 프롬프트 → JSON 출력" --> cli
+    cli -- "HTTPS" --> anthropic["Anthropic<br/>(Claude, 웹 검색)"]
+    app -- "HTTPS" --> notion
+    app -- "HTTPS" --> velog
+```
+
+| 컨테이너 | 기술 | 책임 |
+|---|---|---|
+| Spring Boot 애플리케이션 | Kotlin, Spring Boot, JDA, Coroutines | 모든 비즈니스 로직, 예약 작업, Discord 입출력 |
+| PostgreSQL | PostgreSQL 16, Flyway | 유일한 상태 저장소 (개념 그래프, 경험, 숙련도, 퀴즈, 대화, 로그) |
+| claude CLI | `claude -p` | LLM 호출. 호출마다 새 프로세스, 전용 빈 작업 디렉터리, 기본 도구 비활성 |
+
+## 운영 제약
+
+- Mac이 잠자기 상태이면 예약 작업이 실행되지 않는다. 깨어날 때 놓친 실행을 복구한다.
+- `claude -p` 동시 실행은 최대 2개로 제한한다.
+- 구독 사용량 한도를 Claude Code 작업과 공유한다.
