@@ -5,7 +5,7 @@
 | 번호 | 제목 | 상태 |
 |---|---|---|
 | [0001](0001-kotlin-spring-standalone.md) | Kotlin + Spring Boot 독립 프로젝트로 만든다 | 채택 |
-| [0002](0002-claude-cli-subscription.md) | LLM은 `claude` CLI 서브프로세스로 호출한다 | 채택 |
+| [0002](0002-claude-cli-subscription.md) | LLM은 `claude` CLI 서브프로세스로 호출한다 | 대체됨(0012) |
 | [0003](0003-discord-jda-private-server.md) | Discord 개인 서버를 인터페이스로, JDA를 사용한다 | 채택 |
 | [0004](0004-postgres-single-store.md) | PostgreSQL 단일 저장소, 그래프 DB를 쓰지 않는다 | 채택 |
 | [0005](0005-no-embeddings-controlled-vocabulary.md) | 임베딩 없이 통제 어휘 개념 태그로 검색한다 | 채택 |
@@ -15,3 +15,4 @@
 | [0009](0009-mastery-by-code.md) | 숙련도는 코드가 계산하고, 힌트 없는 응답만 인정한다 | 채택 |
 | [0010](0010-local-mac-hosting.md) | 사용자의 Mac에서 launchd로 상시 실행한다 | 채택 |
 | [0011](0011-documentation-approach.md) | 문서는 C4 + ADR, 작업 계획은 세션 안에서 관리한다 | 채택 |
+| [0012](0012-claude-cli-stream-json.md) | `claude` CLI를 `stream-json` 출력으로 호출한다 | 채택 |
