@@ -12,7 +12,7 @@
 - [x] `claude -p` 동작 확인
 
 ## 1. MVP — Discord 대화 + Claude 연동
-- [ ] 프로젝트 골격, Flyway V1
+- [x] 프로젝트 골격, Flyway V1
 - [ ] `ClaudeClient` (CLI 스파이크 포함)
 - [ ] Discord 게이트웨이
 - [ ] 튜터링 대화 (`/tutor`, `/end`, 유휴 종료)

@@ -21,7 +21,8 @@ com.growthassistant
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L)
 │   ├── knowledge        # 트랙, 개념 그래프
 │   ├── ingestion        # Notion·velog 수집, 증분 동기화
-│   └── scheduler        # 예약 작업, 놓친 실행 복구
+│   ├── scheduler        # 예약 작업, 놓친 실행 복구
+│   └── setting          # 실행 중 정해지는 키-값 설정 (app_setting)
 └── tutor                # 튜터 기능 모듈
     ├── conversation     # 튜터링 대화(스레드 세션)
     ├── quiz             # 출제·검증·채점

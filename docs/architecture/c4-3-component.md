@@ -11,6 +11,7 @@ flowchart TB
         knowledge["knowledge<br/>트랙, 개념 그래프"]
         ingestion["ingestion<br/>Notion·velog 수집"]
         scheduler["scheduler<br/>예약 작업, 놓친 실행 복구"]
+        setting["setting<br/>키-값 설정 (채널 ID 등)"]
     end
 
     subgraph tutor
@@ -24,6 +25,7 @@ flowchart TB
     discordGw --> quiz
     scheduler --> outreach
     scheduler --> ingestion
+    discordGw --> setting
 
     ingestion --> llm
     ingestion --> memory
