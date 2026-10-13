@@ -14,8 +14,8 @@
 ## 1. MVP — Discord 대화 + Claude 연동
 - [x] 프로젝트 골격, Flyway V1
 - [x] `ClaudeClient` (CLI 스파이크 포함)
-- [ ] Discord 게이트웨이
-- [ ] 튜터링 대화 (`/tutor`, `/end`, 유휴 종료)
+- [x] Discord 게이트웨이
+- [ ] 튜터링 대화 (`#튜터` 메시지로 자동 스레드, `/end`, 20분 유휴 종료)
 - [ ] 운영 (launchd, `docs/ops.md`)
 - [ ] 수동 점검 체크리스트 통과
 

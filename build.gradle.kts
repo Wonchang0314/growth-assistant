@@ -77,4 +77,6 @@ allOpen {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // Discord 접속 끄기 등 테스트 전용 설정 (src/test/resources/application-test.yml)
+    systemProperty("spring.profiles.active", "test")
 }

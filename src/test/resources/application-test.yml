@@ -1,0 +1,5 @@
+# 모든 테스트에 적용된다 (build.gradle.kts의 test 태스크가 이 프로필을 켠다).
+growth:
+  discord:
+    # 테스트는 Discord에 접속하지 않는다. 같은 토큰으로 실행 중인 봇과 충돌하지 않게 한다.
+    enabled: false

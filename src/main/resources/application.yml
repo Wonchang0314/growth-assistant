@@ -16,6 +16,11 @@ spring:
     locations: classpath:db/migration
 
 growth:
+  discord:
+    enabled: true
+    token: ${DISCORD_BOT_TOKEN:}
+    guild-id: ${DISCORD_GUILD_ID:0}
+    owner-user-id: ${DISCORD_OWNER_USER_ID:0}
   claude:
     executable: ${CLAUDE_EXECUTABLE:claude}
     work-dir: ${user.home}/.growth-assistant/claude-work
