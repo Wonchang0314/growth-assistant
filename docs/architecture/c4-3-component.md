@@ -26,6 +26,7 @@ flowchart TB
     scheduler --> outreach
     scheduler --> ingestion
     discordGw --> setting
+    llm -->|"인증 만료 알림 (AdminNotifier)"| discordGw
 
     ingestion --> llm
     ingestion --> memory

@@ -72,7 +72,10 @@ class ClaudeCliClientTest {
         callLogs = callLogs,
         objectMapper = ClaudeFixtures.objectMapper,
         clock = Clock.fixed(Instant.parse("2026-10-13T00:00:00Z"), ZoneOffset.UTC),
+        adminNotifier = { alerts += it },
     )
+
+    private val alerts = mutableListOf<String>()
 
     data class Answer(
         val answer: Int,
@@ -202,6 +205,23 @@ class ClaudeCliClientTest {
             assertEquals("TUTOR_CHAT", entry.purpose)
             assertEquals("sonnet", entry.model)
             assertEquals(false, entry.success)
+        }
+
+    @Test
+    fun `인증 오류는 한 번만 알리고, 성공한 뒤 다시 실패하면 또 알린다`() =
+        runTest {
+            val notLoggedIn = { ProcessResult(1, ClaudeFixtures.read("stream-error-not-logged-in.jsonl"), "") }
+            val runner = ScriptedRunner(notLoggedIn, notLoggedIn, success("stream-text-success.jsonl"), notLoggedIn)
+            val client = client(runner)
+            val request = ClaudeRequest(LlmPurpose.SESSION_SUMMARY, "q")
+
+            repeat(2) { assertThrows<ClaudeException> { client.complete(request) } }
+            assertEquals(1, alerts.size)
+
+            client.complete(request)
+            assertThrows<ClaudeException> { client.complete(request) }
+            assertEquals(2, alerts.size)
+            assertTrue("Not logged in" in alerts.first())
         }
 
     @Test

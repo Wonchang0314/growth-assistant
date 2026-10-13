@@ -15,7 +15,11 @@ class FakeClaudeClient : ClaudeClient {
     fun fail(
         type: ClaudeErrorType,
         message: String = type.name,
-    ) = apply { responses += { throw ClaudeException(type, message) } }
+    ) = fail(ClaudeException(type, message))
+
+    fun fail(exception: ClaudeException) = apply { responses += { throw exception } }
+
+    fun requestsFor(purpose: LlmPurpose) = requests.filter { it.purpose == purpose }
 
     override suspend fun complete(request: ClaudeRequest): String {
         requests += request

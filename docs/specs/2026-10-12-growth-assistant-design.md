@@ -186,7 +186,7 @@ quiz_attempt    id, question_id, user_answer, is_correct, score,
 
 ```
 conversation_session  id, discord_thread_id UNIQUE, topic, status (ACTIVE | CLOSED),
-                      summary, answer_revealed boolean, started_at, closed_at
+                      summary, summarized_message_id, answer_revealed boolean, started_at, closed_at
 conversation_message  id, session_id, role (USER | TUTOR), content, created_at
 session_concept       session_id, concept_id, signal (DISCUSSED | CONFUSED)
 outreach_log          id, type (MORNING_REVIEW | DAILY_TOPIC | WEEKLY_REPORT),
@@ -286,7 +286,9 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 메시지마다:
  1. 즉시 지연 응답("생각 중…")을 보낸다
  2. 맥락을 조립한다
-    - 세션 요약 + 최근 8개 메시지
+    - 세션 요약 + 요약되지 않은 최근 메시지 (8~15개)
+      · 응답 뒤 요약되지 않은 메시지가 16개 이상이면 최근 8개만 남기고 나머지를 요약에 합친다
+        (summarized_message_id까지 합쳤다고 기록)
     - 관련 개념 (먼저 별칭 매칭, 애매하면 Claude가 판단)
     - 그 개념의 숙련도, 약한 선수 개념, 관련 경험 카드
  3. Claude를 호출한다 (웹 검색 허용, 교수 규칙 적용 — 7.5 참고)

@@ -32,12 +32,25 @@ class ConversationSession(
     var summary: String? = null
         protected set
 
+    /** [summary]에 합쳐진 마지막 메시지 ID. 이후 메시지만 다음 요약 대상이다. */
+    var summarizedMessageId: Long? = null
+        protected set
+
     @Column(nullable = false)
     var answerRevealed: Boolean = false
         protected set
 
     var closedAt: Instant? = null
         protected set
+
+    fun updateSummary(
+        summary: String,
+        untilMessageId: Long,
+    ) {
+        check(status == ConversationStatus.ACTIVE) { "이미 종료된 세션이다: $id" }
+        this.summary = summary
+        this.summarizedMessageId = untilMessageId
+    }
 
     fun close(
         summary: String?,

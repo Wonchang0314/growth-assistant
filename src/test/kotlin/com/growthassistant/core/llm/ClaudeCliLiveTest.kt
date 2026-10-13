@@ -47,6 +47,7 @@ class ClaudeCliLiveTest {
                     callLogs = mockk(relaxed = true) { every { save(any()) } answers { firstArg() } },
                     objectMapper = ClaudeFixtures.objectMapper,
                     clock = Clock.systemUTC(),
+                    adminNotifier = {},
                 )
 
             val text = client.complete(ClaudeRequest(LlmPurpose.SESSION_SUMMARY, "1+1은? 숫자만 답한다."))

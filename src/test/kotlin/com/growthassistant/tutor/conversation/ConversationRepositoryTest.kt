@@ -57,17 +57,21 @@ class ConversationRepositoryTest
         }
 
         @Test
-        fun `최근 메시지 8개를 최신순으로 가져온다`() {
+        fun `요약 이후 메시지를 시간순으로, 마지막 메시지를 하나 가져온다`() {
             val session = sessions.save(ConversationSession(discordThreadId = 333L, topic = null, startedAt = now))
-            (1..10).forEach { i ->
-                val role = if (i % 2 == 1) MessageRole.USER else MessageRole.TUTOR
-                messages.save(ConversationMessage(session.id!!, role, "메시지 $i", now.plusSeconds(i.toLong())))
-            }
+            val saved =
+                (1..10).map { i ->
+                    val role = if (i % 2 == 1) MessageRole.USER else MessageRole.TUTOR
+                    messages.save(ConversationMessage(session.id!!, role, "메시지 $i", now.plusSeconds(i.toLong())))
+                }
+            session.updateSummary("1~4 요약", untilMessageId = saved[3].id!!)
             em.flush()
             em.clear()
 
-            val recent = messages.findTop8BySessionIdOrderByIdDesc(session.id!!)
+            val reloaded = sessions.findById(session.id!!).orElseThrow()
+            val pending = messages.findAllBySessionIdAndIdGreaterThanOrderByIdAsc(session.id!!, reloaded.summarizedMessageId!!)
 
-            assertEquals((10 downTo 3).map { "메시지 $it" }, recent.map { it.content })
+            assertEquals((5..10).map { "메시지 $it" }, pending.map { it.content })
+            assertEquals("메시지 10", messages.findTopBySessionIdOrderByIdDesc(session.id!!)?.content)
         }
     }

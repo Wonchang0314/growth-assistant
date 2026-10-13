@@ -1,5 +1,6 @@
 package com.growthassistant.core.llm
 
+import com.growthassistant.core.discord.AdminNotifier
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component
 import tools.jackson.databind.ObjectMapper
 import java.nio.file.Files
 import java.time.Clock
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.reflect.KClass
 import kotlin.time.toKotlinDuration
 
@@ -22,9 +24,13 @@ class ClaudeCliClient(
     private val callLogs: LlmCallLogRepository,
     private val objectMapper: ObjectMapper,
     private val clock: Clock,
+    private val adminNotifier: AdminNotifier,
 ) : ClaudeClient {
     private val log = LoggerFactory.getLogger(javaClass)
     private val permits = Semaphore(properties.maxConcurrency)
+
+    /** 인증 오류를 이미 알렸는지. 다시 로그인해 호출이 성공하면 풀린다. */
+    private val authAlerted = AtomicBoolean(false)
 
     override suspend fun complete(request: ClaudeRequest): String = callWithTimeoutRetry(request, jsonSchema = null) { it.result }
 
@@ -86,12 +92,14 @@ class ClaudeCliClient(
                 val output = parser.parse(process.stdout)
                 output.error()?.let { throw it }
                 val value = convert(output)
+                authAlerted.set(false)
                 record(request, purpose, startedAt, inputChars, output.result.length, error = null)
                 value
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ClaudeException) {
                 record(request, purpose, startedAt, inputChars, 0, error = "${e.type}: ${e.message}")
+                if (e.type == ClaudeErrorType.AUTH) alertAuthOnce(e)
                 throw e
             } catch (e: Exception) {
                 record(request, purpose, startedAt, inputChars, 0, error = "${ClaudeErrorType.UNKNOWN}: $e")
@@ -144,6 +152,18 @@ class ClaudeCliClient(
             throw e
         } catch (e: Exception) {
             log.warn("llm_call_log 저장 실패", e)
+        }
+    }
+
+    /** 인증 오류는 호출마다 반복되므로 `#관리`에는 한 번만 알린다 (설계 문서 9장). */
+    private suspend fun alertAuthOnce(e: ClaudeException) {
+        if (!authAlerted.compareAndSet(false, true)) return
+        try {
+            adminNotifier.notify("Claude CLI 인증 오류: ${e.message}\n봇을 실행하는 기기에서 `claude`를 실행해 다시 로그인하면 이후 호출부터 정상으로 돌아옵니다.")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.warn("인증 오류 알림 실패", e)
         }
     }
 
