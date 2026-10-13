@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: growth-assistant
+  config:
+    # 비밀값(봇 토큰 등)은 레포 밖 .env에 둔다. docker compose도 같은 파일을 읽는다.
+    import: optional:file:.env[.properties]
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:growth}
+    username: ${POSTGRES_USER:growth}
+    password: ${POSTGRES_PASSWORD:growth}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration

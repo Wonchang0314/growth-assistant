@@ -9,6 +9,7 @@
 - Discord: JDA + jda-ktx, Kotlin Coroutines
 - LLM: `claude` CLI 서브프로세스
 - 테스트: JUnit5, MockK, Testcontainers
+- 코드 스타일: ktlint (`build`에 포함)
 
 ## 패키지 구조
 
@@ -30,8 +31,10 @@ com.growthassistant
 
 ## 명령
 
+- 처음 한 번: `cp .env.example .env` 후 값 채우기
 - DB 실행: `docker compose up -d`
-- 빌드·테스트: `./gradlew build`
+- 빌드·테스트: `./gradlew build` (테스트 DB는 Testcontainers가 띄우므로 Docker만 실행 중이면 된다)
+- 스타일 자동 수정: `./gradlew ktlintFormat`
 - 실행: `./gradlew bootRun`
 
 ## 문서

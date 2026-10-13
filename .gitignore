@@ -1,2 +1,22 @@
 .claude/state/
 .claude/settings.local.json
+
+# 비밀값
+.env
+
+# Gradle·Kotlin
+.gradle/
+build/
+.kotlin/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+out/
+bin/
+
+# 로그
+logs/
+*.log
