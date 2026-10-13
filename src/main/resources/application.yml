@@ -14,3 +14,17 @@ spring:
       ddl-auto: validate
   flyway:
     locations: classpath:db/migration
+
+growth:
+  claude:
+    executable: ${CLAUDE_EXECUTABLE:claude}
+    work-dir: ${user.home}/.growth-assistant/claude-work
+    max-concurrency: 2
+    purposes:
+      tutor-chat:
+        model: sonnet
+        timeout: 180s
+        web-access: true
+      session-summary:
+        model: sonnet
+        timeout: 120s

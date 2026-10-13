@@ -1,19 +1,21 @@
 # `claude` CLI 응답 픽스처
 
-2026-10-13, `claude` 2.1.296(WSL2 Ubuntu)에서 실제로 실행해 저장했다. 모든 호출은 빈 작업 디렉터리에서 아래 공통 옵션으로 실행했다.
+2026-10-13, `claude` 2.1.296(WSL2 Ubuntu)에서 실제로 실행해 저장했다. 모든 호출은 빈 작업 디렉터리에서 아래 공통 옵션으로 실행했다 (ADR-0012).
 
 ```
-claude -p --model <모델> --tools "" --setting-sources "" --strict-mcp-config --no-session-persistence
+claude -p --output-format stream-json --verbose --model <모델>
+       --tools "" --setting-sources "" --strict-mcp-config --no-session-persistence
 ```
+
+출력은 줄마다 JSON 이벤트 하나다. 마지막 `result` 이벤트는 `--output-format json`의 출력과 같은 내용이다.
 
 | 파일 | 추가 옵션·조건 | 확인한 점 |
 |---|---|---|
-| `text-success.json` | `--output-format json` | 응답 텍스트는 `result`. `is_error: false` |
-| `schema-success.json` | `--json-schema` | 객체는 `structured_output`, `result`에는 같은 내용의 JSON 문자열. `num_turns`가 2 |
-| `websearch-schema-success.json` | `--tools "WebSearch,WebFetch" --allowedTools ...` + `--system-prompt` + `--json-schema {reply, sources}` | 출처를 `sources` 배열로 받는다. 스키마 없이 쓰면 출처는 본문 텍스트로만 온다 |
-| `error-not-logged-in.json` | 로그인 정보가 없는 `HOME` | 종료 코드 1, `is_error: true`, `subtype`은 그래도 `"success"`, `api_error_status: null`, `result`가 `"Not logged in · Please run /login"` |
-| `error-unknown-model.json` | `--model no-such-model-x` | 종료 코드 1, `is_error: true`, `api_error_status: 404`. stderr에 `[claude-code:unrecognized_model]` |
-| `stream-text-success.jsonl` | `--output-format stream-json --verbose` | `system/init`(도구·MCP 목록) → `assistant` → `rate_limit_event`(한도 상태, `resetsAt`) → `result` |
+| `stream-text-success.jsonl` | 없음 | `system/init`(도구·MCP 목록) → `assistant` → `rate_limit_event`(`status: allowed`, `resetsAt`) → `result`. 응답 텍스트는 `result.result` |
+| `stream-schema-success.jsonl` | `--json-schema` | 객체는 `result.structured_output`, `result.result`에는 같은 내용의 JSON 문자열 |
+| `stream-websearch-schema-success.jsonl` | `--tools "WebSearch,WebFetch" --allowedTools ...` + `--system-prompt` + `--json-schema {reply, sources}` | 도구 호출이 `assistant`/`user` 이벤트로 오가고, 출처를 `sources` 배열로 받는다. 스키마 없이 쓰면 출처는 본문 텍스트로만 온다 |
+| `stream-error-not-logged-in.jsonl` | 로그인 정보가 없는 `HOME` | 종료 코드 1, `rate_limit_event` 없음, `is_error: true`, `subtype`은 그래도 `"success"`, `api_error_status: null`, `result`가 `"Not logged in · Please run /login"` |
+| `stream-error-unknown-model.jsonl` | `--model no-such-model-x` | 종료 코드 1, `is_error: true`, `api_error_status: 404`. stderr에 `[claude-code:unrecognized_model]` |
 
 ## 재현하지 못한 것
 

@@ -16,3 +16,4 @@
 | [0010](0010-local-mac-hosting.md) | 사용자의 Mac에서 launchd로 상시 실행한다 | 채택 |
 | [0011](0011-documentation-approach.md) | 문서는 C4 + ADR, 작업 계획은 세션 안에서 관리한다 | 채택 |
 | [0012](0012-claude-cli-stream-json.md) | `claude` CLI를 `stream-json` 출력으로 호출한다 | 채택 |
+| [0013](0013-feature-packages-pragmatic-hexagonal.md) | 기능별 패키지에 외부 경계만 포트·어댑터로 분리한다 | 채택 |

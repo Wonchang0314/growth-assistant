@@ -30,12 +30,15 @@ com.growthassistant
     └── outreach         # 아침 복습, 저녁 주제, 주간 리포트
 ```
 
+기능 패키지 안에 도메인 모델(JPA 엔티티 겸용), Spring Data 저장소, 유스케이스를 두고, Discord 입력 어댑터는 그 기능의 `discord/` 하위 패키지에 둔다. 유스케이스는 JDA·프로세스 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0013).
+
 ## 명령
 
 - 처음 한 번: `cp .env.example .env` 후 값 채우기
 - DB 실행: `docker compose up -d`
 - 빌드·테스트: `./gradlew build` (테스트 DB는 Testcontainers가 띄우므로 Docker만 실행 중이면 된다)
 - 스타일 자동 수정: `./gradlew ktlintFormat`
+- 실제 `claude` CLI 확인(구독 사용량 소모, 기본 건너뜀): `CLAUDE_LIVE=1 ./gradlew test --tests '*ClaudeCliLiveTest'`
 - 실행: `./gradlew bootRun`
 
 ## 문서
