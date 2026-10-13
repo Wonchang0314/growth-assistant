@@ -40,10 +40,12 @@ com.growthassistant
 - 스타일 자동 수정: `./gradlew ktlintFormat`
 - 실제 `claude` CLI 확인(구독 사용량 소모, 기본 건너뜀): `CLAUDE_LIVE=1 ./gradlew test --tests '*ClaudeCliLiveTest'`
 - 실행: `./gradlew bootRun`
+- 운영(Mac mini): 처음 `ops/install.sh`, 배포 `ops/deploy.sh` (`docs/ops.md`). 봇은 한 곳에서만 실행한다
 
 ## 문서
 
 - 진행 상태: `docs/roadmap.md`
+- 운영 가이드: `docs/ops.md`
 - 기능 설계: `docs/specs/`
 - 아키텍처(C4): `docs/architecture/`
 - 결정 기록(ADR): `docs/adr/`

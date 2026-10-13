@@ -16,7 +16,7 @@
 - [x] `ClaudeClient` (CLI 스파이크 포함)
 - [x] Discord 게이트웨이
 - [x] 튜터링 대화 (`#튜터` 메시지로 자동 스레드, `/end`, 20분 유휴 종료)
-- [ ] 운영 (launchd, `docs/ops.md`)
+- [ ] 운영 (launchd, `docs/ops.md`) — 파일 준비 완료, Mac mini에서 `ops/install.sh` 실행·확인 남음
 - [ ] 수동 점검 체크리스트 통과
 
 ## 2. 기억 — Notion·velog 수집, 경험 카드, 개념

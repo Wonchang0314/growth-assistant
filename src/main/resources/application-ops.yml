@@ -1,0 +1,16 @@
+# 운영(Mac mini, launchd) 전용. SPRING_PROFILES_ACTIVE=ops로 켠다 (ops/install.sh).
+spring:
+  main:
+    banner-mode: "off"
+
+logging:
+  file:
+    name: ${user.home}/.growth-assistant/logs/growth-assistant.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 14
+      total-size-cap: 500MB
+  threshold:
+    # launchd가 표준출력을 따로 파일에 쌓으므로 콘솔 로그는 끈다. 시작 전 오류는 launchd.err.log에 남는다.
+    console: "OFF"
