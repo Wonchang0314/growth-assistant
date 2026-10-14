@@ -26,7 +26,7 @@
 - [x] `core/llm` (`ClaudeClient`, CLI 클라이언트)
 - [x] `core/discord` (게이트웨이, 채널 자동 준비, 응답 분할)
 - [x] `tutor/conversation` (튜터링 대화, `/end`, 유휴 종료)
-- [ ] 운영 스크립트, `CLAUDE.md`·C4 문서·훅 갱신
+- [x] 운영 스크립트(릴리스 디렉터리 배포, 회전 파일 로그), `CLAUDE.md`·C4 문서·운영 가이드 갱신
 - [ ] 수동 점검 체크리스트 통과 후 `main` 병합
 
 ## 2. 기억 — Notion·velog 수집, 경험 카드, 개념

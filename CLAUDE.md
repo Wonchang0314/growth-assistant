@@ -24,6 +24,7 @@ src/
 │   ├── config           # 환경 변수 검증 (zod)
 │   ├── db               # PostgreSQL 연결, 시작 시 마이그레이션 (migrations/)
 │   ├── discord          # discord.js 클라이언트, 이벤트 라우팅, 컴포넌트 ID 규칙
+│   ├── logging          # 운영용 회전 파일 로거 (LOG_DIR)
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L)
 │   ├── knowledge        # 트랙, 개념 그래프

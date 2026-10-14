@@ -47,7 +47,9 @@ describe('OsClaudeProcessRunner', () => {
   });
 
   it('실행 파일이 없으면 오류를 던진다', async () => {
-    await expect(runner.run(['no-such-command-x'], '', workDir, 5_000)).rejects.toThrow(/ENOENT/);
+    // 절대 경로로 둔다. 이름만 주면 PATH를 뒤지는데, WSL에서는 PATH의 Windows 경로(/mnt/c, 9P)에서
+    // exec가 멈춰 spawn이 이벤트 루프를 막는 경우가 있다 (2026-10-14 확인, 운영 macOS와는 무관).
+    await expect(runner.run([join(workDir, 'no-such-command-x')], '', workDir, 5_000)).rejects.toThrow(/ENOENT/);
   });
 });
 
