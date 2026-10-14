@@ -226,6 +226,7 @@ study_note           id, topic, summary, confused_points text[],
                      answer_revealed boolean, created_at
                      (대화 중 Claude가 record_study_note 도구로 남긴다)
 study_note_concept   note_id, concept_id, signal (DISCUSSED | CONFUSED)
+                     (개념 그래프와 함께 2단계에서 추가. 1단계는 study_note만)
 outreach_log         id, type (MORNING_REVIEW | DAILY_TOPIC | WEEKLY_REPORT),
                      run_date, requested_at, engaged_at, payload jsonb
                      UNIQUE (type, run_date)
@@ -428,10 +429,11 @@ MCP 서버의 `instructions`(연결 시 Claude에 전달)와 튜터용 Claude �
 
 ### 7.6 로컬 MCP 구성
 
-- **연결:** Claude Desktop 설정에 MCP 서버를 등록한다(`claude_desktop_config.json` 또는 `.mcpb` 확장). Desktop이 `node <배포 경로>/dist/mcp-stdio.js`를 띄우고 stdio로 통신한다. 환경 변수(DB 주소, `claude` 실행 파일 경로)는 설정에 넣거나 `.env`에서 읽는다.
+- **SDK:** 공식 TypeScript SDK v2(`@modelcontextprotocol/server`)를 쓴다. v1 `@modelcontextprotocol/sdk`를 잇는 안정 버전이고, 2024-11-05 이후 프로토콜 버전을 모두 협상할 수 있다.
+- **연결:** Claude Desktop 설정에 MCP 서버를 등록한다(`claude_desktop_config.json` 또는 `.mcpb` 확장). Desktop이 `node <배포 경로>/dist/mcp-stdio.js`를 띄우고 stdio로 통신한다. 환경 변수(DB 주소, `claude` 실행 파일 경로)는 설정에 넣거나 `.env`에서 읽는다. Desktop이 띄우는 프로세스의 작업 디렉터리는 프로젝트 루트가 아닐 수 있으므로 `.env` 경로를 `GROWTH_ENV_FILE`로 준다.
 - **실행 위치:** 개발 중인 작업 트리가 아니라 빌드된 릴리스 디렉터리를 가리킨다. 코드를 고치는 중에 Desktop의 도구가 깨지지 않게 하기 위해서다(배포 방식은 `docs/ops.md`).
 - **프로세스:** Desktop이 띄우고 끈다. 시작할 때 DB 마이그레이션은 하지 않고, 마이그레이션이 덜 됐으면 도구가 오류를 돌려준다. 마이그레이션은 배포 때 한다.
-- **로그:** 표준출력은 MCP 메시지 통로라 쓰지 않는다. 로그는 회전 파일에 쓴다.
+- **로그:** 표준출력은 MCP 메시지 통로라 쓰지 않는다. 로그는 `LOG_DIR/mcp`의 회전 파일에 쓴다(상시 실행 앱과 디렉터리를 나눈다). `LOG_DIR`가 없으면 표준에러에 쓴다(Claude Desktop의 MCP 로그에 남는다).
 - **도구 설계**
   - 도구 이름은 동사로 시작하고, 설명에 "언제 부르는지"를 쓴다(Claude가 고르는 근거).
   - 입력은 zod 스키마로 정의하고 검증한다.

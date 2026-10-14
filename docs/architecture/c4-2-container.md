@@ -9,11 +9,16 @@ flowchart TB
     velog["velog GraphQL API"]
 
     subgraph mac["사용자 Mac"]
+        desktop["Claude Desktop<br/>(대화, Claude 앱 모델)"]
+        mcpProc["MCP 서버 프로세스<br/>node dist/mcp-stdio.js<br/>Claude Desktop이 띄우고 끔"]
         app["NestJS 애플리케이션<br/>TypeScript, discord.js, launchd로 상시 실행"]
         db[("PostgreSQL 16<br/>Docker")]
         cli["claude CLI<br/>서브프로세스 (구독 로그인)"]
     end
 
+    desktop <-- "stdio: JSON-RPC 2.0 (MCP)" --> mcpProc
+    desktop -- "HTTPS" --> anthropic
+    mcpProc -- "Drizzle / node-postgres" --> db
     discord <-- "WebSocket 게이트웨이 + REST" --> app
     app -- "Drizzle / node-postgres" --> db
     app -- "stdin 프롬프트 → JSON 출력" --> cli
@@ -24,7 +29,8 @@ flowchart TB
 
 | 컨테이너 | 기술 | 책임 |
 |---|---|---|
-| NestJS 애플리케이션 | TypeScript, Node.js 24, NestJS 12, discord.js | 모든 비즈니스 로직, 예약 작업, Discord 입출력 |
+| MCP 서버 프로세스 | 같은 NestJS 코드, 진입점 `mcp-stdio.ts`, MCP TypeScript SDK v2 | Claude Desktop의 도구 호출을 받아 유스케이스 실행. 시작할 때 마이그레이션하지 않는다 (ADR-0018) |
+| NestJS 애플리케이션 | TypeScript, Node.js 24, NestJS 12, discord.js | 예약 작업, Discord 입출력 (Discord는 1단계에서 제거, 상시 실행은 서버 예약 작업이 생길 때) |
 | PostgreSQL | PostgreSQL 16, drizzle-kit 마이그레이션 | 유일한 상태 저장소 (개념 그래프, 경험, 숙련도, 퀴즈, 대화, 로그) |
 | claude CLI | `claude -p` | LLM 호출. 호출마다 새 프로세스, 전용 빈 작업 디렉터리, 기본 도구 비활성 |
 
