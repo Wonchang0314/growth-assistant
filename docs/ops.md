@@ -68,6 +68,7 @@ pmset -g   # 확인
 - `sleep 0`: 시스템 잠자기 끔
 - `autorestart 1`: 정전 뒤 전원이 돌아오면 자동으로 켬
 - `womp 1`: 네트워크로 깨우기
+- 본체 전원 버튼을 짧게 누르면 잠자기에 들어간다(`Sleep On Power Button 1`). 모니터 전원만 끈다.
 
 ### FileVault와 재부팅
 

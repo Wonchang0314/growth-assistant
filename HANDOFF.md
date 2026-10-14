@@ -1,8 +1,20 @@
 # 핸드오프: NestJS 전환 이후, 로컬 MCP 1단계 시작 전
 
-- 작성: 2026-10-14 (Windows PC·WSL), 갱신: 2026-10-14 (Mac)
+- 작성: 2026-10-14 (Windows PC·WSL), 갱신: 2026-10-15 (맥미니)
 - 이 파일은 기기를 옮기려고 임시로 커밋했다. 코드 이해도 점검 질문을 마치면 지운다.
 - **방향 전환 (ADR-0018):** Discord → PWA(ADR-0017) → Claude 앱 + MCP 서버로 바꿨다. 먼저 맥미니 Claude Desktop에 로컬로 붙여 검증한다. 실제 Discord 점검과 PWA 구현은 하지 않았다. 다음 작업은 `docs/roadmap.md` 1단계를 따른다.
+
+## ADR-0019 (2026-10-15 작성, 브랜치 `docs/adr-0019-core-learning-first`)
+
+- Cowork 예약 작업은 로컬 MCP를 못 쓰고, 클라우드 루틴은 로컬 MCP에 닿지 않는다 → 먼저 말 걸기는 4단계로 미루고 실행 방식은 핵심 기능 검증 뒤 정한다. 알림·인증·보안은 5단계.
+- 퀴즈는 객관식·빈칸만 먼저 만든다(코드가 즉시 채점). 서술형(판단·트레이드오프, 면접형 서술)은 설계 문서 12장으로 미뤘다.
+- 설계 문서에 약점 반영 출제(오답 보기마다 오개념, 지난 오개념·헷갈린 점을 출제 프롬프트에)와 변형 문제(`key_point`, `variant_of`)를 넣었다.
+- 다음: 1단계 첫 작업. stdio MCP 진입점(`mcp-stdio.ts`), `core/mcp`, 첫 도구(`get_learning_context`, `record_study_note`)
+
+## 맥미니 상태 (2026-10-15 확인)
+
+- 전원 설정: `sleep 0`(시스템 잠자기 안 함), `displaysleep 10`, `autorestart 1`. 모니터 전원만 끄면 맥미니는 계속 켜져 있다. 본체 전원 버튼을 짧게 누르면 잠자기에 들어가므로(`Sleep On Power Button 1`) 누르지 않는다.
+- 이 세션은 Remote Control을 켜 두어 휴대폰 Claude 앱에서도 이어갈 수 있다.
 
 ## 먼저 읽을 것
 
