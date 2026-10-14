@@ -1,6 +1,6 @@
 # ADR-0014: NestJS + TypeScript로 전환한다
 
-- 상태: 채택
+- 상태: 일부 대체됨(ADR-0017: Discord, HTTP 서버 없이 실행)
 - 날짜: 2026-10-14
 
 ## 맥락

@@ -12,7 +12,7 @@
 - 테스트: Vitest, Testcontainers
 - 코드 스타일: ESLint(typescript-eslint) + Prettier (`npm run check`에 포함)
 
-**NestJS 전환 중 (ADR-0014):** Kotlin 구현은 `main` 브랜치에 있다. 옮길 때 `git show main:<경로>`로 참고한다. 진행 상황은 `docs/roadmap.md` 1.5단계.
+**인터페이스 전환 중 (ADR-0017):** Discord 대신 PWA를 쓰고 앱은 HTTP API 서버로 바꾼다. PWA에서 튜터링 대화가 동작할 때까지 Discord 코드는 남겨 둔다. 이전 Kotlin 구현은 커밋 `a7bc8c5`에 있다(`git show a7bc8c5:<경로>`).
 
 ## 모듈 구조
 

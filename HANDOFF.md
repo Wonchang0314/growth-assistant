@@ -1,13 +1,14 @@
 # 핸드오프: Mac mini에서 NestJS 전환 마무리
 
 - 작성: 2026-10-14 (Windows PC·WSL에서 작성, 다음 세션은 Mac mini에서 이어감)
-- 이 파일은 기기를 옮기려고 임시로 커밋했다. 아래 "남은 작업"을 마치고 `main`에 병합할 때 지우고 커밋한다.
+- 이 파일은 기기를 옮기려고 임시로 커밋했다. 아래 "남은 작업"을 마치고 1단계(PWA + HTTP API) 재정의가 끝나면 지운다.
+- **방향 전환 (ADR-0017):** Discord 대신 PWA + HTTP API로 바꾸기로 했다. 그래서 실제 Discord 점검은 하지 않고 `migrate/nestjs`를 PR로 `main`에 병합했다.
 
 ## 먼저 읽을 것
 
 1. `CLAUDE.md`: 스택(TypeScript·NestJS), 모듈 구조, 명령, 문서 갱신 규칙
-2. `docs/roadmap.md`: 1.5단계(NestJS 전환) 진행 상태
-3. `docs/adr/0014-nestjs-typescript.md`, `0015-nest-feature-modules.md`, `0016-fsrs-ts-fsrs.md`: 전환 결정
+2. `docs/roadmap.md`: 진행 상태 (지금은 1단계 재정의)
+3. `docs/adr/0014-nestjs-typescript.md`, `0015-nest-feature-modules.md`, `0016-fsrs-ts-fsrs.md`: 전환 결정, `0017-pwa-http-api.md`: 인터페이스 전환
 4. `docs/ops.md`: Mac mini 설치·배포·로그
 
 ## 작업 방식 (사용자 합의)
@@ -20,7 +21,7 @@
 
 ## 지금까지 된 것 (브랜치 `migrate/nestjs`)
 
-Kotlin + Spring Boot 구현을 NestJS + TypeScript로 다시 작성했다. Kotlin 원본은 `main` 브랜치에 있다(`git show main:<경로>`).
+Kotlin + Spring Boot 구현을 NestJS + TypeScript로 다시 작성했다. Kotlin 원본은 커밋 `a7bc8c5`에 있다(`git show a7bc8c5:<경로>`).
 
 | 단계 | 커밋 | 내용 |
 |---|---|---|
@@ -39,27 +40,10 @@ Kotlin + Spring Boot 구현을 NestJS + TypeScript로 다시 작성했다. Kotli
 ## 남은 작업 (Mac mini)
 
 1. **준비:** `brew install node@24`, Docker 실행, `claude` 로그인 확인.
-2. **코드:** `git fetch && git switch migrate/nestjs`, `.env` 확인(값은 Kotlin 때와 같다), `npm ci`, `npm run check`.
+2. **코드:** `git switch main && git pull`, `.env` 확인(값은 Kotlin 때와 같다), `npm ci`, `npm run check`.
 3. **CLI 확인:** `CLAUDE_LIVE=1 npx vitest run claude-cli.live` (구독 사용량 조금 소모).
 4. **DB:** Mac mini에서 Kotlin 버전을 실행한 적이 있으면 볼륨에 Flyway 테이블이 남아 앱이 시작하지 못한다. 사용자에게 확인한 뒤 `docker compose down -v && docker compose up -d`.
-5. **실제 Discord 점검:** `npm run dev`로 띄우고 아래 체크리스트를 확인한다. 개발 PC(WSL)의 봇이 꺼져 있는지 먼저 확인한다(봇은 한 곳에서만 실행).
-6. **병합:** 체크리스트를 통과하면 `main`에 병합한다. 이때 `CLAUDE.md`의 "NestJS 전환 중" 문단, `README.md` 상태 문구, `docs/roadmap.md` 현재 위치와 1.5단계 체크를 정리하고 이 파일을 지운다.
-7. **운영 등록:** `ops/install.sh` → `launchctl print gui/$(id -u)/com.growthassistant.bot`로 상태 확인 → `tail -F ~/.growth-assistant/logs/current.log`. 체크리스트를 한 번 더 확인하고 로드맵 1단계 "운영"·"수동 점검" 항목을 체크한다.
-
-### 수동 점검 체크리스트
-
-- [ ] 시작 로그에 `Discord 준비 완료: 서버 …, 명령 /end`가 찍힌다
-- [ ] 채널 5개(`#복습-퀴즈` `#튜터` `#리포트` `#개념-관리` `#관리`)가 있다. 기존 채널을 그대로 쓰고 새로 만들지 않는다(`app_setting`에 저장된 ID, 또는 같은 이름)
-- [ ] `#튜터`에 질문을 쓰면 첫 줄을 이름으로 하는 스레드가 생기고 "생각 중…"이 답으로 바뀐다
-- [ ] 웹 검색을 쓴 답에 **출처** 목록이 붙고 링크 미리보기가 뜨지 않는다
-- [ ] 스레드에서 이어 물으면 앞 대화를 기억한다. 메시지를 빠르게 두 번 보내도 둘 다 차례로 답한다
-- [ ] 2000자가 넘는 답(예: 긴 코드 예제 요청)이 나뉘어 오고, 코드 블록이 조각마다 닫히고 다시 열린다
-- [ ] 스레드에서 `/end` → 요약과 함께 종료. 같은 스레드에 다시 쓰면 종료 안내가 나온다
-- [ ] `#튜터` 채널 자체에서 `/end` → 본인에게만 보이는 사용 안내
-- [ ] 20분 동안 말이 없으면 스레드에 "20분 동안 대화가 없어 종료했습니다"와 요약이 남는다
-- [ ] 소유자가 아닌 계정이 `/end`를 쓰면 "소유자만 쓸 수 있습니다"(본인에게만 보임)
-- [ ] `llm_call_log`에 호출이 쌓인다: `docker compose exec -T postgres psql -U growth growth -c 'select purpose, model, success, duration_ms from llm_call_log order by id desc limit 5'`
-- [ ] (선택) `claude` 로그아웃 상태에서 질문 → 스레드에 로그인 안내, `#관리`에 인증 오류 알림이 한 번만 온다. 다시 로그인하면 정상
+5. **운영 등록은 미룬다:** 지금 등록하면 Discord 봇이 상시 실행된다. 1단계(PWA + HTTP API)에서 대화가 동작한 뒤 `ops/install.sh`로 등록한다.
 
 ## 코드 이해도 점검 질문
 
