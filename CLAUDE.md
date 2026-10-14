@@ -20,6 +20,7 @@
 src/
 ├── core                 # 여러 기능 모듈이 공유하는 기반
 │   ├── config           # 환경 변수 검증 (zod)
+│   ├── db               # PostgreSQL 연결, 시작 시 마이그레이션 (migrations/)
 │   ├── discord          # discord.js 클라이언트, 이벤트 라우팅, 컴포넌트 ID 규칙
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L)
@@ -34,7 +35,7 @@ src/
     └── outreach         # 아침 복습, 저녁 주제, 주간 리포트
 ```
 
-기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), Drizzle 저장소, 유스케이스(서비스)를 둔다. Discord 입력 어댑터는 그 기능의 `discord/` 폴더에 둔다. 유스케이스는 discord.js·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
+기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), 테이블 정의(`*.schema.ts`), Drizzle 저장소, 유스케이스(서비스)를 둔다. Discord 입력 어댑터는 그 기능의 `discord/` 폴더에 둔다. 유스케이스는 discord.js·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, DB가 필요한 테스트는 `*.db.spec.ts`(Testcontainers 컨테이너 하나를 함께 쓰고 차례로 실행)로 둔다. 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
 
 ## 명령
 
@@ -42,7 +43,8 @@ src/
 - DB 실행: `docker compose up -d`
 - 의존성 설치: `npm ci`
 - 전체 검사: `npm run check` (타입 검사, 린트, 형식, 테스트. 테스트 DB는 Testcontainers가 띄우므로 Docker만 실행 중이면 된다)
-- 테스트만: `npm test`, 감시 모드 `npm run test:watch`
+- 테스트만: `npm test` (단위만 `npx vitest --project unit`, Docker 불필요), 감시 모드 `npm run test:watch`
+- 마이그레이션 생성: `*.schema.ts`를 고친 뒤 `npm run db:generate -- --name <이름>`. 앱이 시작할 때 적용한다. DB 둘러보기: `npm run db:studio`
 - 스타일 자동 수정: `npm run format`, `npx eslint --fix .`
 - 실행: `npm run dev` (변경 감시) / `npm run build && npm start`
 - 운영(Mac mini): 처음 `ops/install.sh`, 배포 `ops/deploy.sh` (`docs/ops.md`). 봇은 한 곳에서만 실행한다

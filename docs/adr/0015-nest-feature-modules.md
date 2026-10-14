@@ -18,16 +18,20 @@ ADR-0013의 원칙(기능별로 모으고, 바뀔 수 있거나 테스트에서 
 src/tutor/conversation/
 ├── conversation.module.ts
 ├── session.ts                # 도메인 타입과 규칙(순수 함수). 상태 변경은 여기 함수로만 한다
+├── conversation.schema.ts    # 이 기능의 Drizzle 테이블 정의
 ├── conversation.repository.ts  # Drizzle 쿼리. 행 ↔ 도메인 타입 변환
 ├── conversation.service.ts   # 유스케이스
 └── discord/                  # 입력 어댑터. discord.js 이벤트를 값으로 바꿔 유스케이스를 부른다
 src/core/llm/
 ├── claude.client.ts          # 출력 포트 (추상 클래스, Nest 주입 토큰 겸용)
 └── claude-cli.client.ts …    # 출력 어댑터
-src/core/db/schema.ts         # Drizzle 테이블 정의. 마이그레이션 생성 기준
+src/core/db/
+├── db.module.ts              # 연결, 시작 시 마이그레이션, DB 주입 토큰
+└── migrations/               # drizzle-kit이 src/**/*.schema.ts를 모아 만든 SQL
 ```
 
-- **도메인 규칙:** 상태 변경은 `closeSession(session, summary, at)`처럼 새 값을 돌려주는 순수 함수로 둔다. 불가능한 상태 전이는 함수 안에서 막는다(예: 닫힌 세션 다시 닫기). 단위 테스트는 DB 없이 이 함수를 검사한다.
+- **도메인 규칙:** 상태 변경은 `closeSession(session, summary, at)`처럼 새 값을 돌려주는 순수 함수로 둔다. 불가능한 상태 전이는 타입으로 막는다(예: 세션을 `ActiveSession | ClosedSession` 유니온으로 두고 `closeSession`은 `ActiveSession`만 받아, 닫힌 세션을 다시 닫는 코드는 컴파일되지 않는다). 단위 테스트는 DB 없이 이 함수를 검사한다.
+- **테이블 정의:** 각 기능 모듈이 자기 테이블을 `*.schema.ts`에 정의한다. `core/db`는 특정 기능의 테이블을 모른다.
 - **저장소:** 기능 모듈 안의 클래스로 Drizzle을 직접 쓴다. 저장소 인터페이스를 따로 두지 않고, Testcontainers로 실제 PostgreSQL에서 테스트한다.
 - **포트:** 외부 시스템 경계(`ClaudeClient`, `#관리` 알림 등)는 추상 클래스를 주입 토큰으로 쓰고, 테스트에서는 가짜 구현으로 바꾼다.
 - **처리기 모으기:** `core/discord`가 `@SlashCommand()`·`@GuildMessageHandler()` 같은 데코레이터를 정의하고, 게이트웨이가 Nest `DiscoveryService`로 찾아 등록한다. 기능 모듈은 데코레이터를 붙인 provider를 등록하기만 한다.
