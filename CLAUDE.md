@@ -1,6 +1,6 @@
 # growth-assistant
 
-내 프로젝트·문제 해결 경험(Notion·velog)을 기억하고, 약점 보완과 다음 학습을 이끄는 개인 AI 어시스턴트. 첫 모듈은 Discord 기반 튜터(퀴즈·간격 반복·튜터링 대화·먼저 말 걸기). LLM은 Claude 구독(`claude -p` CLI)으로만 호출하고 API 키는 쓰지 않는다.
+내 프로젝트·문제 해결 경험(Notion·velog)을 기억하고, 약점 보완과 다음 학습을 이끄는 개인 AI 어시스턴트. 첫 모듈은 튜터(퀴즈·간격 반복·튜터링 대화·먼저 말 걸기)이고, Claude 앱에 붙이는 MCP 서버로 쓴다. LLM은 Claude 구독(Claude 앱, `claude -p` CLI)으로만 쓰고 API 키는 쓰지 않는다.
 
 ## 기술 스택
 
@@ -12,7 +12,7 @@
 - 테스트: Vitest, Testcontainers
 - 코드 스타일: ESLint(typescript-eslint) + Prettier (`npm run check`에 포함)
 
-**인터페이스 전환 중 (ADR-0017):** Discord 대신 PWA를 쓰고 앱은 HTTP API 서버로 바꾼다. PWA에서 튜터링 대화가 동작할 때까지 Discord 코드는 남겨 둔다. 이전 Kotlin 구현은 커밋 `a7bc8c5`에 있다(`git show a7bc8c5:<경로>`).
+**인터페이스 전환 중 (ADR-0018):** Discord 대신 Claude 앱 + MCP 서버를 쓴다. 먼저 맥미니(이 Mac)의 Claude Desktop에 로컬(stdio)로 붙여 기능과 퀴즈 품질을 검증하고, 원격 커스텀 커넥터(모바일·아이패드)는 5단계에서 새 ADR로 정한다. 튜터링 대화는 Claude 앱이 하고 서버는 도구를 제공한다. 로컬 MCP로 튜터링 흐름이 동작할 때까지 Discord 코드는 남겨 둔다. 이전 Kotlin 구현은 커밋 `a7bc8c5`에 있다(`git show a7bc8c5:<경로>`).
 
 ## 모듈 구조
 
