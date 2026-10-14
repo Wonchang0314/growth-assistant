@@ -4,14 +4,22 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/track-code-edit.mjs", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/track-code-edit.mjs",
+            "timeout": 10
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/docs-review-gate.mjs", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/docs-review-gate.mjs",
+            "timeout": 10
+          }
         ]
       }
     ]
