@@ -20,6 +20,7 @@
 src/
 ├── core                 # 여러 기능 모듈이 공유하는 기반
 │   ├── clock            # 현재 시각 포트 (테스트에서 고정)
+│   ├── concurrency      # 키별 순차 실행 잠금 (KeyedLock)
 │   ├── config           # 환경 변수 검증 (zod)
 │   ├── db               # PostgreSQL 연결, 시작 시 마이그레이션 (migrations/)
 │   ├── discord          # discord.js 클라이언트, 이벤트 라우팅, 컴포넌트 ID 규칙
