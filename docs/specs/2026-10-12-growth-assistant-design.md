@@ -18,7 +18,7 @@
 |---|---|---|---|
 | 1 | 취업·면접 | 기술 면접 대비, 내 프로젝트 경험을 깊이 있게 설명하는 연습 | 0.4 |
 | 2 | CS 기초 | 네트워크, OS, DB, 자료구조·알고리즘 | 0.3 |
-| 3 | 백엔드 | Kotlin, Spring, DB 이해도 심화 | 0.2 |
+| 3 | 백엔드 | Node.js·NestJS, TypeScript, DB 이해도 심화 | 0.2 |
 | 4 | 프론트 심화 | 현재 사용 중인 프론트엔드 스택 심화 | 0.1 |
 
 장기 방향: 프론트엔드와 백엔드를 아우르는 풀스택 개발자.
@@ -37,8 +37,8 @@
 | 항목 | 결정 | 근거 |
 |---|---|---|
 | 프로젝트 형태 | 별도 레포의 신규 프로젝트 (`JSL107/personal_agents`는 구조 참고용) | 사용자 결정 |
-| 언어·프레임워크 | Kotlin + Spring Boot | 프로젝트 자체가 백엔드 학습 겸 포트폴리오 |
-| 인터페이스 | Discord 봇 (JDA + jda-ktx), **개인 서버** | 버튼·모달·스레드 지원, 먼저 말 걸기 가능 |
+| 언어·프레임워크 | TypeScript + NestJS (ADR-0014, Kotlin + Spring Boot에서 전환) | 아는 언어로 백엔드 개념에 집중, 프로젝트 자체가 학습 겸 포트폴리오 |
+| 인터페이스 | Discord 봇 (discord.js), **개인 서버** | 버튼·모달·스레드 지원, 먼저 말 걸기 가능 |
 | 실행 환경 | 사용자의 Mac에서 상시 실행 (launchd), Mac을 호스트로 사용 | 사용자 결정 |
 | LLM | `claude -p` 서브프로세스 (구독 로그인 사용) | 구독 기반 사용 |
 | 저장소 | PostgreSQL 16 단일 저장소 (Docker) | 소규모 그래프는 재귀 CTE로 충분, 정합성 단순 |
@@ -46,7 +46,7 @@
 | 임베딩 | 초기에는 사용하지 않음. 통제 어휘 개념 태그 + 그래프 이웃으로 검색 | 나중에 pgvector로 하이브리드 확장 |
 | 기억 출처 | Notion, velog (GitHub 제외) | GitHub에는 일부·오래된 프로젝트만 있고, 사내 레포는 사용 불가 |
 | 기억 수집 | 1회 백필 → 이후 청크 단위 증분 동기화. 런타임에는 DB만 조회 | 사용량 절감 |
-| 간격 반복 | **FSRS** (직접 포팅, 기본 파라미터로 시작) | SM-2보다 예측 정확도가 높음. FsrsKt는 GPL-3 |
+| 간격 반복 | **FSRS** (`ts-fsrs` 라이브러리, 기본 파라미터로 시작, ADR-0016) | SM-2보다 예측 정확도가 높음. 공식 TS 구현, MIT |
 | 복습 단위 | 개념 (복습할 때마다 같은 개념의 다른 문제) | 문제 암기 방지 |
 | 하루 복습 상한 | 최대 10문제 | 리뷰 부채 누적 방지 |
 | 이름 | `growth-assistant` (튜터는 그 안의 첫 모듈) | 이력서·포트폴리오 역할로 확장 예정 |
@@ -66,10 +66,10 @@
 
 ## 4. 아키텍처
 
-Mac에서 실행하는 **Spring Boot 애플리케이션 하나**(모듈러 모놀리스)와 Docker로 띄우는 **PostgreSQL 16**으로 구성한다.
+Mac에서 실행하는 **NestJS 애플리케이션 하나**(모듈러 모놀리스)와 Docker로 띄우는 **PostgreSQL 16**으로 구성한다.
 
 ```
-Discord ⇄ [discord] 슬래시 명령·버튼·모달·스레드 (JDA)
+Discord ⇄ [discord] 슬래시 명령·버튼·모달·스레드 (discord.js)
              │
              ▼
    ┌──────────────── core ────────────────┐
@@ -86,23 +86,23 @@ Discord ⇄ [discord] 슬래시 명령·버튼·모달·스레드 (JDA)
    └──────────────────────────────────────┘
              │                     │
              ▼                     ▼
-      claude -p 서브프로세스      PostgreSQL (JPA + 네이티브 쿼리)
+      claude -p 서브프로세스      PostgreSQL (Drizzle + SQL)
 ```
 
 ### 원칙
 
 - 모든 상태는 PostgreSQL에 둔다. Claude는 상태가 없고, 호출마다 필요한 맥락만 받는다.
-- **계산은 코드로, 생성과 대화는 LLM으로.** 스케줄링, 숙련도, 약점 점수는 Kotlin 코드가 결정적으로 계산한다. Claude는 추출, 출제, 서술형 채점, 오개념 태깅, 대화만 맡는다.
+- **계산은 코드로, 생성과 대화는 LLM으로.** 스케줄링, 숙련도, 약점 점수는 코드가 결정적으로 계산한다. Claude는 추출, 출제, 서술형 채점, 오개념 태깅, 대화만 맡는다.
 - `claude -p` 호출은 반드시 `ClaudeClient` 인터페이스(구현: `ClaudeCliClient`)를 거친다.
-- Discord 핸들러는 JDA 객체를 유스케이스에 넘기지 않는다. 유스케이스는 Discord 없이 테스트할 수 있어야 한다.
-- 향후 `career` 모듈(이력서·포트폴리오, Canva 연동)이 `core`의 기억을 공유할 수 있도록 패키지를 `core` / `tutor`로 분리한다.
+- Discord 핸들러는 discord.js 객체를 유스케이스에 넘기지 않는다. 유스케이스는 Discord 없이 테스트할 수 있어야 한다.
+- 향후 `career` 모듈(이력서·포트폴리오, Canva 연동)이 `core`의 기억을 공유할 수 있도록 모듈을 `core` / `tutor`로 분리한다 (ADR-0015).
 
-### 패키지 구조 (초안)
+### 모듈 구조 (초안)
 
 ```
-com.growthassistant
+src/
 ├── core
-│   ├── discord      # JDA 설정, 이벤트 라우팅, 컴포넌트 ID 규칙
+│   ├── discord      # discord.js 클라이언트, 이벤트 라우팅, 컴포넌트 ID 규칙
 │   ├── llm          # ClaudeClient, ClaudeCliClient, 프롬프트 템플릿, 호출 로그
 │   ├── memory       # SourceDocument, DocumentChunk, Experience
 │   ├── knowledge    # Track, Concept, ConceptEdge, ConceptGraphRepository
@@ -119,7 +119,7 @@ com.growthassistant
 
 ## 5. 데이터 모델
 
-단일 사용자 시스템이므로 `user` 테이블은 두지 않는다. 마이그레이션은 Flyway로 관리한다.
+단일 사용자 시스템이므로 `user` 테이블은 두지 않는다. 마이그레이션은 drizzle-kit이 만든 SQL 파일로 관리한다.
 
 ### 5.1 Knowledge: 개념 그래프와 트랙
 
@@ -248,7 +248,7 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 
 - 프롬프트는 표준입력으로 전달한다. 출력은 줄마다 JSON 이벤트 하나이며, 끝까지 읽은 뒤 `result` 이벤트와 마지막 `rate_limit_event`만 해석한다 (ADR-0012).
 - 성공 여부는 `is_error`로 판단한다(`subtype`은 오류여도 `"success"`일 수 있다). 미로그인은 `result` 문자열(`Not logged in`)로, 한도 초과는 `rate_limit_event`의 상태와 `resetsAt`으로 판별한다.
-- 구조화된 출력은 `--json-schema`로 받아 `structured_output`을 Kotlin DTO로 다시 검증한다. 튜터 대화는 `{reply, sources}` 스키마로 웹 출처를 받는다.
+- 구조화된 출력은 `--json-schema`로 받아 `structured_output`을 zod 스키마로 다시 검증한다. `--json-schema`에 넘기는 JSON Schema도 같은 zod 스키마에서 만든다. 튜터 대화는 `{reply, sources}` 스키마로 웹 출처를 받는다.
 - 빈 전용 작업 디렉터리에서 실행한다. 이 디렉터리와 상위 디렉터리에 CLAUDE.md가 없어야 한다. `--setting-sources ""`가 CLAUDE.md 로드를 막는 것은 스파이크로 확인했다.
 - 실행 파일 경로는 설정값으로 받는다 (OS마다 다를 수 있다). `--bare`는 구독 로그인을 읽지 않아 쓰지 않는다.
 - 도구는 기본적으로 끈다. 대화와 주제 탐색 호출에만 `WebSearch`, `WebFetch`를 허용한다.
@@ -440,7 +440,7 @@ weakness_score = (1 − mastery_score) × 확신도 보정 + 반복 오개념 �
 
 ### Discord
 
-- 게이트웨이 연결이 끊기면 JDA가 자동으로 재연결한다.
+- 게이트웨이 연결이 끊기면 discord.js가 자동으로 재연결한다.
 - 상호작용 토큰이 만료되면 일반 메시지로 대체한다 (7.6 참고).
 
 ---
@@ -449,8 +449,8 @@ weakness_score = (1 − mastery_score) × 확신도 보정 + 반복 오개념 �
 
 | 계층 | 방법 |
 |---|---|
-| 순수 로직 (FSRS, 숙련도·약점 점수, 개념 선택, 채점 정규화, 청크 비교) | JUnit5 + MockK 단위 테스트. FSRS는 공식 구현(py-fsrs)과 같은 결과가 나오는지 기준 값으로 검증 |
-| DB (재귀 CTE, Flyway, 레포지토리) | Testcontainers PostgreSQL 통합 테스트 |
+| 순수 로직 (FSRS, 숙련도·약점 점수, 개념 선택, 채점 정규화, 청크 비교) | Vitest 단위 테스트. FSRS는 `ts-fsrs` 버전을 고정하고 대표 시나리오를 기대 값으로 검증 |
+| DB (재귀 CTE, 마이그레이션, 저장소) | Testcontainers PostgreSQL 통합 테스트 |
 | LLM 연동 | `ClaudeClient` 인터페이스 + `FakeClaudeClient` (고정 JSON). 실제 응답 샘플로 파싱 테스트 |
 | 프롬프트 품질 (추출, 출제, 검증, 채점) | 정답이 정해진 소규모 평가 세트 + 수동 평가 스크립트. 프롬프트를 바꿀 때마다 실행 |
 | Discord | 유스케이스는 Discord 없이 테스트. 실제 동작은 개인 서버에서 수동 점검 체크리스트로 확인 |

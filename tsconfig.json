@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Nest 의존성 주입은 생성자 매개변수 타입 메타데이터로 동작한다. Vitest(Oxc)도 이 설정을 읽는다.
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "outDir": "dist",
+    "sourceMap": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "test", "vitest.config.ts", "drizzle.config.ts"]
+}
