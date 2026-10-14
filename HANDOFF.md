@@ -1,15 +1,16 @@
-# 핸드오프: Mac mini에서 NestJS 전환 마무리
+# 핸드오프: NestJS 전환 이후, 로컬 MCP 1단계 시작 전
 
-- 작성: 2026-10-14 (Windows PC·WSL에서 작성, 다음 세션은 Mac mini에서 이어감)
-- 이 파일은 기기를 옮기려고 임시로 커밋했다. 아래 "남은 작업"을 마치고 1단계(PWA + HTTP API) 재정의가 끝나면 지운다.
-- **방향 전환 (ADR-0017):** Discord 대신 PWA + HTTP API로 바꾸기로 했다. 그래서 실제 Discord 점검은 하지 않고 `migrate/nestjs`를 PR로 `main`에 병합했다.
+- 작성: 2026-10-14 (Windows PC·WSL), 갱신: 2026-10-14 (Mac)
+- 이 파일은 기기를 옮기려고 임시로 커밋했다. 코드 이해도 점검 질문을 마치면 지운다.
+- **방향 전환 (ADR-0018):** Discord → PWA(ADR-0017) → Claude 앱 + MCP 서버로 바꿨다. 먼저 맥미니 Claude Desktop에 로컬로 붙여 검증한다. 실제 Discord 점검과 PWA 구현은 하지 않았다. 다음 작업은 `docs/roadmap.md` 1단계를 따른다.
 
 ## 먼저 읽을 것
 
 1. `CLAUDE.md`: 스택(TypeScript·NestJS), 모듈 구조, 명령, 문서 갱신 규칙
-2. `docs/roadmap.md`: 진행 상태 (지금은 1단계 재정의)
-3. `docs/adr/0014-nestjs-typescript.md`, `0015-nest-feature-modules.md`, `0016-fsrs-ts-fsrs.md`: 전환 결정, `0017-pwa-http-api.md`: 인터페이스 전환
-4. `docs/ops.md`: Mac mini 설치·배포·로그
+2. `docs/roadmap.md`: 진행 상태 (1단계: 로컬 MCP)
+3. `docs/adr/0014-nestjs-typescript.md`, `0015-nest-feature-modules.md`, `0016-fsrs-ts-fsrs.md`: 전환 결정, `0018-claude-mcp-server.md`: 인터페이스 (로컬 우선)
+4. `docs/specs/2026-10-12-growth-assistant-design.md`: MCP 기준 설계 (7.6 로컬 MCP 구성)
+5. `docs/ops.md`: Mac mini 설치·배포·로그
 
 ## 작업 방식 (사용자 합의)
 
@@ -35,15 +36,9 @@ Kotlin + Spring Boot 구현을 NestJS + TypeScript로 다시 작성했다. Kotli
 
 **확인한 것:** `npm run check` 통과(테스트 79개, 실제 CLI 테스트 1개는 기본 건너뜀). 실제 `claude` CLI 테스트(`CLAUDE_LIVE=1`)는 WSL에서 한 번 통과. `deploy.sh`로 만든 릴리스를 임시 DB로 실행해 마이그레이션·파일 로그·시작 실패 기록을 확인했다.
 
-**확인하지 못한 것:** 실제 Discord 서버 연결, launchd 등록·재시작, Mac에서의 테스트·CLI 동작.
+**Mac에서 확인한 것 (2026-10-14):** `npm ci`, `npm run check`(테스트 79개), 실제 CLI 테스트(`CLAUDE_LIVE=1`) 통과. Kotlin 시절 DB 볼륨과 Gradle 빌드 결과물을 지웠다. `.claude/hooks/*.mjs` 린트 실패를 고쳤다.
 
-## 남은 작업 (Mac mini)
-
-1. **준비:** `brew install node@24`, Docker 실행, `claude` 로그인 확인.
-2. **코드:** `git switch main && git pull`, `.env` 확인(값은 Kotlin 때와 같다), `npm ci`, `npm run check`.
-3. **CLI 확인:** `CLAUDE_LIVE=1 npx vitest run claude-cli.live` (구독 사용량 조금 소모).
-4. **DB:** Mac mini에서 Kotlin 버전을 실행한 적이 있으면 볼륨에 Flyway 테이블이 남아 앱이 시작하지 못한다. 사용자에게 확인한 뒤 `docker compose down -v && docker compose up -d`.
-5. **운영 등록은 미룬다:** 지금 등록하면 Discord 봇이 상시 실행된다. 1단계(PWA + HTTP API)에서 대화가 동작한 뒤 `ops/install.sh`로 등록한다.
+**확인하지 못한 것:** 실제 Discord 서버 연결(하지 않기로 함), launchd 등록·재시작. 운영 등록(`ops/install.sh`)은 서버 예약 작업이 생길 때까지 미룬다. 지금 등록하면 Discord 봇이 상시 실행된다.
 
 ## 코드 이해도 점검 질문
 
