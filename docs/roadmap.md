@@ -23,7 +23,7 @@
 - [x] 결정 기록 (ADR-0014·0015, 설계 문서 갱신)
 - [x] 프로젝트 골격 (NestJS, Vitest, ESLint·Prettier, 환경 변수 검증)
 - [x] DB (Drizzle 스키마·baseline 마이그레이션, 저장소)
-- [ ] `core/llm` (`ClaudeClient`, CLI 클라이언트)
+- [x] `core/llm` (`ClaudeClient`, CLI 클라이언트)
 - [ ] `core/discord` (게이트웨이, 채널 자동 준비, 응답 분할)
 - [ ] `tutor/conversation` (튜터링 대화, `/end`, 유휴 종료)
 - [ ] 운영 스크립트, `CLAUDE.md`·C4 문서·훅 갱신

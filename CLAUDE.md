@@ -19,6 +19,7 @@
 ```
 src/
 ├── core                 # 여러 기능 모듈이 공유하는 기반
+│   ├── clock            # 현재 시각 포트 (테스트에서 고정)
 │   ├── config           # 환경 변수 검증 (zod)
 │   ├── db               # PostgreSQL 연결, 시작 시 마이그레이션 (migrations/)
 │   ├── discord          # discord.js 클라이언트, 이벤트 라우팅, 컴포넌트 ID 규칙
@@ -44,6 +45,7 @@ src/
 - 의존성 설치: `npm ci`
 - 전체 검사: `npm run check` (타입 검사, 린트, 형식, 테스트. 테스트 DB는 Testcontainers가 띄우므로 Docker만 실행 중이면 된다)
 - 테스트만: `npm test` (단위만 `npx vitest --project unit`, Docker 불필요), 감시 모드 `npm run test:watch`
+- 실제 `claude` CLI 확인(구독 사용량 소모, 기본 건너뜀): `CLAUDE_LIVE=1 npx vitest run claude-cli.live`
 - 마이그레이션 생성: `*.schema.ts`를 고친 뒤 `npm run db:generate -- --name <이름>`. 앱이 시작할 때 적용한다. DB 둘러보기: `npm run db:studio`
 - 스타일 자동 수정: `npm run format`, `npx eslint --fix .`
 - 실행: `npm run dev` (변경 감시) / `npm run build && npm start`

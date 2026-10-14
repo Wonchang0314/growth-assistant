@@ -248,7 +248,7 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 
 - 프롬프트는 표준입력으로 전달한다. 출력은 줄마다 JSON 이벤트 하나이며, 끝까지 읽은 뒤 `result` 이벤트와 마지막 `rate_limit_event`만 해석한다 (ADR-0012).
 - 성공 여부는 `is_error`로 판단한다(`subtype`은 오류여도 `"success"`일 수 있다). 미로그인은 `result` 문자열(`Not logged in`)로, 한도 초과는 `rate_limit_event`의 상태와 `resetsAt`으로 판별한다.
-- 구조화된 출력은 `--json-schema`로 받아 `structured_output`을 zod 스키마로 다시 검증한다. 튜터 대화는 `{reply, sources}` 스키마로 웹 출처를 받는다.
+- 구조화된 출력은 `--json-schema`로 받아 `structured_output`을 zod 스키마로 다시 검증한다. `--json-schema`에 넘기는 JSON Schema도 같은 zod 스키마에서 만든다. 튜터 대화는 `{reply, sources}` 스키마로 웹 출처를 받는다.
 - 빈 전용 작업 디렉터리에서 실행한다. 이 디렉터리와 상위 디렉터리에 CLAUDE.md가 없어야 한다. `--setting-sources ""`가 CLAUDE.md 로드를 막는 것은 스파이크로 확인했다.
 - 실행 파일 경로는 설정값으로 받는다 (OS마다 다를 수 있다). `--bare`는 구독 로그인을 읽지 않아 쓰지 않는다.
 - 도구는 기본적으로 끈다. 대화와 주제 탐색 호출에만 `WebSearch`, `WebFetch`를 허용한다.
