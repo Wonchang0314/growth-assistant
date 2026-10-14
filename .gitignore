@@ -4,11 +4,11 @@
 # 비밀값
 .env
 
-# Gradle·Kotlin
-.gradle/
-build/
-.kotlin/
-!gradle/wrapper/gradle-wrapper.jar
+# Node·빌드
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
 
 # IDE
 .idea/

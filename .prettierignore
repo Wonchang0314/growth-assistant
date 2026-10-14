@@ -1,0 +1,8 @@
+dist/
+coverage/
+node_modules/
+package-lock.json
+# 실제 CLI 출력 샘플은 원본 그대로 둔다.
+test/fixtures/
+# 문서는 손으로 정리한다.
+*.md

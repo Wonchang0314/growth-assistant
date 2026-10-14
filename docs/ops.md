@@ -1,5 +1,7 @@
 # 운영 가이드 (Mac mini)
 
+> **NestJS 전환 중:** 아래 절차와 `ops/` 스크립트는 Kotlin 버전(`main` 브랜치) 기준이다. 전환 작업의 운영 단계에서 Node 기준으로 고친다.
+
 봇은 Mac mini M4 한 대에서 상시 실행한다 ([ADR-0010](adr/0010-local-mac-hosting.md)). 개발 PC는 개발·테스트용이다.
 
 > **봇은 한 곳에서만 실행한다.** 같은 토큰으로 두 곳에서 띄우면 메시지에 두 번 답한다. Mac mini에서 운영을 시작하면 개발 PC에서는 `bootRun`을 쓰지 않거나, 쓰기 전에 Mac mini의 서비스를 멈춘다(`launchctl bootout`, 아래).

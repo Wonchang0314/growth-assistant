@@ -4,19 +4,23 @@
 
 ## 기술 스택
 
-- Kotlin, Spring Boot, Gradle (Kotlin DSL), JDK 21
-- PostgreSQL 16 (Docker), Spring Data JPA, Flyway
-- Discord: JDA + jda-ktx, Kotlin Coroutines
+- TypeScript 6 (strict, ESM), Node.js 24, NestJS 12 (HTTP 없이 애플리케이션 컨텍스트), npm
+- PostgreSQL 16 (Docker), Drizzle ORM, drizzle-kit 마이그레이션
+- Discord: discord.js v14
 - LLM: `claude` CLI 서브프로세스
-- 테스트: JUnit5, MockK, Testcontainers
-- 코드 스타일: ktlint (`build`에 포함)
+- 설정·검증: `@nestjs/config` + zod
+- 테스트: Vitest, Testcontainers
+- 코드 스타일: ESLint(typescript-eslint) + Prettier (`npm run check`에 포함)
 
-## 패키지 구조
+**NestJS 전환 중 (ADR-0014):** Kotlin 구현은 `main` 브랜치에 있다. 옮길 때 `git show main:<경로>`로 참고한다. 진행 상황은 `docs/roadmap.md` 1.5단계.
+
+## 모듈 구조
 
 ```
-com.growthassistant
+src/
 ├── core                 # 여러 기능 모듈이 공유하는 기반
-│   ├── discord          # JDA 설정, 이벤트 라우팅, 컴포넌트 ID 규칙
+│   ├── config           # 환경 변수 검증 (zod)
+│   ├── discord          # discord.js 클라이언트, 이벤트 라우팅, 컴포넌트 ID 규칙
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L)
 │   ├── knowledge        # 트랙, 개념 그래프
@@ -30,16 +34,17 @@ com.growthassistant
     └── outreach         # 아침 복습, 저녁 주제, 주간 리포트
 ```
 
-기능 패키지 안에 도메인 모델(JPA 엔티티 겸용), Spring Data 저장소, 유스케이스를 두고, Discord 입력 어댑터는 그 기능의 `discord/` 하위 패키지에 둔다. 유스케이스는 JDA·프로세스 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0013).
+기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), Drizzle 저장소, 유스케이스(서비스)를 둔다. Discord 입력 어댑터는 그 기능의 `discord/` 폴더에 둔다. 유스케이스는 discord.js·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
 
 ## 명령
 
 - 처음 한 번: `cp .env.example .env` 후 값 채우기
 - DB 실행: `docker compose up -d`
-- 빌드·테스트: `./gradlew build` (테스트 DB는 Testcontainers가 띄우므로 Docker만 실행 중이면 된다)
-- 스타일 자동 수정: `./gradlew ktlintFormat`
-- 실제 `claude` CLI 확인(구독 사용량 소모, 기본 건너뜀): `CLAUDE_LIVE=1 ./gradlew test --tests '*ClaudeCliLiveTest'`
-- 실행: `./gradlew bootRun`
+- 의존성 설치: `npm ci`
+- 전체 검사: `npm run check` (타입 검사, 린트, 형식, 테스트. 테스트 DB는 Testcontainers가 띄우므로 Docker만 실행 중이면 된다)
+- 테스트만: `npm test`, 감시 모드 `npm run test:watch`
+- 스타일 자동 수정: `npm run format`, `npx eslint --fix .`
+- 실행: `npm run dev` (변경 감시) / `npm run build && npm start`
 - 운영(Mac mini): 처음 `ops/install.sh`, 배포 `ops/deploy.sh` (`docs/ops.md`). 봇은 한 곳에서만 실행한다
 
 ## 문서
@@ -58,7 +63,7 @@ com.growthassistant
 |---|---|
 | 패키지 추가·이동, 기술 스택·의존성, 빌드·실행 명령 | `CLAUDE.md`, `docs/architecture/c4-3-component.md` |
 | 외부 연동, 실행 환경, 컨테이너 구성 | `docs/architecture/c4-2-container.md`, `c4-1-context.md` |
-| 데이터 모델(Flyway), 흐름·정책·스케줄 | `docs/specs/` 설계 문서 |
+| 데이터 모델(Drizzle 스키마·마이그레이션), 흐름·정책·스케줄 | `docs/specs/` 설계 문서 |
 | ADR 결정과 다른 선택 | 새 ADR 작성 후 기존 ADR 상태를 `대체됨`으로 (채택된 ADR 본문은 고치지 않음) |
 | 단계 작업 완료 | `docs/roadmap.md` 체크와 현재 위치 |
 

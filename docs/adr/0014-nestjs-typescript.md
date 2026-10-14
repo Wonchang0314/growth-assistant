@@ -17,13 +17,13 @@ Kotlin + Spring Boot 코드를 NestJS + TypeScript로 다시 작성한다. 기�
 
 | 영역 | 선택 |
 |---|---|
-| 런타임·언어 | Node.js 22 LTS, TypeScript `strict` |
-| 프레임워크 | NestJS 11 |
+| 런타임·언어 | Node.js 24 LTS, TypeScript 6.0 `strict`, ESM. TypeScript 7(네이티브)은 typescript-eslint가 아직 지원하지 않아 쓰지 않는다 |
+| 프레임워크 | NestJS 12 (ESM 전용). HTTP 서버 없이 애플리케이션 컨텍스트만 띄운다 |
 | Discord | discord.js v14. 개인 서버·채널 구성(`#복습-퀴즈` `#튜터` `#리포트` `#개념-관리` `#관리`)과 지연 응답·토큰 만료 대응은 ADR-0003 그대로 |
 | DB 접근 | Drizzle ORM, 마이그레이션은 drizzle-kit이 만든 SQL 파일. Flyway V1·V2는 baseline 마이그레이션 하나로 합친다 |
 | 설정·검증 | `@nestjs/config` + zod. LLM 구조화 출력도 zod로 검증하고, `--json-schema`에 넘길 스키마는 zod 스키마에서 만든다 |
 | 예약 작업 | `@nestjs/schedule` |
-| 테스트 | Vitest(+ `unplugin-swc`로 데코레이터 메타데이터), `@testcontainers/postgresql` |
+| 테스트 | Vitest 5, `@testcontainers/postgresql`. Vitest 5의 변환기(Vite 8, Oxc)가 tsconfig의 데코레이터 메타데이터 설정을 읽으므로 `unplugin-swc`는 필요 없다 |
 | 코드 스타일 | ESLint(typescript-eslint) + Prettier |
 | 로그 | pino, 운영 프로필은 파일 회전 |
 
