@@ -55,6 +55,7 @@ src/
 ## 문서
 
 - 진행 상태: `docs/roadmap.md`
+- 세션 이어 가기(다음 할 일 순서, 학습 진도, 조사 메모): `docs/handoff.md`
 - 운영 가이드: `docs/ops.md`
 - 기능 설계: `docs/specs/`
 - 아키텍처(C4): `docs/architecture/`
