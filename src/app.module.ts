@@ -14,7 +14,7 @@ import { ConversationModule } from './tutor/conversation/conversation.module.js'
     ConfigModule.forRoot({ isGlobal: true, cache: true, validate: validateEnv }),
     ScheduleModule.forRoot(),
     ClockModule,
-    DbModule,
+    DbModule.forRoot({ migrate: true }),
     SettingModule,
     DiscordModule,
     LlmModule,

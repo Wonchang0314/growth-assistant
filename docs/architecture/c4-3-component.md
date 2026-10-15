@@ -5,7 +5,8 @@
 ```mermaid
 flowchart TB
     subgraph core
-        discordGw["discord<br/>이벤트 라우팅, 응답 헬퍼,<br/>컴포넌트 ID 코덱"]
+        mcp["mcp<br/>MCP 서버, 도구 처리기 탐색"]
+        discordGw["discord<br/>이벤트 라우팅, 응답 헬퍼,<br/>컴포넌트 ID 코덱 (제거 예정)"]
         llm["llm<br/>ClaudeClient"]
         memory["memory<br/>문서·청크·경험 카드"]
         knowledge["knowledge<br/>트랙, 개념 그래프"]
@@ -15,14 +16,15 @@ flowchart TB
     end
 
     subgraph tutor
-        conversation["conversation<br/>튜터링 대화"]
+        conversation["conversation<br/>학습 맥락 조회, 학습 기록"]
         quiz["quiz<br/>출제·검증·채점"]
         mastery["mastery<br/>FSRS, 숙련도·약점"]
         outreach["outreach<br/>아침 복습·저녁 주제·주간 리포트"]
     end
 
+    mcp -.->|"@McpTool() 탐색"| conversation
+    mcp -.->|"@McpTool() 탐색"| quiz
     conversation --> discordGw
-    quiz --> discordGw
     scheduler --> outreach
     scheduler --> ingestion
     discordGw --> setting
@@ -44,14 +46,14 @@ flowchart TB
     mastery --> knowledge
     outreach --> quiz
     outreach --> mastery
-    outreach --> discordGw
 ```
 
 ## 의존 규칙
 
 - `tutor` → `core` 방향으로만 의존한다. `core`는 `tutor`를 모른다.
 - `tutor` 하위 모듈끼리는 화살표 방향으로만 의존한다. 순환 의존을 만들지 않는다.
-- 유스케이스는 discord.js 객체를 받지 않는다. `discord`가 값으로 바꿔 넘긴다.
+- 유스케이스는 MCP SDK·discord.js 객체를 받지 않는다. 도구 처리기가 zod로 검증된 값을 넘기고, 결과를 요약 텍스트와 구조화된 내용으로 돌려준다.
+- `core/mcp`는 `@McpTool()`이 붙은 provider를 `DiscoveryService`로 모아 등록한다(점선: 의존이 아니라 탐색). 기능 모듈은 `core/mcp`를 import하지 않는다.
 - 외부 시스템과 닿는 경계만 포트·어댑터로 분리한다 ([ADR-0015](../adr/0015-nest-feature-modules.md)). 유스케이스는 `ClaudeClient` 같은 포트에만 의존하고, 기능 모듈의 Discord 입력 어댑터는 그 모듈의 `discord/` 폴더에 둔다. `core/discord`는 처리기 데코레이터와 discord.js 클라이언트를 맡고, 게이트웨이가 데코레이터가 붙은 처리기를 찾아 등록한다.
 - 도메인 규칙은 순수 함수로 두고, 저장소는 기능 모듈 안에서 Drizzle을 직접 써서 행과 도메인 타입을 변환한다.
 - `core`가 `tutor`를 가져오지 못하게 ESLint `no-restricted-imports`로 막는다.

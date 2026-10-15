@@ -21,7 +21,10 @@ export class FileLogger extends ConsoleLogger {
     super({ json: true, colors: false });
   }
 
-  /** `<dir>/growth-assistant.<날짜>.<번호>.log`. 하루 또는 10MB마다 새 파일, 최근 30개 보관. `current.log`가 현재 파일을 가리킨다. */
+  /**
+   * `<dir>/growth-assistant.<날짜>.<번호>.log`. 하루 또는 10MB마다 새 파일, 최근 30개 보관. `current.log`가 현재 파일을 가리킨다.
+   * 프로세스마다 다른 디렉터리를 준다(상시 실행 앱, MCP 서버). 같은 디렉터리면 회전과 `current.log`가 겹친다.
+   */
   static async create(dir: string): Promise<FileLogger> {
     const stream = await pinoRoll({
       file: join(dir, 'growth-assistant'),

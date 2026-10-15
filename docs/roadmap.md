@@ -2,7 +2,7 @@
 
 상세 작업 계획은 세션 안에서 관리하고, 이 파일에는 진행 상태만 남긴다. 단계별 내용은 [설계 문서 3장](specs/2026-10-12-growth-assistant-design.md)을 따른다.
 
-**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). 첫 작업은 stdio MCP 진입점과 첫 도구
+**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점과 첫 도구를 만들었고, 다음은 튜터 지침과 Claude Desktop 등록
 
 ## 0. 준비
 - [x] `claude -p` 동작 확인
@@ -17,8 +17,8 @@
 
 ## 1. MVP: 로컬 MCP 서버 (ADR-0018)
 - [x] `ClaudeClient` (백그라운드 LLM 작업용)
-- [ ] stdio MCP 진입점 (`mcp-stdio.ts`), `core/mcp` 도구 등록·처리기 탐색, 파일 로그
-- [ ] 첫 도구 (`get_learning_context`, `record_study_note`, `study_note` 테이블)
+- [x] stdio MCP 진입점 (`mcp-stdio.ts`), `core/mcp` 도구 등록·처리기 탐색, 파일 로그, `npm run db:migrate`
+- [x] 첫 도구 (`get_learning_context`, `record_study_note`, `study_note` 테이블)
 - [ ] 튜터 지침 (MCP `instructions`, Claude 프로젝트 지침 초안)
 - [ ] Claude Desktop 등록 (릴리스 디렉터리 배포, 설정 예시를 `docs/ops.md`에)
 - [ ] Discord 코드·설정과 대화 세션 테이블 제거, `ops/` 정리
