@@ -94,7 +94,7 @@
 │   │ llm          ClaudeCliClient           │                     │
 │   │ scheduler    예약 작업, 놓친 실행 복구    │                     │
 │   ├──────────────── tutor ───────────────┤                     │
-│   │ conversation 학습 맥락 조회, 학습 기록    │                     │
+│   │ study        학습 맥락 조회, 학습 기록    │                     │
 │   │ quiz         출제, 검증, 채점            │                     │
 │   │ mastery      FSRS, 숙련도, 약점 지도     │                     │
 │   │ outreach     아침 복습, 저녁 주제, 주간 리포트│                  │
@@ -120,7 +120,7 @@
 
 ```
 src/
-├── main.ts          # 상시 실행 진입점 (서버 예약 작업)
+├── main.ts          # 상시 실행 진입점 (서버 예약 작업, 4단계에서 만든다)
 ├── mcp-stdio.ts     # MCP 진입점 (Claude Desktop이 띄움)
 ├── core
 │   ├── mcp          # MCP 서버, 도구 등록, 도구 처리기 탐색
@@ -130,13 +130,15 @@ src/
 │   ├── ingestion    # Source 인터페이스, NotionSource, VelogSource, 동기화 서비스
 │   └── scheduler    # 예약 작업, 실행 기록, 놓친 실행 복구
 └── tutor
-    ├── conversation # 학습 맥락 조회, 학습 기록 도구
+    ├── study        # 학습 맥락 조회, 학습 기록 도구, 서버 instructions
     ├── quiz
     ├── mastery
     └── outreach
 ```
 
-기능 모듈의 MCP 도구 처리기는 그 기능의 `mcp/` 폴더에 두고, `core/mcp`가 데코레이터 탐색으로 모아 등록한다(`core`는 `tutor`를 import하지 않는다).
+`quiz` 모듈은 안을 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나눠 시도한다(ADR-0020). 다른 모듈은 파일 이름 접미사로 역할을 구분한다(ADR-0015).
+
+기능 모듈의 MCP 도구 처리기는 그 기능의 `mcp/` 폴더(`quiz`는 `presentation/mcp/`)에 두고, `core/mcp`가 데코레이터 탐색으로 모아 등록한다(`core`는 `tutor`를 import하지 않는다).
 
 stdio 진입점에서는 표준출력이 MCP 메시지 통로이므로, 로그는 표준출력에 쓰지 않고 파일(또는 표준에러)에만 쓴다.
 
@@ -236,7 +238,7 @@ app_setting          key PK, value
 ```
 
 - `outreach_log`는 예약 작업이 아침·저녁 도구를 부른 기록이다. 같은 날 다시 불리면 새로 고르지 않고 그날 고른 내용을 돌려준다.
-- 1단계 전의 `conversation_session`·`conversation_message`(Discord 스레드 대화)는 Discord 코드를 지울 때 함께 지운다.
+- 1단계 전의 `conversation_session`·`conversation_message`(Discord 스레드 대화)는 Discord 코드와 함께 지웠다(마이그레이션 `0002_drop_conversation`).
 
 ### 5.6 관계 요약
 
@@ -420,6 +422,10 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 ### 7.5 튜터 교수 규칙
 
 MCP 서버의 `instructions`(연결 시 Claude에 전달)와 튜터용 Claude 프로젝트 지침에 같은 규칙을 둔다. 둘 다 강제는 아니므로, 점수에 영향을 주는 부분(정답 공개, 채점)은 서버가 지킨다.
+
+- 서버 `instructions`(`src/tutor/study/prompts/mcp-instructions.md`)는 서버가 연결된 모든 대화에 전달된다. 학습과 상관없는 대화에서는 도구를 부르지 않게 하고, 도구를 부르는 때·학습 기록 쓰는 법·교수 규칙만 둔다.
+- Claude 프로젝트 지침(`docs/claude-project-instructions.md`, 사용자가 프로젝트에 붙여 넣음)은 튜터 프로젝트 안의 대화에만 적용된다. 역할, 진행 방식(대화 시작, 묻는 각도, 내 프로젝트와 연결), 형식을 둔다.
+- 퀴즈 규칙(아래 마지막 항목)은 3단계에서 퀴즈 도구와 함께 두 지침에 넣는다.
 
 - 정답을 바로 주지 않는다. 먼저 사용자가 생각을 말하게 하고, 힌트는 단계적으로 준다.
 - 설명할 때는 `get_learning_context`로 받은 경험 카드와 연결한다.

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { readClaudeFixture } from '../../../test/fixtures/claude.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
-import type { AdminNotifier } from '../discord/admin-notifier.js';
+import type { AdminNotifier } from '../logging/admin-notifier.js';
 import { ClaudeException, type ClaudeRequest } from './claude.client.js';
 import { ClaudeCliClient } from './claude-cli.client.js';
 import type { ClaudeProcessRunner, ProcessResult } from './claude-process.runner.js';

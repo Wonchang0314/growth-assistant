@@ -32,9 +32,9 @@ afterEach(async () => {
   for (const close of closers.splice(0)) await close();
 });
 
-async function connect(tools: (typeof EchoTool)[]) {
+async function connect(tools: (typeof EchoTool)[], instructions?: string) {
   const app = await Test.createTestingModule({
-    imports: [McpModule.forRoot({ name: 'test', version: '0.0.0' })],
+    imports: [McpModule.forRoot({ name: 'test', version: '0.0.0', instructions })],
     providers: tools,
   }).compile();
   await app.init();
@@ -62,6 +62,12 @@ describe('McpServerHost', () => {
       inputSchema: { type: 'object', properties: { word: { type: 'string', description: '되돌려 줄 단어' } } },
       annotations: { readOnlyHint: true, destructiveHint: false },
     });
+  });
+
+  it('연결할 때 사용 지침을 클라이언트에 전달한다', async () => {
+    const client = await connect([EchoTool], '학습 대화에서만 도구를 부른다');
+
+    expect(client.getInstructions()).toBe('학습 대화에서만 도구를 부른다');
   });
 
   it('결과를 요약 텍스트, JSON 텍스트, 구조화된 내용으로 돌려준다', async () => {
