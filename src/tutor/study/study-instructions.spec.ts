@@ -16,7 +16,7 @@ describe('STUDY_INSTRUCTIONS', () => {
   it('지침에 적힌 입력 필드가 기록 도구의 입력 스키마에 있다', () => {
     const fields = Object.keys(recordTool.inputSchema.shape);
 
-    for (const field of ['summary', 'confusedPoints', 'answerRevealed']) {
+    for (const field of ['summary', 'confusedPoints', 'answerRevealed', 'concepts']) {
       expect(fields).toContain(field);
       expect(STUDY_INSTRUCTIONS).toContain(`\`${field}`);
     }

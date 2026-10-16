@@ -22,7 +22,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    ```bash
    ops/deploy.sh
    ```
-   검사·테스트·빌드한 릴리스를 `~/.growth-assistant/app/releases/<시각>`에 만들고, DB 마이그레이션을 적용한 뒤 `~/.growth-assistant/app/current`를 새 릴리스로 바꾼다.
+   검사·테스트·빌드한 릴리스를 `~/.growth-assistant/app/releases/<시각>`에 만들고, DB 마이그레이션과 시드 개념 적재를 한 뒤 `~/.growth-assistant/app/current`를 새 릴리스로 바꾼다.
 6. **예전 Discord 봇 해제:** 예전에 `ops/install.sh`로 봇을 등록했던 기기라면 `ops/uninstall.sh`를 한 번 실행한다.
 7. **Claude Desktop 등록:**
    ```bash
@@ -54,9 +54,10 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 
 | 할 일 | 명령 |
 |---|---|
-| 새 코드 배포 | `git pull && ops/deploy.sh` (의존성 설치 → 검사·테스트 → 빌드 → 새 릴리스 → 마이그레이션 → `current` 교체) 후 Claude Desktop 다시 시작. 릴리스는 최근 3개를 남긴다 |
+| 새 코드 배포 | `git pull && ops/deploy.sh` (의존성 설치 → 검사·테스트 → 빌드 → 새 릴리스 → 마이그레이션 → 시드 적재 → `current` 교체) 후 Claude Desktop 다시 시작. 릴리스는 최근 3개를 남긴다 |
 | 이전 릴리스로 되돌리기 | `ls ~/.growth-assistant/app/releases` 후 `ln -sfn ~/.growth-assistant/app/releases/<이전> ~/.growth-assistant/app/current` → Claude Desktop 다시 시작. DB 마이그레이션은 되돌리지 않으므로 스키마가 바뀐 릴리스 사이에서는 쓰지 않는다 |
 | 마이그레이션만 적용 | `npm run db:migrate` (작업 트리의 `.env` 기준) |
+| 시드 개념만 적재 | `npm run db:seed` (작업 트리의 `.env` 기준). 시드 YAML을 고친 뒤. 개념은 이름으로 찾아 트랙·별칭·설명을 고치고, 승인 상태는 건드리지 않으며, YAML에서 지운 개념·관계는 DB에서 지우지 않는다 |
 | MCP 로그 보기 | `tail -F <LOG_DIR>/mcp/current.log` (`LOG_DIR`를 주지 않았으면 Claude Desktop의 MCP 로그에 남는다) |
 
 ## 로그

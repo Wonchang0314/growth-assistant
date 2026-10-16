@@ -22,6 +22,13 @@
       "when": 1792024277673,
       "tag": "0002_drop_conversation",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792132286364,
+      "tag": "0003_concept_graph",
+      "breakpoints": true
     }
   ]
 }

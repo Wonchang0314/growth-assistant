@@ -29,7 +29,7 @@ flowchart TB
 |---|---|---|
 | MCP 서버 프로세스 | 같은 NestJS 코드, 진입점 `mcp-stdio.ts`, MCP TypeScript SDK v2 | Claude Desktop의 도구 호출을 받아 유스케이스 실행. 시작할 때 마이그레이션하지 않는다 (ADR-0018) |
 | 상시 실행 앱 (4단계) | 같은 NestJS 코드, launchd | 동기화·문제 풀 보충 같은 서버 예약 작업. 아직 없다(Discord 봇과 함께 1단계에서 지웠다) |
-| PostgreSQL | PostgreSQL 16, drizzle-kit 마이그레이션 | 유일한 상태 저장소 (개념 그래프, 경험, 숙련도, 퀴즈, 학습 기록, 로그). 마이그레이션은 배포할 때 적용한다 |
+| PostgreSQL | PostgreSQL 16, drizzle-kit 마이그레이션 | 유일한 상태 저장소 (개념 그래프, 경험, 숙련도, 퀴즈, 학습 기록, 로그). 마이그레이션과 시드 개념 적재(`dist/seed.js`)는 배포할 때 한다 |
 | claude CLI | `claude -p` | LLM 호출. 호출마다 새 프로세스, 전용 빈 작업 디렉터리, 기본 도구 비활성 |
 
 ## 운영 제약

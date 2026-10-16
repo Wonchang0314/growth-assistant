@@ -29,6 +29,16 @@
 - [ ] "답 알려줘"라고 하면 바로 답을 주고, 그 주제 기록의 `answer_revealed`가 true다
 - [ ] 새 대화에서 같은 주제를 꺼내면 지난번 헷갈린 점부터 묻는다
 
+### 개념 연결 (2단계 개념 그래프)
+
+- [ ] `get_learning_context` 결과에 관련 개념과 먼저 알아야 할 개념이 나오고, 설명이 막히면 선수 개념을 아는지 확인한다
+- [ ] `record_study_note`의 `concepts`에 `get_learning_context`가 돌려준 개념 이름이 들어가고, 헷갈린 개념은 `CONFUSED`다
+  ```bash
+  docker compose exec postgres psql -U growth growth \
+    -c "SELECT n.topic, c.name, l.signal FROM study_note_concept l JOIN study_note n ON n.id = l.note_id JOIN concept c ON c.id = l.concept_id ORDER BY n.id DESC LIMIT 10;"
+  ```
+- [ ] 다른 표현(영문, 약어)으로 같은 주제를 꺼내도 그 개념에 연결된 지난 기록을 찾는다
+
 ### 오류
 
 - [ ] `docker compose stop postgres` 뒤 학습 주제를 꺼내면, Claude가 DB 연결 실패(`ECONNREFUSED`)로 도구를 쓰지 못했다고 알려 준다. 서버는 계속 running이다. 확인 뒤 `docker compose start postgres`
