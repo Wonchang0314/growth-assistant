@@ -1,0 +1,373 @@
+# 시드 개념: CS 기초 (ADR-0021)
+# 형식 (모든 트랙 파일 공통)
+#   track: 트랙 키·이름·가중치·범위
+#   concepts[]:
+#     name         전체 트랙에서 유일한 개념 이름 (한국어 기준)
+#     parent       상위 개념 이름 (PART_OF). 없으면 트랙의 최상위 개념
+#     aliases      다른 표기 (영문, 약어, 자주 쓰는 말, 합친 개념 이름). 학습 맥락 조회의 이름 매칭에 쓴다
+#     description  한 줄 설명. 무엇을 다루는 개념인지
+#     requires     먼저 알아야 하는 개념 이름 (PREREQUISITE). 다른 트랙의 개념도 된다
+#     related      관련 개념 이름 (RELATED)
+# 출처: Notion 복습 문서에서 뽑은 후보(docs/research/2026-10-16-seed-concept-candidates.md)
+
+track:
+  key: cs
+  name: CS 기초
+  weight: 0.3
+  description: 원리. 왜 그렇게 동작하나 (네트워크, OS, DB 이론, 자료구조·알고리즘, 계산 기하, 수치·통계)
+
+concepts:
+  # 네트워크
+  - name: 컴퓨터 네트워크
+    aliases: [네트워크, networking]
+    description: 패킷이 주소·라우팅·전송 계층을 거쳐 목적지에 닿는 원리
+
+  - name: IP 주소와 서브넷
+    parent: 컴퓨터 네트워크
+    aliases: [IP address, CIDR, 서브넷, 사설 IP, 공인 IP, private IP]
+    description: 공인·사설 대역, CIDR 표기로 주소 묶음을 나타내는 법
+
+  - name: NAT와 포트포워딩
+    parent: 컴퓨터 네트워크
+    aliases: [NAT, port forwarding, DNAT, 헤어핀 NAT, hairpin NAT]
+    description: 공인 주소로 온 요청을 사설 주소로 바꿔 넘기는 방식과 내부에서 공인 주소로 돌아올 때의 문제
+    requires: [IP 주소와 서브넷]
+
+  - name: 라우팅 테이블
+    parent: 컴퓨터 네트워크
+    aliases: [routing table, ip route, 라우팅]
+    description: 목적지 주소마다 어느 인터페이스·게이트웨이로 보낼지 정하는 규칙
+    requires: [IP 주소와 서브넷]
+
+  - name: TCP 연결 수립과 실패 유형
+    parent: 컴퓨터 네트워크
+    aliases: [TCP handshake, 3-way handshake, connection refused, connection timeout, SYN]
+    description: 3-way handshake와, 거부·시간 초과·인증 실패가 각각 어느 단계까지 통과했다는 뜻인지
+
+  - name: DNS 이름 해석
+    parent: 컴퓨터 네트워크
+    aliases: [DNS, resolver, 도메인 이름 해석, 이름 해석]
+    description: 도메인 이름을 IP로 바꾸는 과정과 레코드 종류. 트래픽이 어디로 갈지는 DNS가 정한다
+
+  # HTTP
+  - name: HTTP
+    aliases: [HTTP 프로토콜, HyperText Transfer Protocol, HTTP/1.1과 HTTP/2, HTTP/2, multiplexing, 다중화, 헤더 압축]
+    description: 웹 요청·응답의 구조, 메서드, 헤더, 상태 코드, 프로토콜 버전 차이
+    requires: [TCP 연결 수립과 실패 유형]
+
+  - name: HTTP 상태 코드
+    parent: HTTP
+    aliases: ['401', '403', '404', '409', '500', '502', '504', status code, Bad Gateway]
+    description: 4xx와 5xx의 구분, 401 vs 403, 중복·경합의 409, 프록시가 내는 502·504와 서버가 내는 500
+
+  - name: HTTP 헤더와 콘텐츠 협상
+    parent: HTTP
+    aliases: [Accept-Encoding, Content-Encoding, Content-Type, MIME, Vary, Host 헤더, 가상호스트]
+    description: 클라이언트가 받을 수 있는 형식을 알리고 서버가 고르는 방식. Content-Type이 응답 분류의 정본이다
+
+  - name: HTTP 캐싱
+    parent: HTTP
+    aliases: [Cache-Control, ETag, 304 Not Modified, max-age, cache busting, HTTP 캐시 무효화]
+    description: 응답 헤더로 수명과 공유 범위를 선언하고, 만료 뒤 조건부 요청으로 재검증하며, URL을 바꿔 무효화한다
+
+  - name: REST API 설계 원칙
+    parent: HTTP
+    aliases: [REST, RESTful]
+    description: 리소스 중심 URL과 HTTP 메서드의 의미(멱등성, 안전성)를 따르는 설계
+
+  - name: 실시간 통신 방식
+    parent: HTTP
+    aliases: [WebSocket, SSE, Server-Sent Events, long polling, 폴링]
+    description: 폴링, 서버 전송 이벤트, 웹소켓의 방향성과 비용 비교
+
+  - name: 응답 크기와 전송 시간
+    parent: HTTP
+    aliases: [TTFB, Content Download, 페이로드 크기, 역직렬화 비용]
+    description: 첫 바이트 시간과 다운로드 시간을 나눠 보고, 압축 후 크기와 파싱 비용을 따로 따진다
+
+  - name: URL 입력부터 화면 표시까지
+    parent: HTTP
+    aliases: [브라우저 통신 과정, what happens when you type a URL]
+    description: DNS 조회, TCP·TLS 연결, 요청·응답, 렌더링까지 페이지 로딩의 전체 단계
+    requires: [DNS 이름 해석]
+
+  # TLS
+  - name: TLS
+    aliases: [HTTPS, SSL, Transport Layer Security]
+    description: 전송 암호화, 무결성, 서버 신원 확인
+    requires: [TCP 연결 수립과 실패 유형]
+
+  - name: TLS 핸드셰이크
+    parent: TLS
+    aliases: [TLS handshake, ClientHello, 버전 협상, TLS 1.2, TLS 1.3, cipher suite, SNI, Server Name Indication]
+    description: 버전·암호 규칙을 협상하고 키를 교환하는 과정(SNI로 호스트 이름 전달 포함). 한쪽이 지원하지 않는 버전이면 연결이 끊긴다
+
+  - name: 인증서 체인과 서명
+    parent: TLS
+    aliases: [PKI, CA, certificate chain, 인증서, 서명 알고리즘, SHA-1]
+    description: CA가 서명한 인증서로 신원을 증명하는 구조와 폐기된 서명 알고리즘
+
+  # 운영체제
+  - name: 운영체제
+    aliases: [OS, operating system]
+    description: 프로세스, 권한, 파일, 프로세스 간 통신의 원리
+
+  - name: 프로세스와 스레드
+    parent: 운영체제
+    aliases: [process, thread, 컨텍스트 스위칭, 스레드 풀]
+    description: 실행 단위와 메모리 공유 범위, 스레드를 늘릴 때의 비용
+
+  - name: 파일 권한과 소유권
+    parent: 운영체제
+    aliases: [chmod, chown, permission bits, 권한 비트, '0600']
+    description: 사용자·그룹·기타 권한 비트로 파일 접근을 통제하는 방식
+
+  - name: 사용자와 그룹
+    parent: 운영체제
+    aliases: [user, group, 보조 그룹, supplementary group, usermod -aG, newgrp]
+    description: 그룹 소속으로 권한을 나누는 방식. 프로세스의 그룹 소속은 시작할 때 정해져 이미 떠 있는 셸에는 반영되지 않는다
+    requires: [파일 권한과 소유권]
+
+  - name: 유닉스 도메인 소켓
+    parent: 운영체제
+    aliases: [unix socket, IPC, 프로세스 간 통신]
+    description: 같은 머신 안에서 파일 경로로 통신하는 소켓. 접근은 파일 권한으로 통제한다
+    requires: [파일 권한과 소유권]
+
+  - name: 공개키 암호와 SSH 인증
+    parent: 운영체제
+    aliases: [public key cryptography, SSH key, 공개키 인증, 개인키]
+    description: 개인키로 신원을 증명하고 상대가 공개키로 확인하는 방식
+
+  # 데이터베이스 이론
+  - name: 데이터베이스 이론
+    aliases: [DB 이론, 관계형 데이터베이스, RDBMS]
+    description: 트랜잭션, 동시성, NULL, 정규화, 인덱스의 원리
+
+  - name: 트랜잭션과 ACID
+    parent: 데이터베이스 이론
+    aliases: [transaction, ACID, atomicity, 원자성, commit, rollback]
+    description: 여러 작업을 전부 되거나 전부 안 되게 묶는 단위와 네 가지 보장
+
+  - name: 트랜잭션 격리 수준
+    parent: 데이터베이스 이론
+    aliases: [isolation level, MVCC, READ COMMITTED, REPEATABLE READ, SERIALIZABLE, dirty read, phantom read]
+    description: 동시 트랜잭션끼리 서로의 변경이 보이는 정도와 이상 현상
+    requires: [트랜잭션과 ACID]
+
+  - name: 락과 동시성 제어
+    parent: 데이터베이스 이론
+    aliases: [lock, 낙관적 락, 비관적 락, optimistic lock, pessimistic lock, SELECT FOR UPDATE, 락 대기]
+    description: 동시 수정 충돌을 잠금으로 막는 방법과, 열린 트랜잭션 때문에 DDL이 무한정 기다리는 문제
+    requires: [트랜잭션 격리 수준]
+
+  - name: 확인 후 실행 경쟁
+    parent: 데이터베이스 이론
+    aliases: [check-then-act, race condition, 경쟁 상태, TOCTOU]
+    description: 있나 보고 없으면 넣는 방식이 동시 요청에서 깨지는 이유. 제약 조건이 최후 방어선이다
+    related: [락과 동시성 제어]
+
+  - name: SQL NULL과 3값 논리
+    parent: 데이터베이스 이론
+    aliases: [three-valued logic, UNKNOWN, NULL 비교, NULL semantics]
+    description: NULL과의 비교는 UNKNOWN이라 조건에서 빠지고, UNIQUE는 NULL을 중복으로 치지 않는다
+
+  - name: 정규화와 함수 종속
+    parent: 데이터베이스 이론
+    aliases: [normalization, functional dependency, 파생값, derived data, 중복 저장]
+    description: 다른 값에서 유도되는 값을 따로 저장하지 않아 사본이 갈라지는 것을 막는 원리
+
+  - name: 데이터 그레인
+    parent: 데이터베이스 이론
+    aliases: [grain, granularity, 행 단위]
+    description: 테이블 한 행이 무엇 하나를 뜻하는지. 잘못 알면 집계가 몇 배로 부푼다
+
+  - name: 조인과 행 증식
+    parent: 데이터베이스 이론
+    aliases: [join fan-out, 1:N join, row multiplication]
+    description: 1:N 조인으로 행이 불어나 합계가 부풀거나 중복이 생기는 현상
+    requires: [데이터 그레인]
+
+  # 인덱스 원리
+  - name: 인덱스 원리
+    parent: 데이터베이스 이론
+    aliases: [index, 데이터베이스 인덱스, DB index]
+    description: 인덱스 구조별로 답할 수 있는 질문과, 인덱스를 쓰는 편이 나은 조건
+
+  - name: B-tree 인덱스
+    parent: 인덱스 원리
+    aliases: [B-tree, B+tree, 정렬 인덱스]
+    description: 값 순서로 정렬된 트리. 등호·범위·정렬 조회에 쓴다
+
+  - name: 공간 인덱스
+    parent: 인덱스 원리
+    aliases: [GiST, R-tree, spatial index, STRtree]
+    description: 도형을 감싸는 사각형으로 나눠 "이 점을 담는 도형"이나 근처 도형을 빠르게 찾는 구조
+
+  - name: 선택도와 스캔 방식
+    parent: 인덱스 원리
+    aliases:
+      [
+        selectivity,
+        Seq Scan,
+        Index Scan,
+        Bitmap Heap Scan,
+        순차 스캔,
+        데이터 지역성과 디스크 I/O,
+        locality,
+        BRIN,
+        물리 정렬,
+        cold cache,
+        warm cache,
+      ]
+    description: 읽을 행 비율이 크면 인덱스보다 순차 스캔이 빠른 이유. 랜덤 I/O와 순차 I/O, 데이터 지역성의 차이
+    requires: [B-tree 인덱스]
+
+  - name: 인덱스를 못 타는 조건
+    parent: 인덱스 원리
+    aliases: [sargability, sargable, 함수로 감싼 컬럼, 암묵적 형변환, "LIKE '%x'", 식 인덱스, expression index]
+    description: 컬럼을 함수로 감싸거나 타입이 어긋나면 결과는 같은데 인덱스를 못 쓴다
+    requires: [B-tree 인덱스]
+
+  # 자료구조와 알고리즘
+  - name: 자료구조와 알고리즘
+    aliases:
+      [
+        data structures,
+        algorithms,
+        DSA,
+        해시 테이블,
+        hash table,
+        hash map,
+        Map,
+        룩업 테이블,
+        트리와 그래프 탐색,
+        tree,
+        graph,
+        BFS,
+        DFS,
+        재귀 탐색,
+        구간 분류와 경계 조건,
+        threshold,
+        경계값,
+        inclusive bound,
+        off-by-one,
+      ]
+    description: 기본 자료구조(해시 테이블, 트리·그래프)와 탐색, 구간 분류의 경계 조건
+
+  - name: 시간 복잡도
+    parent: 자료구조와 알고리즘
+    aliases: [Big-O, 빅오, time complexity, 성능 비용 모델]
+    description: 입력 크기에 따른 비용 증가. 실무에서는 빈도 × 단가로 나눠 줄일 항을 고른다
+
+  # 계산 기하
+  - name: 계산 기하
+    aliases: [computational geometry, 공간 알고리즘]
+    description: 점·다각형 포함 판정, 거리, 공간 분할의 알고리즘
+
+  - name: 점-다각형 포함 판정
+    parent: 계산 기하
+    aliases: [point in polygon, PIP, ray casting, 반직선 교차]
+    description: 점에서 쏜 반직선이 변과 홀수 번 만나면 안쪽이다. 비용은 정점 수에 비례한다
+
+  - name: 경계 상자 사전 거절
+    parent: 계산 기하
+    aliases: [bounding box, bbox prefilter, broad phase, envelope]
+    description: 싼 사각형 판정으로 확실히 밖인 것을 먼저 버리고 남은 것만 정밀 판정한다
+    related: [점-다각형 포함 판정]
+
+  - name: 보로노이 분할
+    parent: 계산 기하
+    aliases: [Voronoi, 최근접 중심, nearest centroid]
+    description: 가장 가까운 중심점으로 영역을 나누는 방식. 거리 척도가 왜곡되면 포함 판정과 달라진다
+    requires: [좌표계와 투영]
+
+  - name: 좌표계와 투영
+    parent: 계산 기하
+    aliases:
+      [
+        coordinate system,
+        projection,
+        EPSG:4326,
+        WGS84,
+        EPSG:3857,
+        EPSG:5179,
+        위경도,
+        구면 거리,
+        Haversine,
+        great-circle distance,
+        대원 거리,
+      ]
+    description: 위경도는 거리 단위가 아니다. 경도 1도와 위도 1도의 길이가 달라 미터 계산에는 투영 좌표계나 구면 거리 공식을 쓴다
+
+  # 수치·통계
+  - name: 수치 표현
+    aliases: [numeric representation, 숫자 정밀도]
+    description: 숫자를 어떤 형식과 자릿수로 저장하느냐가 정확도를 정한다
+
+  - name: 부동소수점
+    parent: 수치 표현
+    aliases: [floating point, IEEE 754, float32, double, 유효숫자]
+    description: 2진 부동소수점의 유효숫자와 오차. float32로는 위경도가 약 1m 해상도만 남는다
+
+  - name: 반올림 규약
+    parent: 수치 표현
+    aliases: [rounding, banker's rounding, half-even, Math.round, 반올림 비가역]
+    description: 반올림 방식마다 .5 처리가 다르고, 한 번 반올림한 값은 되돌릴 수 없다
+
+  - name: 기술 통계
+    aliases:
+      [
+        descriptive statistics,
+        통계 기초,
+        비교군 설계,
+        cohort,
+        peer group,
+        코호트,
+        표본 수,
+        정밀도와 재현율,
+        precision,
+        recall,
+        false positive,
+        오탐,
+        미탐,
+      ]
+    description: 집계 지표를 만들 때 필요한 대표값·비율·비교군의 원리, 오탐과 미탐의 맞교환
+
+  - name: 집계의 가산성
+    parent: 기술 통계
+    aliases: [additivity, additive measure, COUNT DISTINCT, 고유 개수]
+    description: 합계·건수는 쪼개 더해도 되지만 고유 개수와 중간값은 더할 수 없다
+
+  - name: 중간값과 대표값
+    parent: 기술 통계
+    aliases: [median, mode, mean, 최빈값, 평균, PERCENTILE_CONT]
+    description: 평균·중간값·최빈값의 쓰임과, 부분 중간값의 합이 전체 중간값이 아닌 이유
+
+  - name: 비율 지표 설계
+    parent: 기술 통계
+    aliases: [ratio, 분자 분모, ratio of sums, mean of ratios]
+    description: 비율은 총합 ÷ 총합으로 내고, 분자와 분모가 같은 모수·범위를 보는지 확인한다
+
+  # 기타 원리
+  - name: 데이터 압축
+    aliases: [compression, DEFLATE, gzip, brotli, LZ77, Huffman]
+    description: 반복을 뒤 참조로 바꾸고 빈도로 부호화하는 원리. 레벨과 알고리즘별 압축률·비용 차이
+
+  - name: 문자 인코딩
+    aliases: [character encoding, UTF-8, Base64, 인코딩]
+    description: 문자와 이진 데이터를 바이트·텍스트로 바꾸는 방식. Base64는 암호화가 아니다
+
+  - name: GPU 렌더링 파이프라인
+    aliases: [graphics pipeline, GPU, 셰이더, shader]
+    description: CPU가 명령을 쌓고 GPU가 비동기로 정점 처리·래스터화하는 구조
+
+  - name: GPU 동기화 비용
+    parent: GPU 렌더링 파이프라인
+    aliases: [readback, getBufferSubData, pipeline stall, 동기 스톨]
+    description: GPU 결과를 CPU로 읽으려면 밀린 그리기가 끝날 때까지 기다려야 한다
+
+  - name: 인스턴싱과 컬링
+    parent: GPU 렌더링 파이프라인
+    aliases: [instanced rendering, instancing, culling, 테셀레이션, tessellation]
+    description: 같은 도형을 한 번에 여러 개 그리는 방식. 화면 밖 인스턴스도 정점 셰이더는 돈다
