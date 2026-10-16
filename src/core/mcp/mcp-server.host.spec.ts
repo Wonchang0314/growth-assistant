@@ -19,6 +19,10 @@ class EchoTool implements McpToolHandler<typeof echoInput> {
 
   handle({ word }: z.output<typeof echoInput>) {
     if (word === '실패') return Promise.reject(new Error('DB가 꺼져 있다'));
+    if (word === '쿼리') {
+      const cause = new Error('connect ECONNREFUSED 127.0.0.1:5432');
+      return Promise.reject(new Error('Failed query: select 1', { cause }));
+    }
     return Promise.resolve({ text: `받은 단어: ${word}`, data: { word } });
   }
 }
@@ -92,6 +96,17 @@ describe('McpServerHost', () => {
     expect(failed.isError).toBe(true);
     expect(failed.content).toEqual([{ type: 'text', text: 'echo_word 실패: DB가 꺼져 있다' }]);
     expect(next.isError).toBeFalsy();
+  });
+
+  // Drizzle은 "Failed query: ..." 오류의 cause에 DB 연결 실패 같은 실제 원인을 둔다.
+  it('도구 오류에 예외의 원인(cause)까지 담는다', async () => {
+    const client = await connect([EchoTool]);
+
+    const failed = await client.callTool({ name: 'echo_word', arguments: { word: '쿼리' } });
+
+    expect(failed.content).toEqual([
+      { type: 'text', text: 'echo_word 실패: Failed query: select 1 (원인: connect ECONNREFUSED 127.0.0.1:5432)' },
+    ]);
   });
 
   it('스키마에 맞지 않는 입력은 처리기에 닿기 전에 오류가 된다', async () => {

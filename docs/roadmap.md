@@ -2,7 +2,7 @@
 
 상세 작업 계획은 세션 안에서 관리하고, 이 파일에는 진행 상태만 남긴다. 단계별 내용은 [설계 문서 3장](specs/2026-10-12-growth-assistant-design.md)을 따른다.
 
-**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점, 첫 도구, 튜터 지침을 만들고 Discord 코드를 지웠다. 다음은 Claude Desktop 등록
+**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점, 첫 도구, 튜터 지침을 만들고 Discord 코드를 지웠다. Desktop 등록 절차(`ops/desktop-config.sh`)와 수동 점검 체크리스트를 만들었다. 다음은 맥미니에서 실제로 등록하고 체크리스트를 확인하는 것
 
 ## 0. 준비
 - [x] `claude -p` 동작 확인
@@ -20,9 +20,11 @@
 - [x] stdio MCP 진입점 (`mcp-stdio.ts`), `core/mcp` 도구 등록·처리기 탐색, 파일 로그, `npm run db:migrate`
 - [x] 첫 도구 (`get_learning_context`, `record_study_note`, `study_note` 테이블)
 - [x] 튜터 지침 (MCP `instructions`, Claude 프로젝트 지침 초안 `docs/claude-project-instructions.md`)
-- [ ] Claude Desktop 등록 (릴리스 디렉터리 배포, 설정 예시를 `docs/ops.md`에)
+- [x] Claude Desktop 등록 절차 (릴리스 디렉터리 배포, `ops/desktop-config.sh`, `docs/ops.md`)
+- [ ] 맥미니 Desktop에 실제 등록
 - [x] Discord 코드·설정과 대화 세션 테이블 제거, `ops/` 정리 (상시 실행 앱은 4단계에서 다시 만든다)
-- [ ] 수동 점검 체크리스트 (Desktop 대화에서 도구 호출, 학습 기록)
+- [x] 수동 점검 체크리스트 작성 (`docs/manual-check.md`)
+- [ ] 1단계 체크리스트 확인 (Desktop 대화에서 도구 호출, 학습 기록)
 
 ## 2. 기억: Notion·velog 수집, 경험 카드, 개념
 - [ ] 개념 그래프 + 시드 개념

@@ -50,13 +50,14 @@ src/
 - 마이그레이션 생성: `*.schema.ts`를 고친 뒤 `npm run db:generate -- --name <이름>`. 적용: `npm run db:migrate`(빌드 후 적용). MCP 서버는 시작할 때 적용하지 않는다(배포 스크립트가 적용한다). DB 둘러보기: `npm run db:studio`
 - 스타일 자동 수정: `npm run format`, `npx eslint --fix .`
 - MCP 서버: `npm run build && npm run mcp` (stdio. 표준출력은 MCP 메시지 통로라 로그는 표준에러나 `LOG_DIR/mcp`에 쓴다. `.env` 위치는 `GROWTH_ENV_FILE`)
-- 운영(Mac mini): 배포 `ops/deploy.sh` (검사·빌드·릴리스·마이그레이션, `docs/ops.md`). Claude Desktop은 배포된 릴리스의 MCP 서버를 띄운다
+- 운영(Mac mini): 배포 `ops/deploy.sh` (검사·빌드·릴리스·마이그레이션, `docs/ops.md`). Claude Desktop은 배포된 릴리스의 MCP 서버를 띄운다. Desktop 설정 항목 출력 `ops/desktop-config.sh`
 
 ## 문서
 
 - 진행 상태: `docs/roadmap.md`
 - 세션 이어 가기(다음 할 일 순서, 학습 진도, 조사 메모): `docs/handoff.md`
 - 운영 가이드: `docs/ops.md`
+- 수동 점검 체크리스트 (Claude Desktop에서 확인): `docs/manual-check.md`
 - 기능 설계: `docs/specs/`
 - 아키텍처(C4): `docs/architecture/`
 - 결정 기록(ADR): `docs/adr/`
