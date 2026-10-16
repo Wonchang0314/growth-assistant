@@ -2,7 +2,7 @@
 
 상세 작업 계획은 세션 안에서 관리하고, 이 파일에는 진행 상태만 남긴다. 단계별 내용은 [설계 문서 3장](specs/2026-10-12-growth-assistant-design.md)을 따른다.
 
-**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점과 첫 도구를 만들었고, 다음은 튜터 지침과 Claude Desktop 등록
+**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점, 첫 도구, 튜터 지침을 만들고 Discord 코드를 지웠다. 다음은 Claude Desktop 등록
 
 ## 0. 준비
 - [x] `claude -p` 동작 확인
@@ -19,9 +19,9 @@
 - [x] `ClaudeClient` (백그라운드 LLM 작업용)
 - [x] stdio MCP 진입점 (`mcp-stdio.ts`), `core/mcp` 도구 등록·처리기 탐색, 파일 로그, `npm run db:migrate`
 - [x] 첫 도구 (`get_learning_context`, `record_study_note`, `study_note` 테이블)
-- [ ] 튜터 지침 (MCP `instructions`, Claude 프로젝트 지침 초안)
+- [x] 튜터 지침 (MCP `instructions`, Claude 프로젝트 지침 초안 `docs/claude-project-instructions.md`)
 - [ ] Claude Desktop 등록 (릴리스 디렉터리 배포, 설정 예시를 `docs/ops.md`에)
-- [ ] Discord 코드·설정과 대화 세션 테이블 제거, `ops/` 정리
+- [x] Discord 코드·설정과 대화 세션 테이블 제거, `ops/` 정리 (상시 실행 앱은 4단계에서 다시 만든다)
 - [ ] 수동 점검 체크리스트 (Desktop 대화에서 도구 호출, 학습 기록)
 
 ## 2. 기억: Notion·velog 수집, 경험 카드, 개념
@@ -31,6 +31,7 @@
 - [ ] 대화에 기억 연결 (`search_experience`, `get_learning_context` 확장)
 
 ## 3. 퀴즈·복습: 객관식·빈칸, FSRS, 숙련도, 약점 (ADR-0019)
+- [ ] `quiz` 모듈 레이어 폴더 구조 시도, 3단계 끝에 평가 (ADR-0020)
 - [ ] FSRS, 숙련도·약점 계산
 - [ ] 객관식·빈칸 문제 생성·검증 (약점 반영 출제, 오답 보기 오개념), 출제 지침 (`update_quiz_guideline`)
 - [ ] 변형 문제 (`key_point`, `variant_of`)
@@ -39,7 +40,7 @@
 
 ## 4. 먼저 말 걸기: 예약 작업 (ADR-0019로 미룸)
 - [ ] 결정: 예약 작업 실행 방식 (Claude Code 데스크톱 예약 작업, 원격 전환 뒤 예약 작업). 1~3단계 검증 뒤
-- [ ] 상시 실행 진입점(launchd), 서버 스케줄러, 놓친 실행 복구
+- [ ] 상시 실행 진입점(launchd, `ops/install.sh`), 서버 스케줄러, 놓친 실행 복구
 - [ ] 03:00 동기화·문제 보충
 - [ ] 07:30 아침 복습, 18:30 오늘의 주제, 일 20:00 주간 리포트 (`get_daily_topic`, `get_weekly_report`)
 - [ ] 무시 누적 감지, 주간 리포트 조정 권고

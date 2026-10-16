@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 검사(테스트 포함)와 빌드를 거친 코드를 새 릴리스 디렉터리에 배포하고, current를 바꾼 뒤 서비스를 재시작한다.
+# 검사(테스트 포함)와 빌드를 거친 코드를 새 릴리스 디렉터리에 배포하고, DB 마이그레이션을 적용한 뒤 current를 바꾼다.
+# Claude Desktop은 current의 MCP 서버(dist/mcp-stdio.js)를 띄우므로, 개발 중인 작업 트리를 고쳐도 Desktop의 도구가 깨지지 않는다.
 # 실행 중인 릴리스의 파일을 덮어쓰지 않도록 릴리스마다 디렉터리를 따로 만든다. 최근 3개만 남긴다.
 #   ~/.growth-assistant/app/releases/<시각>/{dist, node_modules, package.json}
 #   ~/.growth-assistant/app/current -> releases/<시각>
@@ -8,10 +9,10 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # 배포 위치를 바꿔 시험할 때만 GROWTH_APP_DIR을 지정한다.
 APP_DIR="${GROWTH_APP_DIR:-$HOME/.growth-assistant/app}"
-LABEL="com.growthassistant.bot"
 KEEP_RELEASES=3
 
 cd "$PROJECT_DIR"
+[[ -f .env ]] || { echo ".env가 없다. cp .env.example .env 후 값을 채운다." >&2; exit 1; }
 npm ci --no-audit --no-fund
 npm run check   # 타입 검사, 린트, 형식, 테스트 (DB 테스트에 Docker가 필요하다)
 npm run build
@@ -20,6 +21,10 @@ release="$APP_DIR/releases/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$release"
 cp -R dist package.json package-lock.json "$release/"
 (cd "$release" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
+
+# MCP 서버는 시작할 때 마이그레이션하지 않으므로 current를 바꾸기 전에 적용한다.
+GROWTH_ENV_FILE="$PROJECT_DIR/.env" node "$release/dist/migrate.js"
+
 ln -sfn "$release" "$APP_DIR/current"
 echo "배포함: $release"
 
@@ -28,9 +33,4 @@ ls -1d "$APP_DIR"/releases/*/ | sort -r | tail -n +$((KEEP_RELEASES + 1)) | whil
     rm -rf "$old"
 done
 
-if command -v launchctl >/dev/null && launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then
-    launchctl kickstart -k "gui/$(id -u)/$LABEL"
-    echo "재시작함: $LABEL"
-else
-    echo "서비스가 아직 설치되지 않았다. ops/install.sh를 실행한다."
-fi
+echo "Claude Desktop을 다시 시작하면 새 릴리스의 MCP 서버를 띄운다."

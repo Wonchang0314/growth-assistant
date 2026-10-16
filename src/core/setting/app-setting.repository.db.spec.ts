@@ -10,10 +10,10 @@ afterAll(() => testDb.close());
 
 describe('AppSettingRepository', () => {
   it('같은 키로 저장하면 값을 덮어쓴다', async () => {
-    await repository.set('discord.channel.tutor', '1');
-    await repository.set('discord.channel.tutor', '2');
+    await repository.set('quiz.guideline', '1');
+    await repository.set('quiz.guideline', '2');
 
-    expect(await repository.get('discord.channel.tutor')).toBe('2');
+    expect(await repository.get('quiz.guideline')).toBe('2');
     expect(await testDb.count('app_setting')).toBe(1);
   });
 

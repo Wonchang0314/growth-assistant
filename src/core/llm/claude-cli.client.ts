@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import pLimit, { type LimitFunction } from 'p-limit';
 import { z } from 'zod';
 import { Clock } from '../clock/clock.js';
-import { AdminNotifier } from '../discord/admin-notifier.js';
+import { AdminNotifier } from '../logging/admin-notifier.js';
 import { ClaudeClient, ClaudeException, type ClaudeRequest } from './claude.client.js';
 import { ClaudeProcessRunner } from './claude-process.runner.js';
 import { type ClaudeOutput, classifyError, parseClaudeStream } from './claude-stream.parser.js';
@@ -152,7 +152,7 @@ export class ClaudeCliClient extends ClaudeClient {
     this.authAlerted = true;
     try {
       await this.adminNotifier.notify(
-        `Claude CLI 인증 오류: ${error.message}\n봇을 실행하는 기기에서 \`claude\`를 실행해 다시 로그인하면 이후 호출부터 정상으로 돌아옵니다.`,
+        `Claude CLI 인증 오류: ${error.message}\n서버를 실행하는 기기에서 \`claude\`를 실행해 다시 로그인하면 이후 호출부터 정상으로 돌아옵니다.`,
       );
     } catch (e) {
       this.logger.warn(`인증 오류 알림 실패: ${String(e)}`);

@@ -18,8 +18,6 @@ beforeAll(async () => {
   vi.stubEnv('POSTGRES_DB', database.database);
   vi.stubEnv('POSTGRES_USER', database.user);
   vi.stubEnv('POSTGRES_PASSWORD', database.password);
-  // Discord 설정이 켜져 있어도 MCP 서버는 Discord 값을 요구하지 않는다.
-  vi.stubEnv('DISCORD_ENABLED', 'true');
   // ConfigModule.forRoot()는 모듈을 불러올 때 환경 변수를 읽으므로 값을 바꾼 뒤 불러온다.
   const { McpAppModule } = await import('../src/mcp-app.module.js');
 
