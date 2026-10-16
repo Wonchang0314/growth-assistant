@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { inspect } from 'node:util';
 import { ConsoleLogger, type LogLevel } from '@nestjs/common';
@@ -13,7 +14,7 @@ type JsonLogOptions = {
 };
 
 /**
- * 운영(launchd)용 로거. 로그를 회전하는 파일에 한 줄씩 쓴다.
+ * 운영용 로거(`LOG_DIR`). 로그를 회전하는 파일에 한 줄씩 쓴다.
  * Nest ConsoleLogger의 JSON 모드는 모든 기록을 [printAsJson] 하나로 보내므로, 그 메서드만 바꿔 파일에 쓴다.
  */
 export class FileLogger extends ConsoleLogger {
@@ -26,6 +27,8 @@ export class FileLogger extends ConsoleLogger {
    * 프로세스마다 다른 디렉터리를 준다(상시 실행 앱, MCP 서버). 같은 디렉터리면 회전과 `current.log`가 겹친다.
    */
   static async create(dir: string): Promise<FileLogger> {
+    // pino-roll의 mkdir은 파일을 열 때(비동기) 디렉터리를 만드는데 current.log 링크는 그 전에 만들어서, 디렉터리가 없으면 시작에 실패한다.
+    await mkdir(dir, { recursive: true });
     const stream = await pinoRoll({
       file: join(dir, 'growth-assistant'),
       extension: '.log',
@@ -75,7 +78,7 @@ function describeError(error: Record<string, unknown>): string {
   return `${String(error.name)}: ${String(error.message)}`;
 }
 
-/** 봇을 실행하는 기기의 시간대로 `2026-10-14 15:30:00.123`. */
+/** 서버를 실행하는 기기의 시간대로 `2026-10-14 15:30:00.123`. */
 function localTimestamp(date: Date): string {
   const pad = (n: number, width = 2) => String(n).padStart(width, '0');
   return (

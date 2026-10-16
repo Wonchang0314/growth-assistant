@@ -24,7 +24,31 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    ```
    검사·테스트·빌드한 릴리스를 `~/.growth-assistant/app/releases/<시각>`에 만들고, DB 마이그레이션을 적용한 뒤 `~/.growth-assistant/app/current`를 새 릴리스로 바꾼다.
 6. **예전 Discord 봇 해제:** 예전에 `ops/install.sh`로 봇을 등록했던 기기라면 `ops/uninstall.sh`를 한 번 실행한다.
-7. **Claude Desktop 등록:** (작성 예정, 로드맵 1단계)
+7. **Claude Desktop 등록:**
+   ```bash
+   ops/desktop-config.sh
+   ```
+   Desktop 설정 파일에 넣을 항목을 출력한다(파일은 고치지 않는다). 출력 예:
+   ```json
+   {
+     "mcpServers": {
+       "growth-assistant": {
+         "command": "/opt/homebrew/opt/node@24/bin/node",
+         "args": ["/Users/<사용자>/.growth-assistant/app/current/dist/mcp-stdio.js"],
+         "env": {
+           "GROWTH_ENV_FILE": "/Users/<사용자>/<레포>/.env",
+           "LOG_DIR": "/Users/<사용자>/.growth-assistant/logs"
+         }
+       }
+     }
+   }
+   ```
+   - Desktop의 Settings → Developer → Edit Config로 `~/Library/Application Support/Claude/claude_desktop_config.json`을 열고, `mcpServers`에 `growth-assistant` 항목을 더한다. 다른 서버가 이미 있으면 그 옆에 넣는다.
+   - Desktop을 완전히 종료(⌘Q)했다가 다시 연다. Settings → Developer에서 `growth-assistant`가 running이면 연결된 것이다.
+   - 경로를 모두 절대 경로로 적는 이유: Desktop은 터미널의 PATH와 작업 디렉터리를 물려받지 않는다. `args`는 `current` 링크를 가리키므로 새로 배포한 뒤에는 Desktop을 다시 시작하기만 하면 된다.
+   - `LOG_DIR`는 `.env`가 아니라 여기서 준다. 진입점이 `.env`를 읽기 전에 로거를 만들기 때문이다.
+   - 튜터링은 Claude 프로젝트를 하나 만들고, 그 지침에 `docs/claude-project-instructions.md`의 본문을 붙여 넣은 뒤 그 안에서 대화한다.
+8. **점검:** [수동 점검 체크리스트](manual-check.md)의 1단계 항목을 확인한다.
 
 ## 일상 작업
 
@@ -40,13 +64,15 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 | 위치 | 내용 |
 |---|---|
 | `LOG_DIR/mcp/growth-assistant.<날짜>.<번호>.log` | MCP 서버 로그 (Claude Desktop 설정에서 `LOG_DIR`를 줬을 때). 하루 또는 10MB마다 새 파일, 최근 30개 보관. `current.log`가 지금 쓰는 파일을 가리킨다 |
-| Claude Desktop의 MCP 로그 | `LOG_DIR`가 없을 때의 로그와 시작 실패(환경 변수 오류, DB 연결 실패) |
+| Claude Desktop의 MCP 로그 (`~/Library/Logs/Claude/mcp-server-growth-assistant.log`) | `LOG_DIR`가 없을 때의 로그와 시작 실패(환경 변수 오류, node를 찾지 못함) |
 | `llm_call_log` 테이블 | Claude CLI 호출마다 용도·모델·소요 시간·성공 여부·오류 |
 
 ## 문제 해결
 
 - **로그에 "Claude CLI 인증 오류" 관리 알림:** Mac mini에서 `claude`를 실행해 다시 로그인한다. 다음 호출부터 정상으로 돌아온다. 알림 경로는 원격 전환 때 정한다(ADR-0018).
-- **도구가 오류를 돌려줌:** DB가 안 떠 있으면 `docker compose up -d`. 마이그레이션이 덜 됐으면 `ops/deploy.sh`나 `npm run db:migrate`.
+- **Desktop에 서버가 failed로 보이거나 도구가 없음:** Desktop의 MCP 로그를 본다. `ops/desktop-config.sh`를 다시 실행해 설정의 경로가 맞는지 비교한다. 설정 파일이 JSON 형식에 맞지 않으면 Desktop이 서버를 하나도 띄우지 않는다.
+- **`.env`를 읽지 못함(`EPERM`):** 레포가 `~/Documents`, `~/Desktop`, `~/Downloads` 아래에 있으면 macOS 개인정보 보호가 Desktop이 띄운 프로세스의 접근을 막을 수 있다. 레포를 그 밖(예: `~/dev`)으로 옮기거나 시스템 설정 → 개인정보 보호 및 보안에서 Claude에 접근을 허용한다.
+- **도구가 오류를 돌려줌:** 오류 문장의 "원인"을 본다. `ECONNREFUSED`면 DB가 안 떠 있으니 `docker compose up -d`. `relation ... does not exist`처럼 테이블이 없으면 마이그레이션이 덜 된 것이니 `ops/deploy.sh`나 `npm run db:migrate`.
 - **`claude`를 찾지 못함 (`UNKNOWN: Error: spawn claude ENOENT`):** `which claude`로 경로를 찾아 `.env`에 `CLAUDE_EXECUTABLE=<경로>`를 넣는다.
 
 ## Mac 설정

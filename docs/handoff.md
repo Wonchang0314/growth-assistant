@@ -2,15 +2,13 @@
 
 세션을 이어 갈 때 읽는 메모다. 진행 상태의 기준은 [로드맵](roadmap.md)이고, 이 파일에는 로드맵에 남기지 않는 맥락(다음에 할 일의 순서, 학습 진도, 조사 결론)만 둔다. 다 처리한 항목은 지운다.
 
-**마지막 갱신:** 2026-10-15, 브랜치 `feat/tutor-instructions`
+**마지막 갱신:** 2026-10-16, main (PR #6 머지 뒤)
 
 ## 작업
 
-1. **이 브랜치 PR 머지:** 튜터 지침(MCP instructions), Discord 코드 제거, quiz 레이어 폴더 결정(ADR-0020)
-2. **맥미니 정리:** 예전에 `ops/install.sh`로 봇을 등록한 기기라면 `ops/uninstall.sh`를 한 번 실행한다. 지우지 않으면 launchd가 없는 `dist/main.js`를 계속 재시작한다
-3. **Claude Desktop 등록 (로드맵 1단계):** `ops/deploy.sh`로 릴리스를 만들고, `claude_desktop_config.json`에서 `~/.growth-assistant/app/current/dist/mcp-stdio.js`를 띄우는 예시를 `docs/ops.md` 7번에 쓴다(`GROWTH_ENV_FILE`, `LOG_DIR` 포함)
-4. **수동 점검 체크리스트:** Desktop 대화에서 `get_learning_context`, `record_study_note` 호출과 학습 기록 저장을 확인한다
-5. **작은 정리:** `src/core/clock/clock.ts` 주석에 Discord 시절 표현("봇", "유휴 종료")이 남아 있다
+1. **맥미니 정리:** 예전에 `ops/install.sh`로 봇을 등록한 기기라면 `ops/uninstall.sh`를 한 번 실행한다. 지우지 않으면 launchd가 없는 `dist/main.js`를 계속 재시작한다
+2. **맥미니에서 Desktop 등록:** `git pull && ops/deploy.sh` → `ops/desktop-config.sh` 출력을 Desktop 설정에 넣고 다시 시작한다 (`docs/ops.md` 처음 설치 7번). WSL에서는 Desktop이 하듯 최소 환경과 작업 디렉터리 `/`로 띄워 도구 목록·instructions·로그·DB 꺼짐 오류까지 확인했다. 실제 Desktop과 macOS 권한(레포가 `~/Documents` 아래인 경우)은 확인하지 못했다
+3. **1단계 체크리스트 확인:** `docs/manual-check.md`. 끝나면 로드맵 1단계를 닫고 2단계(개념 그래프)로 넘어간다
 
 ## 학습 (현재 구현 이해하기)
 
@@ -23,7 +21,11 @@
 - **MCP의 세 층:** 프로토콜 명세(JSON 메시지 모양) → SDK API(`McpServer`, `registerTool`, `connect`) → 우리 어댑터(`McpToolHandler`, `@McpTool()`). `McpServerHost`가 우리 어댑터를 SDK 호출로 바꾼다. "MCP 서버"는 SDK 패키지가 아니라 MCP 메시지를 주고받는 프로세스다
 - **스키마가 Claude에 가는 경로:** zod → JSON Schema(`tools/list`) → 모델이 입력을 만들 때 참고. 실제 검사는 서버에서 SDK가 zod로 한다. `.describe()`는 사실상 프롬프트다
 
-### 문제 결과 (5문제 중 2문제 맞힘)
+- **`StudyModule` 내부 흐름 (2026-10-16):** 도구(들어오는 어댑터) → 서비스(유스케이스: 기록 시각, 값 정리, 조회 조합) → 저장소(나가는 어댑터: SQL, 행을 도메인 타입으로) → DB. 사용자 설명에서 흐름은 맞았다. 다만 provider를 "주입받는 것"으로 이해했고(실제로는 모듈이 만들어 내놓는 것), 도구의 반환값을 MCP 규격 JSON으로 봤다(실제로는 `{ text, data }`이고 변환은 Host가 한다)
+
+- **테스트 구조 (2026-10-16):** 단위(`*.spec.ts`) / DB 통합(`*.db.spec.ts`, 실제 PostgreSQL) / 앱 전체(`test/mcp-app.module.db.spec.ts`, `Clock`과 전송만 바꿈). Vitest projects로 파일 이름에 따라 나눈다. db는 globalSetup이 컨테이너를 한 번 띄우고 마이그레이션을 적용한 뒤 `provide`/`inject`로 접속 정보를 넘기며, 파일을 차례로 실행하고 테스트마다 TRUNCATE한다. 가짜 객체(`FixedClock`, `FakeClaudeClient`), 녹화한 CLI 스트림, `overrideProvider`도 다뤘다. `StudyNoteService`와 도구 처리기는 따로 된 단위 테스트 없이 앱 전체 테스트로만 확인된다
+
+### 문제 결과 (13문제 중 6문제 맞힘)
 
 | 문제 | 결과 | 보강할 개념 |
 |---|---|---|
@@ -32,18 +34,21 @@
 | Q3. `Clock` 추상 클래스를 두는 이유 | 오답(성능을 고름) | 포트와 어댑터, 테스트에서 시각 고정. 추상 클래스는 실행 시점에도 남아 주입 토큰으로 쓸 수 있다 |
 | Q4. 새 `@McpTool()` 도구를 노출하는 최소 조건 | 오답(`McpServerHost`를 직접 고침을 고름) | Discovery: 기능 모듈 `providers` 등록과 루트 `imports` 추가만 하면 된다 |
 | Q5. zod 스키마 변경이 Claude에 전달되는 경로 | 정답 | |
+| Q6. export하지 않은 도구를 Host가 찾는 이유 | 오답(`@McpTool`이 자동 export를 고름) | `exports`는 다른 모듈이 주입할 수 있는 범위만 정한다. Discovery는 컨테이너의 모든 provider를 훑는다 |
+| Q7. QuizModule이 학습 기록을 읽는 방법 | 오답(MCP 도구 호출을 고름) | 모듈 사이는 `imports` + export된 서비스 주입. MCP 도구는 Claude가 부르는 바깥 입구다 |
+| Q8. `createdAt`을 `clock.now()`로 넣는 이유 | 정답 (Q3 다시 확인 통과) | |
+| Q9. `confusedPoints`를 빼고 부르면 `handle()`이 받는 값 | 오답(`undefined`를 고름) | SDK가 zod로 파싱한 결과(`z.output`)를 넘기므로 `.default([])`가 적용된 `[]`가 들어온다 |
 
-Q2~Q4는 다음 학습 때 조건을 바꾼 문제로 다시 확인한다.
+| Q10. `.db`를 빼고 이름 지은 DB 테스트를 unit으로 돌리면 | 정답 | |
+| Q11. db 프로젝트의 `fileParallelism: false`를 지우면 | 정답 | |
+| Q12. `overrideProvider(Clock)`이 동작하는 이유와 거리가 먼 것 | 오답(2를 고름. "거리가 먼"을 놓친 것으로 보임) | 바꿔 끼우기가 효과를 내려면 대상 코드가 포트를 주입받아야 한다(`new Date()`를 직접 부르면 바꿔도 소용없다) |
+| Q13. 출제 규칙을 테스트하는 방법 | 정답 (Q7 다시 확인 통과: 서비스를 주입받는 구조) | |
 
-### 다음: `StudyModule` 내부 흐름
+Q6(`exports`와 Discovery의 차이)과 Q9(zod 파싱 결과가 넘어옴)를 다음 학습 때 조건을 바꿔 다시 확인한다.
 
-사용자가 먼저 설명하고 나서 피드백한다. 설명할 것:
+### 다음 주제 후보
 
-- `record_study_note` 호출이 처리기 → 서비스 → 저장소 → DB로 내려가는 흐름
-- 각 층이 맡는 일: `mcp/record-study-note.tool.ts`, `study-note.service.ts`, `study-note.ts`(도메인 규칙), `study-note.repository.ts`, `study-note.schema.ts`
-- zod 입력 검증이 어디서 일어나는지, `Clock`이 어디서 쓰이는지
-
-그다음 주제 후보는 테스트 구조(단위 테스트 `*.spec.ts`와 Testcontainers를 쓰는 `*.db.spec.ts`)와 `mcp-stdio.ts`의 시작·종료와 로그다.
+`mcp-stdio.ts`의 시작·종료와 로그, `core/llm`(`ClaudeCliClient`, 스트림 파서, 호출 로그).
 
 ## 조사 메모: LLM 제공자를 OpenAI로 바꿀지 (2026-10-15)
 

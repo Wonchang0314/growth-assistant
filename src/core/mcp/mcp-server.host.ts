@@ -93,8 +93,13 @@ export class McpServerHost implements OnModuleInit {
         : { content: [{ type: 'text', text: result.text }] };
     } catch (e) {
       this.logger.error(`${tool.name} 실패`, inspect(e));
-      const message = e instanceof Error ? e.message : String(e);
-      return { isError: true, content: [{ type: 'text', text: `${tool.name} 실패: ${message}` }] };
+      return { isError: true, content: [{ type: 'text', text: `${tool.name} 실패: ${describeFailure(e)}` }] };
     }
   }
+}
+
+/** 예외 메시지와 원인(cause). Drizzle의 "Failed query" 오류는 DB 연결 실패 같은 실제 원인을 cause에 둔다. */
+function describeFailure(e: unknown): string {
+  if (!(e instanceof Error)) return String(e);
+  return e.cause === undefined ? e.message : `${e.message} (원인: ${describeFailure(e.cause)})`;
 }

@@ -532,7 +532,7 @@ weakness_score = (1 − mastery_score) × 확신도 보정 + 반복 오개념 �
 | LLM 연동 | `ClaudeClient` 인터페이스 + `FakeClaudeClient` (고정 JSON). 실제 응답 샘플로 파싱 테스트 |
 | MCP 도구 | 유스케이스는 MCP 없이 테스트. 도구 등록·입력 검증·결과 형식은 MCP SDK 클라이언트를 메모리 전송으로 붙여 확인한다(정답이 결과에 새지 않는지 포함) |
 | 프롬프트 품질 (추출, 출제, 변형 출제, 검증) | 정답이 정해진 소규모 평가 세트 + 수동 평가 스크립트. 프롬프트를 바꿀 때마다 실행 |
-| Claude 앱 연동 | 맥미니 Claude Desktop에서 수동 점검 체크리스트로 확인 (도구 호출, 학습 기록, 퀴즈 풀이) |
+| Claude 앱 연동 | 맥미니 Claude Desktop에서 수동 점검 체크리스트(`docs/manual-check.md`)로 확인 (도구 호출, 학습 기록, 퀴즈 풀이) |
 
 ---
 
