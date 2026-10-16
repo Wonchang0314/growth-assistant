@@ -2,7 +2,7 @@
 
 상세 작업 계획은 세션 안에서 관리하고, 이 파일에는 진행 상태만 남긴다. 단계별 내용은 [설계 문서 3장](specs/2026-10-12-growth-assistant-design.md)을 따른다.
 
-**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점, 첫 도구, 튜터 지침을 만들고 Discord 코드를 지웠다. Desktop 등록 절차(`ops/desktop-config.sh`)와 수동 점검 체크리스트를 만들었다. 다음은 맥미니에서 실제로 등록하고 체크리스트를 확인하는 것
+**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점, 첫 도구, 튜터 지침을 만들고 Discord 코드를 지웠다. Desktop 등록 절차(`ops/desktop-config.sh`)와 수동 점검 체크리스트를 만들었다. 맥미니에서 실제로 등록하고 체크리스트를 확인하는 일이 남았다. 그사이 PC에서 2단계 준비를 시작했다. Notion 복습 문서에서 시드 개념 후보를 뽑았고, 트랙에 IT 인프라를 더했으며, 업무 경험을 판단 사례로 추상화해 출제하기로 정했다(ADR-0021). 다음은 시드 YAML과 개념 그래프
 
 ## 0. 준비
 - [x] `claude -p` 동작 확인
@@ -27,15 +27,19 @@
 - [ ] 1단계 체크리스트 확인 (Desktop 대화에서 도구 호출, 학습 기록)
 
 ## 2. 기억: Notion·velog 수집, 경험 카드, 개념
-- [ ] 개념 그래프 + 시드 개념
+- [x] 시드 개념 후보 추출 (Notion 복습 문서, `docs/research/2026-10-16-seed-concept-candidates.md`)
+- [x] 결정: 트랙 5개와 가중치, 판단 사례 추상화와 상황 판단형 출제 (ADR-0021)
+- [ ] 개념 그래프 + 시드 개념 (트랙 5개)
 - [ ] Notion·velog 수집, 청크 증분 동기화 (`sync_now`, `sync_status`)
 - [ ] 경험 카드 추출, 승인 정책 (`list_pending_concepts`, `review_concept`)
+- [ ] 판단 사례 추상화: 치환, 금지어 게이트, 독립 검증, 검토 도구 (`list_pending_cases`, `review_case`, ADR-0021)
 - [ ] 대화에 기억 연결 (`search_experience`, `get_learning_context` 확장)
 
 ## 3. 퀴즈·복습: 객관식·빈칸, FSRS, 숙련도, 약점 (ADR-0019)
 - [ ] `quiz` 모듈 레이어 폴더 구조 시도, 3단계 끝에 평가 (ADR-0020)
 - [ ] FSRS, 숙련도·약점 계산
 - [ ] 객관식·빈칸 문제 생성·검증 (약점 반영 출제, 오답 보기 오개념), 출제 지침 (`update_quiz_guideline`)
+- [ ] 상황 판단형 객관식 (`angle = SCENARIO`, 판단 사례에서 출제, ADR-0021)
 - [ ] 변형 문제 (`key_point`, `variant_of`)
 - [ ] 복습·채점 도구 (`get_review_set`, `submit_answer`, `report_question`, `get_weakness`)
 - [ ] 퀴즈 품질 점검 (평가 세트, 실제 사용)

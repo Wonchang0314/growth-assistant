@@ -3,6 +3,7 @@
 - 작성일: 2026-10-12
 - 갱신: 2026-10-14 (ADR-0018: 인터페이스를 Claude 앱 + MCP 서버로 변경, 맥미니 로컬에서 먼저 검증)
 - 갱신: 2026-10-15 (ADR-0019: 핵심 학습 기능 먼저, 퀴즈는 객관식·빈칸부터, 먼저 말 걸기는 뒤로. 약점 기반 출제, 변형 문제 연결)
+- 갱신: 2026-10-16 (ADR-0021: IT 인프라 트랙 추가와 가중치 재분배, 업무 경험을 판단 사례로 추상화해 상황 판단형 객관식으로 출제)
 - 상태: 설계 확정 (구현 전)
 - 이번 범위: `core` + `tutor` 모듈 (커리어·Canva 연동은 후속 프로젝트)
 
@@ -16,12 +17,16 @@
 
 ### 학습 목표 (우선순위 순)
 
-| 순위 | 트랙 | 내용 | 초기 가중치 |
-|---|---|---|---|
-| 1 | 취업·면접 | 기술 면접 대비, 내 프로젝트 경험을 깊이 있게 설명하는 연습 | 0.4 |
-| 2 | CS 기초 | 네트워크, OS, DB, 자료구조·알고리즘 | 0.3 |
-| 3 | 백엔드 | Node.js·NestJS, TypeScript, DB 이해도 심화 | 0.2 |
-| 4 | 프론트 심화 | 현재 사용 중인 프론트엔드 스택 심화 | 0.1 |
+| 트랙 | 내용 | 초기 가중치 |
+|---|---|---|
+| CS 기초 | 원리: 네트워크, OS, DB 이론, 자료구조·알고리즘 | 0.3 |
+| 백엔드 | 애플리케이션: Spring·NestJS, TypeScript, JPA, 캐시, API·데이터 모델링, DB 사용(쿼리·인덱스·마이그레이션), 테스트 | 0.3 |
+| 프론트 심화 | 지금 쓰는 스택: JS/TS, React, Vite(Rollup), TanStack Query, 상태관리, 브라우저 렌더링·성능 | 0.2 |
+| IT 인프라 | 구성·운영·진단: Docker, nginx, CI/CD, 인증서·DNS, 방화벽·VPN, 리눅스, DB 운영 | 0.2 |
+| 취업·면접 | 내 경험과 트레이드오프를 말로 설명하는 연습. 서술형을 만들 때 가중치를 다시 준다 | 0 |
+
+- 기술 면접 대비는 가장 중요한 목표다. 업무 경험에서 나온 판단 원칙은 해당 기술 트랙의 개념으로 두고, 회사 맥락을 걷어낸 상황 판단형 객관식으로 묻는다(ADR-0021, 7.3).
+- 개념 하나는 트랙 하나에만 속한다. CS 기초는 "왜 그렇게 동작하나", IT 인프라는 "어떻게 구성하고 고장을 진단하나"를 맡는다. 트랙에 걸친 관계는 개념 간선으로 잇는다.
 
 장기 방향: 프론트엔드와 백엔드를 아우르는 풀스택 개발자.
 
@@ -54,6 +59,7 @@
 | 기억 수집 | 1회 백필 → 이후 청크 단위 증분 동기화. 런타임에는 DB만 조회 | 사용량 절감 |
 | 간격 반복 | **FSRS** (`ts-fsrs` 라이브러리, 기본 파라미터로 시작, ADR-0016) | SM-2보다 예측 정확도가 높음. 공식 TS 구현, MIT |
 | 복습 단위 | 개념 (복습할 때마다 같은 개념의 다른 문제) | 문제 암기 방지 |
+| 업무 경험의 문제화 | 수집할 때 회사 맥락을 걷어낸 판단 사례로 한 번 추상화하고, 상황 판단형 객관식으로 낸다. 치환 → 금지어 → 독립 검증 게이트 (ADR-0021) | 회사 사정을 몰라도 풀리고 회사 정보가 퍼지지 않음. 출제마다 추상화하지 않아 비용·지연이 적음 |
 | 하루 복습 상한 | 최대 10문제 | 리뷰 부채 누적 방지 |
 | 이름 | `growth-assistant` (튜터는 그 안의 첫 모듈) | 이력서·포트폴리오 역할로 확장 예정 |
 
@@ -64,8 +70,8 @@
 | 단계 | 내용 | 완료 조건 |
 |---|---|---|
 | **1. MVP** | 로컬 MCP 서버(stdio), 첫 도구(학습 맥락 조회·학습 기록), 튜터 지침, Discord 코드 제거 | 맥미니 Claude Desktop에서 도구로 대화하고 학습 기록이 DB에 남음 |
-| **2. 기억** | Notion·velog 수집, 경험 카드·개념 추출, 시드 개념, 승인 정책 | 백필 완료, 대화에서 Claude가 도구로 관련 경험 카드를 인용 |
-| **3. 퀴즈·복습** | 객관식·빈칸 출제·검증·채점, 약점 기반 출제, 변형 문제, FSRS, 숙련도·약점 지도, 문제 피드백·출제 지침 편집 | 대화에서 복습 세트 풀기, 서버 채점, 약점 조회 동작. 퀴즈 품질에 만족 |
+| **2. 기억** | Notion·velog 수집, 경험 카드·개념 추출, 판단 사례 추상화, 시드 개념, 승인 정책 | 백필 완료, 대화에서 Claude가 도구로 관련 경험 카드를 인용 |
+| **3. 퀴즈·복습** | 객관식·빈칸 출제·검증·채점, 상황 판단형 객관식, 약점 기반 출제, 변형 문제, FSRS, 숙련도·약점 지도, 문제 피드백·출제 지침 편집 | 대화에서 복습 세트 풀기, 서버 채점, 약점 조회 동작. 퀴즈 품질에 만족 |
 | **4. 먼저 말 걸기** | 핵심 기능 검증 뒤 예약 작업 실행 방식 결정(ADR-0019), 아침 복습, 저녁 주제, 주간 리포트, 정기 동기화·문제 풀 보충 | 예약된 시각에 Claude 앱에서 결과를 받음 |
 | **5. 원격 전환** | 원격 커스텀 커넥터(Streamable HTTP), 공개 경로, 인증, 알림, MCP Apps 화면 검토 (새 ADR) | 모바일·아이패드 Claude 앱에서 같은 도구를 씀 |
 
@@ -125,7 +131,7 @@ src/
 ├── core
 │   ├── mcp          # MCP 서버, 도구 등록, 도구 처리기 탐색
 │   ├── llm          # ClaudeClient, ClaudeCliClient, 프롬프트 템플릿, 호출 로그
-│   ├── memory       # SourceDocument, DocumentChunk, Experience
+│   ├── memory       # SourceDocument, DocumentChunk, Experience, DecisionCase
 │   ├── knowledge    # Track, Concept, ConceptEdge, ConceptGraphRepository
 │   ├── ingestion    # Source 인터페이스, NotionSource, VelogSource, 동기화 서비스
 │   └── scheduler    # 예약 작업, 실행 기록, 놓친 실행 복구
@@ -178,7 +184,19 @@ experience          id, document_id NULL, origin (DOCUMENT | CONVERSATION),
                     occurred_at, created_at, updated_at
 experience_concept  experience_id, concept_id
 sync_cursor         source PK, last_synced_at
+decision_case       id, experience_id NULL, document_id NULL,
+                    situation, constraints text[],
+                    options jsonb,             -- [{ text, chosen, reason }]
+                    decision, rationale, outcome,
+                    invariants text[],         -- 도메인을 바꿔도 남아야 하는 사실
+                    status (PENDING | ACTIVE | REJECTED), review_note,
+                    created_at, updated_at
+decision_case_concept  case_id, concept_id
+domain_term         term PK, replacement, is_pattern boolean, created_at
 ```
+
+- `decision_case`(판단 사례)는 경험 카드에서 회사 맥락을 걷어낸 버전이다(ADR-0021). 회사 고유 이름이 들어 있지 않아야 하며, 상황 판단형 문제(7.3)의 재료가 된다.
+- `domain_term`은 회사 고유 용어와 그 일반 표현이다. 판단 사례를 추상화할 때 치환에 쓰고, 금지어 게이트가 검사에 쓴다. 회사 고유 이름을 코드 저장소에 남기지 않도록 레포가 아니라 DB에만 둔다.
 
 ### 5.3 Mastery: FSRS와 숙련도
 
@@ -197,14 +215,14 @@ concept_mastery   concept_id PK,
 ```
 quiz_question   id, concept_id,
                 type (MULTIPLE_CHOICE | FILL_BLANK),
-                angle (WHY | WHEN | TRADEOFF | MY_PROJECT | MECHANISM),
+                angle (WHY | WHEN | TRADEOFF | MECHANISM | SCENARIO | MY_PROJECT),
                 key_point,                 -- 이 문제가 확인하는 핵심 한 가지
                 variant_of NULL,           -- 변형 문제면 원래 문제 ID
                 difficulty (1~3), prompt,
                 choices jsonb,             -- 객관식: [{ text, misconception NULL }]
                 answer, accepted_answers text[],
                 explanation, reference_material,
-                experience_id NULL,
+                experience_id NULL, case_id NULL,
                 validation_status (PENDING | VALID | INVALID),
                 reported boolean, report_reason,
                 used_count, created_at
@@ -217,6 +235,7 @@ quiz_attempt    id, question_id, user_answer, is_correct,
 - 유형은 객관식·빈칸만 둔다(ADR-0019). 둘 다 코드가 즉시 채점하므로 채점 대기 상태가 없다. 서술형을 만들 때 유형, 채점 기준표, 점수·피드백, 채점 대기 상태를 함께 추가한다(12장).
 - 객관식 오답 보기마다 그 보기가 나타내는 오개념을 붙인다. 오답을 고르면 그 오개념이 `quiz_attempt.misconception`에 남는다. 빈칸 오답은 사용자가 쓴 답(`user_answer`)을 그대로 남기고 다음 출제 때 참고한다.
 - `key_point`와 `variant_of`로 "같은 핵심을 다른 상황에서 다시 묻는" 변형 문제를 원래 문제와 연결한다(7.3).
+- `SCENARIO`는 판단 사례(`case_id`)로 만든 상황 판단형 객관식이다(ADR-0021). `MY_PROJECT`는 서술형 면접 연습용으로 남겨 두고, 서술형을 만들기 전에는 쓰지 않는다.
 
 - 출제 지침(문제 품질에 대한 내 요청)은 `app_setting`(`quiz.guideline`)에 두고, 출제 프롬프트에 넣는다.
 - `response_time_ms`는 응답 시간을 잴 수 있는 화면(MCP Apps, 원격 전환 때 검토)에서만 채운다. 텍스트 대화에서는 비워 둔다.
@@ -247,9 +266,11 @@ track 1─N concept ─N:M─ concept (concept_edge)
 concept 1─1 concept_mastery
 concept 1─N quiz_question 1─N quiz_attempt
 concept N:M experience (experience_concept)
+concept N:M decision_case (decision_case_concept)
 concept N:M study_note (study_note_concept)
 source_document 1─N document_chunk
 source_document 1─N experience
+experience 1─N decision_case 1─N quiz_question (SCENARIO)
 ```
 
 ---
@@ -312,13 +333,25 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 4. Claude 추출 호출
    - 입력: 바뀐 청크 + 문서 요약 + 이 문서에서 이미 뽑은 경험 카드 + 개념 목록
    - 출력: 경험 카드 추가·수정안, 개념 매핑, 새 개념 제안, 갱신된 문서 요약
-5. 하나의 트랜잭션으로 반영하고 승인 정책을 적용한다
-6. 실패한 문서는 FAILED로 표시하고, 다음 실행 때 재시도한다 (다른 문서 처리는 계속)
+5. 판단이 들어 있는 경험 카드에서 판단 사례를 추상화한다 (아래 "판단 사례")
+6. 하나의 트랜잭션으로 반영하고 승인 정책을 적용한다
+7. 실패한 문서는 FAILED로 표시하고, 다음 실행 때 재시도한다 (다른 문서 처리는 계속)
 ```
 
 - `sync_now`는 동기화를 시작만 하고 바로 돌려준다. 결과는 `sync_status` 같은 조회로 확인한다.
 - Notion API 호출 속도는 초당 약 3회로 제한한다.
 - velog는 비공식 GraphQL API를 쓰므로, 어댑터를 분리하고 수집이 실패하면 로그와 다음 주간 리포트에 남긴다.
+
+**판단 사례** (ADR-0021)
+
+업무 문서의 경험은 회사 테이블·데이터 원천·업무 규칙 위에서 쓰였다. 그대로 문제로 만들면 회사 사정을 알아야 풀 수 있고, 회사 고유 정보가 문제와 대화에 퍼진다. 그래서 수집할 때 한 번 추상화해 `decision_case`로 저장하고, 출제는 이것으로 한다.
+
+1. **추출 (`claude -p`, 구조화 출력):** 상황, 제약, 선택지(고른 것과 고르지 않은 이유), 결정, 근거, 결과, 불변 조건, 연결 개념을 받는다. 회사 고유 용어는 지우지 않고 역할 설명으로 치환한다. 이때 `domain_term` 목록을 프롬프트에 넣는다. 불변 조건은 도메인을 바꿔도 반드시 남아야 하는 사실이다(예: "원천 테이블은 기존 행을 제자리에서 UPDATE한다").
+2. **금지어 게이트 (코드):** 결과 전체를 정규식으로 검사하고 통과·거부만 한다. 검사 대상은 `domain_term`의 용어와, IP 주소·사내 도메인·URL·`UPPER_SNAKE` 테이블명 같은 패턴이다. 걸리면 걸린 용어를 붙여 1회 다시 추출한다.
+3. **독립 검증 (`claude -p`, 별도 호출):** 원문과 추상화본을 함께 주고 묻는다. 같은 근거로 같은 결론이 나오는가, 불변 조건이 모두 살아 있는가.
+4. 통과하면 `ACTIVE`가 된다. 다시 실패하면 `PENDING`으로 두고 Claude 앱 대화에서 `list_pending_cases`·`review_case`로 승인·수정·거절한다(개념 승인 정책과 같은 구조). 자동 승인된 사례는 주간 리포트에서 사후 확인한다(4단계).
+
+- 실무 결정이 일반적인 정답은 아닐 수 있다. 결정을 되돌린 기록이 있으면 되돌린 뒤의 판단과 그 이유를 근거로 쓴다.
 
 ### 7.2 튜터링 대화
 
@@ -371,7 +404,7 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 
 **문제 생성 규칙**
 
-- 출제 각도는 "왜 / 언제 쓰나 / 트레이드오프 / 동작 원리 / 내 프로젝트에서는"을 우선한다. "용어 ↔ 정의" 형태는 피한다.
+- 출제 각도는 "왜 / 언제 쓰나 / 트레이드오프 / 동작 원리 / 이 상황에서는(상황 판단)"을 우선한다. "용어 ↔ 정의" 형태는 피한다.
 - 같은 개념을 복습할 때마다 다른 문제(바꿔 묻기)를 낸다.
 - 문제마다 확인할 핵심(`key_point`)을 하나만 둔다. 핵심이 둘이면 문제를 나눈다.
 - 출제할 때 기준 자료(정답 근거, 해설, 출처: 경험 카드나 웹 자료)를 함께 넣고, `reference_material`에 저장한다.
@@ -392,10 +425,20 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 - 통과한 문제만 `VALID`가 된다.
 - 대화에서 "이 문제 이상해"라고 하면 Claude가 `report_question(questionId, reason)`을 부른다. `reported = true`로 표시하고 출제에서 뺀다. 그 풀이는 숙련도 계산에서 제외한다. 신고 이유는 출제 지침을 고칠 때 참고한다.
 
-**내 프로젝트 문제** (`angle = MY_PROJECT`, `experience_id` 있음)
+**상황 판단형 문제** (`angle = SCENARIO`, `case_id` 있음, ADR-0021)
 
-- 지금은 객관식·빈칸으로만 낸다. 예: "이 프로젝트에서 X 대신 Y를 고른 이유로 맞는 것은?" 경험 카드는 문제에 싣지 않고, `submit_answer` 결과로 보여 준다.
-- 경험을 먼저 말로 설명하게 하고 카드 내용(STAR+L)과 비교하는 면접형 서술 연습은 서술형과 함께 미룬다(ADR-0019, 12장). 그동안은 튜터링 대화에서 연습한다.
+- 판단 사례로 만든 객관식이다. 가상의 상황과 조건을 주고 판단을 묻는다. 회사 이름·테이블·업무 규칙 없이 문제만 읽고 풀 수 있어야 한다.
+- 질문 틀을 좁게 잡는다. 예: "가장 먼저 확인할 것은?", "이 선택의 가장 큰 위험은?", "이 조건에서 가장 적절한 순서는?"
+- 정답의 근거는 일반 원칙이다. 정답이 하나로 정해지도록 상황에 조건을 명시한다(예: "다운타임 불가", "배포 중 구버전 앱이 함께 떠 있음").
+- 오답 보기는 판단 사례의 고르지 않은 선택지와, 원문에 남은 내 실제 실수로 만든다.
+- 변형 문제는 같은 판단 사례를 다른 도메인으로 바꿔 낸다(주문·상품, 예약·좌석 등). 불변 조건은 그대로 둔다.
+- 생성한 문제도 금지어 게이트를 다시 통과해야 한다. 검증 단계에서는 정답을 주지 않은 별도 호출이 문제만 보고 푼다. 정답을 맞히지 못하거나 모르는 용어·정보 부족을 말하면 `INVALID`다.
+- 경험 카드와 원문은 문제에 싣지 않는다. `submit_answer` 결과에 "이 원칙을 실제로 겪은 경험"으로 경험 카드 제목을 보여 줄 수 있다.
+
+**내 프로젝트 문제** (`angle = MY_PROJECT`)
+
+- 객관식으로 내지 않는다. "이 프로젝트에서 X 대신 Y를 고른 이유는?"은 회사 사정을 기억해야 풀 수 있어 `SCENARIO`로 대신한다(ADR-0021).
+- 경험을 먼저 말로 설명하게 하고 카드 내용(STAR+L)과 비교하는 면접형 서술 연습에 남겨 두고, 서술형과 함께 만든다(ADR-0019, 12장). 그동안은 튜터링 대화에서 연습한다.
 
 ### 7.4 먼저 말 걸기
 
@@ -450,7 +493,7 @@ MCP 서버의 `instructions`(연결 시 Claude에 전달)와 튜터용 Claude �
 | 단계 | 도구 |
 |---|---|
 | 1 | `get_learning_context`, `record_study_note` |
-| 2 | `search_experience`, `list_pending_concepts`, `review_concept`, `sync_now`, `sync_status` |
+| 2 | `search_experience`, `list_pending_concepts`, `review_concept`, `list_pending_cases`, `review_case`, `sync_now`, `sync_status` |
 | 3 | `get_review_set`, `submit_answer`, `report_question`, `get_weakness`, `update_quiz_guideline` |
 | 4 | `get_daily_topic`, `get_weekly_report` |
 
@@ -531,7 +574,8 @@ weakness_score = (1 − mastery_score) × 확신도 보정 + 반복 오개념 �
 | DB (재귀 CTE, 마이그레이션, 저장소) | Testcontainers PostgreSQL 통합 테스트 |
 | LLM 연동 | `ClaudeClient` 인터페이스 + `FakeClaudeClient` (고정 JSON). 실제 응답 샘플로 파싱 테스트 |
 | MCP 도구 | 유스케이스는 MCP 없이 테스트. 도구 등록·입력 검증·결과 형식은 MCP SDK 클라이언트를 메모리 전송으로 붙여 확인한다(정답이 결과에 새지 않는지 포함) |
-| 프롬프트 품질 (추출, 출제, 변형 출제, 검증) | 정답이 정해진 소규모 평가 세트 + 수동 평가 스크립트. 프롬프트를 바꿀 때마다 실행 |
+| 프롬프트 품질 (추출, 판단 사례 추상화, 출제, 변형 출제, 검증) | 정답이 정해진 소규모 평가 세트 + 수동 평가 스크립트. 프롬프트를 바꿀 때마다 실행. 판단 사례는 손으로 확인한 10~20개로 불변 조건 보존, 회사 정보 누출, 상황 판단형 문제의 정답 단일성을 본다 |
+| 금지어 게이트 | 단위 테스트: 용어·패턴별 통과·거부, 치환된 문장은 통과 |
 | Claude 앱 연동 | 맥미니 Claude Desktop에서 수동 점검 체크리스트(`docs/manual-check.md`)로 확인 (도구 호출, 학습 기록, 퀴즈 풀이) |
 
 ---
@@ -581,3 +625,4 @@ weakness_score = (1 − mastery_score) × 확신도 보정 + 반복 오개념 �
 - 용도별 Claude 모델 기본값
 - 맥미니 Claude Desktop에 MCP 서버 등록, 튜터용 Claude 프로젝트 지침 작성 (사용자가 직접 진행, 설정 예시는 운영 가이드에)
 - Notion 통합(Integration) 토큰 발급과 페이지 공유 (사용자가 직접 진행)
+- 회사 고유 용어 초기 목록(`domain_term`)과 등록 방법 (2단계 수집 전에. 목록은 사용자가 직접 넣는다)

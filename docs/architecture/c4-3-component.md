@@ -8,7 +8,7 @@ flowchart TB
         mcp["mcp<br/>MCP 서버, 도구 처리기 탐색"]
         llm["llm<br/>ClaudeClient"]
         logging["logging<br/>로거, 운영 알림 (AdminNotifier)"]
-        memory["memory<br/>문서·청크·경험 카드"]
+        memory["memory<br/>문서·청크·경험 카드·판단 사례"]
         knowledge["knowledge<br/>트랙, 개념 그래프"]
         ingestion["ingestion<br/>Notion·velog 수집"]
         scheduler["scheduler<br/>예약 작업, 놓친 실행 복구"]
