@@ -25,8 +25,8 @@ src/
 │   ├── logging          # 회전 파일 로거 (LOG_DIR), 표준에러 로거, 운영 알림 포트 (AdminNotifier, 지금은 로그)
 │   ├── mcp              # MCP 서버, @McpTool() 처리기 탐색·등록
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
-│   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L)
-│   ├── knowledge        # 트랙, 개념 그래프
+│   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L), 판단 사례(회사 맥락을 걷어낸 버전, ADR-0021)
+│   ├── knowledge        # 트랙 5개(ADR-0021), 개념 그래프
 │   ├── ingestion        # Notion·velog 수집, 증분 동기화
 │   ├── scheduler        # 예약 작업, 놓친 실행 복구
 │   └── setting          # 실행 중 정해지는 키-값 설정 (app_setting)
@@ -61,6 +61,7 @@ src/
 - 기능 설계: `docs/specs/`
 - 아키텍처(C4): `docs/architecture/`
 - 결정 기록(ADR): `docs/adr/`
+- 조사 자료(작업 입력, 쓰고 나면 지움): `docs/research/`
 
 ## 문서 갱신 규칙
 

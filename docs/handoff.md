@@ -2,13 +2,17 @@
 
 세션을 이어 갈 때 읽는 메모다. 진행 상태의 기준은 [로드맵](roadmap.md)이고, 이 파일에는 로드맵에 남기지 않는 맥락(다음에 할 일의 순서, 학습 진도, 조사 결론)만 둔다. 다 처리한 항목은 지운다.
 
-**마지막 갱신:** 2026-10-16, main (PR #6 머지 뒤)
+**마지막 갱신:** 2026-10-16, `docs/adr-0021-tracks-scenario` (PR #7 머지 뒤)
 
 ## 작업
 
+맥미니 작업(1~3)은 귀가 후에 하고, 그사이 PC에서 2단계 준비(4~5)를 진행한다.
+
 1. **맥미니 정리:** 예전에 `ops/install.sh`로 봇을 등록한 기기라면 `ops/uninstall.sh`를 한 번 실행한다. 지우지 않으면 launchd가 없는 `dist/main.js`를 계속 재시작한다
 2. **맥미니에서 Desktop 등록:** `git pull && ops/deploy.sh` → `ops/desktop-config.sh` 출력을 Desktop 설정에 넣고 다시 시작한다 (`docs/ops.md` 처음 설치 7번). WSL에서는 Desktop이 하듯 최소 환경과 작업 디렉터리 `/`로 띄워 도구 목록·instructions·로그·DB 꺼짐 오류까지 확인했다. 실제 Desktop과 macOS 권한(레포가 `~/Documents` 아래인 경우)은 확인하지 못했다
-3. **1단계 체크리스트 확인:** `docs/manual-check.md`. 끝나면 로드맵 1단계를 닫고 2단계(개념 그래프)로 넘어간다
+3. **1단계 체크리스트 확인:** `docs/manual-check.md`. 끝나면 로드맵 1단계를 닫는다
+4. **시드 YAML 초안:** 입력은 [시드 개념 후보](research/2026-10-16-seed-concept-candidates.md)다. 규모는 상위 개념 약 100개와 실수 기록(★)이 있는 하위 개념으로, 트랙마다 40~60개쯤이다. 나머지 하위 개념은 수집 때 `PART_OF`로 붙어 자동 승인되게 둔다. 개념 하나는 트랙 하나에만 넣고, 트랙에 걸친 관계는 `PREREQUISITE`·`RELATED`로 잇는다(ADR-0021). 초안을 사용자가 한 번 검토한다
+5. **개념 그래프 구현 (PC 범위):** `core/knowledge`의 `track`·`concept`·`concept_edge` 스키마와 마이그레이션, 이름·별칭으로 찾기와 선수 체인(재귀 CTE) 저장소, 시드 적재 명령과 검증 테스트(이름 중복, 없는 개념 참조, 선수 관계 순환), `study_note_concept`, `get_learning_context`에 관련 개념과 선수 개념 추가. 숙련도는 3단계에서 붙인다
 
 ## 학습 (현재 구현 이해하기)
 
