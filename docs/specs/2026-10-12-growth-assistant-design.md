@@ -281,7 +281,7 @@ experience 1─N decision_case 1─N quiz_question (SCENARIO)
 
 | 단계 | 승인 방식 |
 |---|---|
-| 초기 시드 (트랙별 100~200개 + 관계) | Claude가 초안을 YAML로 생성하고, 사용자가 1회 검토 |
+| 초기 시드 (뼈대: 트랙별 상위·중간 개념 + 관계) | Notion 복습 문서에서 뽑은 후보로 Claude가 초안을 YAML(`src/core/knowledge/seed/<트랙>.yaml`)로 만들고, 사용자가 1회 검토. 세부 개념은 수집 때 `PART_OF` 하위로 붙어 자동 승인된다 |
 | 일회성 백필 | **조건부 자동 승인.** 기존 개념의 `PART_OF` 하위이면서 확신이 높으면 자동으로 `ACTIVE` 처리하고, 애매한 것은 승인 대기로 둔다. Claude 앱에서 "승인 대기 개념 보여줘"라고 하면 `list_pending_concepts`·`review_concept` 도구로 승인·거절·병합한다 |
 | 정기 증분 동기화 | **자동 승인** + 안전장치 |
 | 대화에서 나온 개념 | 증분 동기화와 같은 정책 |

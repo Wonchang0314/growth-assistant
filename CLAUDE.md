@@ -26,7 +26,7 @@ src/
 │   ├── mcp              # MCP 서버, @McpTool() 처리기 탐색·등록
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L), 판단 사례(회사 맥락을 걷어낸 버전, ADR-0021)
-│   ├── knowledge        # 트랙 5개(ADR-0021), 개념 그래프
+│   ├── knowledge        # 트랙 5개(ADR-0021), 개념 그래프, 시드 개념(seed/<트랙>.yaml)
 │   ├── ingestion        # Notion·velog 수집, 증분 동기화
 │   ├── scheduler        # 예약 작업, 놓친 실행 복구
 │   └── setting          # 실행 중 정해지는 키-값 설정 (app_setting)
