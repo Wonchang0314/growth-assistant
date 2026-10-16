@@ -2,7 +2,7 @@
 
 상세 작업 계획은 세션 안에서 관리하고, 이 파일에는 진행 상태만 남긴다. 단계별 내용은 [설계 문서 3장](specs/2026-10-12-growth-assistant-design.md)을 따른다.
 
-**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점, 첫 도구, 튜터 지침을 만들고 Discord 코드를 지웠다. Desktop 등록 절차(`ops/desktop-config.sh`)와 수동 점검 체크리스트를 만들었다. 맥미니에서 실제로 등록하고 체크리스트를 확인하는 일이 남았다. 그사이 PC에서 2단계 준비를 시작했다. Notion 복습 문서에서 시드 개념 후보를 뽑았고, 트랙에 IT 인프라를 더했으며, 업무 경험을 판단 사례로 추상화해 출제하기로 정했다(ADR-0021). 시드 개념 256개를 확정했다. 다음은 개념 그래프(테이블, 저장소, 시드 적재)
+**현재 위치:** 1단계: 맥미니 Claude Desktop에 로컬 MCP 서버를 붙여 검증한다 (ADR-0018). 핵심 학습 기능을 먼저 만들고 먼저 말 걸기는 4단계로 미뤘다 (ADR-0019). stdio 진입점, 첫 도구, 튜터 지침을 만들고 Discord 코드를 지웠다. Desktop 등록 절차(`ops/desktop-config.sh`)와 수동 점검 체크리스트를 만들었다. 맥미니에서 실제로 등록하고 체크리스트를 확인하는 일이 남았다. 그사이 PC에서 2단계 준비를 시작했다. Notion 복습 문서에서 시드 개념 후보를 뽑았고, 트랙에 IT 인프라를 더했으며, 업무 경험을 판단 사례로 추상화해 출제하기로 정했다(ADR-0021). 시드 개념 256개를 확정하고 개념 그래프를 만들어 학습 맥락·학습 기록에 연결했다. 다음은 Notion·velog 수집(토큰과 수집 범위가 먼저 필요하다)
 
 ## 0. 준비
 - [x] `claude -p` 동작 확인
@@ -30,7 +30,8 @@
 - [x] 시드 개념 후보 추출 (Notion 복습 문서, `docs/research/2026-10-16-seed-concept-candidates.md`)
 - [x] 결정: 트랙 5개와 가중치, 판단 사례 추상화와 상황 판단형 출제 (ADR-0021)
 - [x] 시드 개념 YAML (256개, 사용자 검토, `src/core/knowledge/seed/`)
-- [ ] 개념 그래프 (테이블, 저장소, 시드 적재 명령)
+- [x] 개념 그래프: `track`·`concept`·`concept_edge`, 이름·별칭 매칭, 선수 체인(재귀 CTE), 시드 적재(`npm run db:seed`, 배포 때 실행)
+- [x] 학습 기록에 개념 연결(`study_note_concept`), `get_learning_context`에 관련 개념·상위·선수 개념
 - [ ] Notion·velog 수집, 청크 증분 동기화 (`sync_now`, `sync_status`)
 - [ ] 경험 카드 추출, 승인 정책 (`list_pending_concepts`, `review_concept`)
 - [ ] 판단 사례 추상화: 치환, 금지어 게이트, 독립 검증, 검토 도구 (`list_pending_cases`, `review_case`, ADR-0021)

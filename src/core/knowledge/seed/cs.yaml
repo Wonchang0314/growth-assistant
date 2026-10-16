@@ -191,7 +191,7 @@ concepts:
   # 인덱스 원리
   - name: 인덱스 원리
     parent: 데이터베이스 이론
-    aliases: [index, 데이터베이스 인덱스, DB index]
+    aliases: [인덱스, index, 데이터베이스 인덱스, DB index]
     description: 인덱스 구조별로 답할 수 있는 질문과, 인덱스를 쓰는 편이 나은 조건
 
   - name: B-tree 인덱스

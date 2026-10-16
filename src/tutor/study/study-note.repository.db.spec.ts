@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
+import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { StudyNoteRepository } from './study-note.repository.js';
 import type { NewStudyNote } from './study-note.js';
 
@@ -75,5 +76,54 @@ describe('StudyNoteRepository', () => {
     await repository.add(note({}));
 
     expect(await repository.search([], 10)).toEqual([]);
+  });
+
+  describe('개념 연결', () => {
+    const concepts = new ConceptRepository(testDb.db);
+    let index: number;
+    let tcp: number;
+
+    beforeEach(async () => {
+      const description = '설명';
+      await concepts.applySeed(
+        {
+          tracks: [{ key: 'cs', name: 'CS 기초', weight: 1, description }],
+          concepts: ['인덱스 원리', 'TCP'].map((name) => ({
+            name,
+            track: 'cs',
+            aliases: [],
+            description,
+            requires: [],
+            related: [],
+          })),
+        },
+        new Date(),
+      );
+      const terms = await concepts.findActiveTerms();
+      index = terms.find((t) => t.name === '인덱스 원리')?.id ?? -1;
+      tcp = terms.find((t) => t.name === 'TCP')?.id ?? -1;
+    });
+
+    it('기록과 연결을 함께 저장하고, 개념으로 기록을 최근 것부터 찾는다', async () => {
+      await repository.add(note({ topic: '옛 인덱스', createdAt: new Date('2026-10-01T00:00:00Z') }), [
+        { conceptId: index, signal: 'CONFUSED' },
+      ]);
+      await repository.add(note({ topic: '새 인덱스', createdAt: new Date('2026-10-02T00:00:00Z') }), [
+        { conceptId: index, signal: 'DISCUSSED' },
+        { conceptId: tcp, signal: 'DISCUSSED' },
+      ]);
+      await repository.add(note({ topic: '연결 없음' }));
+
+      expect((await repository.findByConcepts([index], 10)).map((n) => n.topic)).toEqual(['새 인덱스', '옛 인덱스']);
+      expect((await repository.findByConcepts([tcp], 10)).map((n) => n.topic)).toEqual(['새 인덱스']);
+      expect(await repository.findByConcepts([], 10)).toEqual([]);
+      expect(await testDb.count('study_note_concept')).toBe(3);
+    });
+
+    it('연결이 실패하면 기록도 남기지 않는다', async () => {
+      await expect(repository.add(note({}), [{ conceptId: 9999, signal: 'DISCUSSED' }])).rejects.toThrow();
+
+      expect(await testDb.count('study_note')).toBe(0);
+    });
   });
 });

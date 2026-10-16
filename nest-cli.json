@@ -6,7 +6,8 @@
     "deleteOutDir": true,
     "assets": [
       { "include": "**/prompts/*.md", "watchAssets": true },
-      { "include": "core/db/migrations/**/*", "watchAssets": true }
+      { "include": "core/db/migrations/**/*", "watchAssets": true },
+      { "include": "core/knowledge/seed/*.yaml", "watchAssets": true }
     ]
   }
 }

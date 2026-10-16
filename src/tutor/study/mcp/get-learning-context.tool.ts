@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { Clock } from '../../../core/clock/clock.js';
+import type { RelatedConcept } from '../../../core/knowledge/concept.js';
 import { McpTool, type McpToolHandler, type McpToolResult } from '../../../core/mcp/mcp-tool.js';
 import type { StudyNote } from '../study-note.js';
 import { StudyNoteService } from '../study-note.service.js';
@@ -14,7 +15,7 @@ const input = z.object({
 export class GetLearningContextTool implements McpToolHandler<typeof input> {
   readonly name = 'get_learning_context';
   readonly description =
-    '주제에 대한 사용자의 지난 학습 기록(요약, 헷갈렸던 점)과 최근 학습 기록을 가져온다. ' +
+    '주제와 관련된 개념(상위 개념, 먼저 알아야 할 개념)과 사용자의 지난 학습 기록(요약, 헷갈렸던 점), 최근 학습 기록을 가져온다. ' +
     '튜터링 대화에서 새 주제를 시작할 때, 설명하기 전에 먼저 부른다. 지난번에 헷갈린 점이 있으면 그 지점부터 확인한다.';
   readonly inputSchema = input;
   readonly readOnly = true;
@@ -27,7 +28,8 @@ export class GetLearningContextTool implements McpToolHandler<typeof input> {
   async handle({ topic }: z.output<typeof input>): Promise<McpToolResult> {
     const context = await this.service.learningContext(topic);
     const lines = [
-      `주제 "${topic}"의 지난 학습 기록 ${context.relatedNotes.length}개, 그 밖의 최근 기록 ${context.recentNotes.length}개.`,
+      `주제 "${topic}"의 관련 개념 ${context.concepts.length}개, 지난 학습 기록 ${context.relatedNotes.length}개, 그 밖의 최근 기록 ${context.recentNotes.length}개.`,
+      ...context.concepts.map((c) => `- [개념] ${this.describeConcept(c)}`),
       ...context.relatedNotes.map((n) => `- [관련] ${this.describe(n)}`),
       ...context.recentNotes.map((n) => `- [최근] ${this.describe(n)}`),
     ];
@@ -38,10 +40,24 @@ export class GetLearningContextTool implements McpToolHandler<typeof input> {
       text: lines.join('\n'),
       data: {
         topic,
+        concepts: context.concepts.map((c) => ({
+          name: c.name,
+          track: c.track,
+          description: c.description,
+          parent: c.parent,
+          prerequisites: c.prerequisites,
+        })),
         relatedNotes: context.relatedNotes.map((n) => this.toData(n)),
         recentNotes: context.recentNotes.map((n) => this.toData(n)),
       },
     };
+  }
+
+  private describeConcept(concept: RelatedConcept): string {
+    const parent = concept.parent ? ` (상위: ${concept.parent})` : '';
+    const prerequisites =
+      concept.prerequisites.length > 0 ? ` / 먼저 알아야 할 개념: ${concept.prerequisites.join(', ')}` : '';
+    return `${concept.name} [${concept.track}]${parent}: ${concept.description}${prerequisites}`;
   }
 
   private describe(note: StudyNote): string {

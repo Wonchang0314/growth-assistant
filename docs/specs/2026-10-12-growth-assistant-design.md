@@ -157,16 +157,19 @@ stdio 진입점에서는 표준출력이 MCP 메시지 통로이므로, 로그�
 ### 5.1 Knowledge: 개념 그래프와 트랙
 
 ```
-track          id, name, weight
+track          id, key UNIQUE, name, weight, description
 concept        id, track_id, name UNIQUE, aliases text[], description,
                status (ACTIVE | PROPOSED | REJECTED),
                origin (SEED | INGESTION | CONVERSATION),
-               auto_approved boolean, created_at
+               auto_approved boolean, created_at, updated_at
 concept_edge   from_id, to_id, type (PREREQUISITE | PART_OF | RELATED)
-               PK (from_id, to_id, type)
+               PK (from_id, to_id, type), from_id <> to_id
 ```
 
-- 선수 지식 체인과 근본 원인 탐색은 `WITH RECURSIVE` 쿼리로 조회한다.
+- 간선 방향: `PART_OF`는 from이 to의 하위 개념, `PREREQUISITE`는 from을 알려면 to를 먼저 알아야 함. `RELATED`는 방향이 없어 id가 작은 쪽을 from으로 한 번만 저장한다.
+- 선수 지식 체인과 근본 원인 탐색은 `WITH RECURSIVE` 쿼리로 조회한다. 학습 맥락에는 선수 개념을 2단계까지 싣는다.
+- 시드(`src/core/knowledge/seed/<트랙>.yaml`)는 `npm run db:seed`로 반영한다(배포 스크립트도 돌린다). 트랙은 키로, 개념은 이름으로 찾아 트랙·별칭·설명을 시드대로 고치고, 승인 상태는 건드리지 않는다. YAML에서 지운 개념·관계는 DB에서 지우지 않는다.
+- 주제와 관련된 개념은 이름·별칭 매칭으로 고른다(`matchConcepts`). 주제 전체·단어와 같은 이름·별칭이 먼저이고, 주제 단어가 이름 안에 들어 있는 개념이 뒤다. 한글 단어 끝의 조사는 떼고도 비교하고, 2글자 영문 단어는 이름 안에서 찾지 않는다.
 
 ### 5.2 Memory: 원문, 청크, 경험 카드
 
@@ -247,7 +250,9 @@ study_note           id, topic, summary, confused_points text[],
                      answer_revealed boolean, created_at
                      (대화 중 Claude가 record_study_note 도구로 남긴다)
 study_note_concept   note_id, concept_id, signal (DISCUSSED | CONFUSED)
-                     (개념 그래프와 함께 2단계에서 추가. 1단계는 study_note만)
+                     PK (note_id, concept_id)
+                     (record_study_note의 concepts를 이름·별칭으로 찾아 연결한다.
+                      목록에 없는 이름은 연결하지 않고 결과로 알려 준다)
 outreach_log         id, type (MORNING_REVIEW | DAILY_TOPIC | WEEKLY_REPORT),
                      run_date, requested_at, engaged_at, payload jsonb
                      UNIQUE (type, run_date)
@@ -362,7 +367,8 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 
 대화 중:
  1. Claude가 get_learning_context(topic)를 부른다
-    → 관련 개념(별칭 매칭), 그 개념의 숙련도, 약한 선수 개념, 관련 경험 카드, 최근 학습 기록
+    → 관련 개념(별칭 매칭)과 상위·선수 개념, 주제 글자나 관련 개념으로 찾은 지난 학습 기록, 최근 학습 기록
+      (그 개념의 숙련도·약한 선수 개념은 3단계, 관련 경험 카드는 2단계 수집 뒤에 더한다)
  2. Claude가 교수 규칙(7.5)에 따라 대화한다. 웹 검색은 Claude 앱 기능을 쓴다
  3. 대화가 마무리되거나 헷갈린 지점이 분명해지면 Claude가 record_study_note를 부른다
     → 주제, 요약, 헷갈린 점, 답 공개 여부, 관련 개념(DISCUSSED | CONFUSED)

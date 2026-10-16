@@ -303,7 +303,7 @@ concepts:
     requires: [선언적 트랜잭션]
 
   - name: 커넥션 풀
-    aliases: [connection pool, HikariCP, pool exhaustion, connection-timeout, CannotGetJdbcConnectionException]
+    aliases: [connection pool, HikariCP, pool exhaustion, hikari connection-timeout, CannotGetJdbcConnectionException]
     description: DB 연결을 재사용하는 풀의 상한과 대기 시간. 오래 붙잡는 조회가 다른 요청을 실패시킨다
 
   # Java

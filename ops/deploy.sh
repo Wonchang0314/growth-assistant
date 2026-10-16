@@ -24,6 +24,8 @@ cp -R dist package.json package-lock.json "$release/"
 
 # MCP 서버는 시작할 때 마이그레이션하지 않으므로 current를 바꾸기 전에 적용한다.
 GROWTH_ENV_FILE="$PROJECT_DIR/.env" node "$release/dist/migrate.js"
+# 시드 개념(dist/core/knowledge/seed/*.yaml)을 반영한다. 여러 번 돌려도 결과가 같다.
+GROWTH_ENV_FILE="$PROJECT_DIR/.env" node "$release/dist/seed.js"
 
 ln -sfn "$release" "$APP_DIR/current"
 echo "배포함: $release"

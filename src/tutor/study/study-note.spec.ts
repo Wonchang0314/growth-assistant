@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { searchTermsOf } from './study-note.js';
+import { mergeConceptLinks, searchTermsOf } from './study-note.js';
+
+describe('mergeConceptLinks', () => {
+  it('같은 개념은 하나로 합치고, 한 번이라도 CONFUSED면 CONFUSED다', () => {
+    expect(
+      mergeConceptLinks([
+        { conceptId: 1, signal: 'CONFUSED' },
+        { conceptId: 2, signal: 'DISCUSSED' },
+        { conceptId: 1, signal: 'DISCUSSED' },
+        { conceptId: 2, signal: 'CONFUSED' },
+      ]),
+    ).toEqual([
+      { conceptId: 1, signal: 'CONFUSED' },
+      { conceptId: 2, signal: 'CONFUSED' },
+    ]);
+  });
+});
 
 describe('searchTermsOf', () => {
   it('주제 문장을 단어로 나누고 소문자로 바꾼다', () => {
