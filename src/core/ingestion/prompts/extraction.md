@@ -22,7 +22,7 @@
 - 새 개념의 name은 개념 하나만 담는다. "A와 B"처럼 두 개념을 합치지 않는다. 둘 다 필요하면 따로 제안한다. 예: "PostgreSQL 공간 인덱스와 PostGIS"가 아니라 "공간 인덱스".
 - aliases에는 같은 개념의 다른 표기(영문 이름, 약어, 흔한 다른 이름)만 넣는다. 그 개념을 구현한 도구·명령·설정 키(needrestart, TimeoutStopSec), 함수 이름(ST_DWithin), 이 사건에서만 쓴 말(고아 잡)은 넣지 않는다. 별칭은 사용자가 이 개념을 다른 말로 물었을 때 찾는 데 쓰이므로, 다른 개념을 물었을 때 걸리면 안 된다.
 - 새 개념의 parent는 개념 목록에 있는 상위 개념 이름이다. 맞는 상위 개념이 없으면 null로 두고 confident는 false로 둔다.
-- 새 개념의 track은 트랙 목록의 키 하나다. 트랙 범위 밖 분야(예: GIS, 프런트엔드)여도 가장 가까운 트랙을 고르고 confident는 false로 둔다.
+- 새 개념의 track은 트랙 목록의 키 하나다. 프런트엔드 개념은 js, GIS 개념은 database로 둔다. 그 밖의 트랙 범위 밖 분야여도 가장 가까운 트랙을 고르고 confident는 false로 둔다.
 - 카드의 concepts에 새 개념을 넣을 때는 newConcepts의 name을 그대로 쓴다.
 
 ## 요약
