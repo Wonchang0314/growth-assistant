@@ -19,7 +19,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "nest build && node dist/migrate.js",
     "db:seed": "nest build && node dist/seed.js",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "sync": "nest build && node dist/sync.js"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.3.1",

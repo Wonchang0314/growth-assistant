@@ -85,12 +85,20 @@ afterAll(async () => {
 });
 
 describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
-  it('1단계 도구 두 개를 등록한다', async () => {
+  it('학습 도구와 수집 상태 도구를 등록한다', async () => {
     const { tools } = await client.listTools();
 
-    expect(tools.map((t) => t.name).sort()).toEqual(['get_learning_context', 'record_study_note']);
+    expect(tools.map((t) => t.name).sort()).toEqual(['get_learning_context', 'record_study_note', 'sync_status']);
     expect(tools.find((t) => t.name === 'get_learning_context')?.annotations?.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === 'record_study_note')?.annotations?.readOnlyHint).toBe(false);
+  });
+
+  it('NOTION_TOKEN 없이도 뜨고, 동기화 전이면 아직 하지 않았다고 알려 준다', async () => {
+    const result = await client.callTool({ name: 'sync_status', arguments: {} });
+
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toMatchObject({ lastSyncedAt: null, documents: 0, chunks: 0 });
+    expect(JSON.stringify(result.content)).toContain('아직 동기화하지 않음');
   });
 
   it('관련 개념도 기록도 없으면 그렇다고 알려 준다', async () => {

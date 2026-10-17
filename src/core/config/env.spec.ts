@@ -15,6 +15,11 @@ describe('validateEnv', () => {
     expect(validateEnv({ POSTGRES_PORT: '5433' }).POSTGRES_PORT).toBe(5433);
   });
 
+  it('Notion 루트 ID는 쉼표로 나누고 하이픈을 지운다', () => {
+    expect(validateEnv({ NOTION_ROOT_IDS: ' 3c7a-ab, ,40802bb8 ' }).NOTION_ROOT_IDS).toEqual(['3c7aab', '40802bb8']);
+    expect(validateEnv({}).NOTION_ROOT_IDS).toEqual([]);
+  });
+
   it('숫자가 아닌 포트는 거부한다', () => {
     expect(() => validateEnv({ POSTGRES_PORT: 'abc' })).toThrow(/POSTGRES_PORT/);
   });
