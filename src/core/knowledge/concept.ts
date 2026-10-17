@@ -148,7 +148,7 @@ export function matchConcepts(topic: string, concepts: readonly ConceptTerms[], 
 }
 
 /** 이름이나 별칭이 정확히 같은(정규화 기준) 개념을 찾는다. 학습 기록에 개념을 연결할 때 쓴다. */
-export function resolveConcept(name: string, concepts: readonly ConceptTerms[]): ConceptTerms | undefined {
+export function resolveConcept<T extends ConceptTerms>(name: string, concepts: readonly T[]): T | undefined {
   const target = normalizeTerm(name);
   if (target.length === 0) return undefined;
   return (

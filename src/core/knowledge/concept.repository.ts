@@ -4,6 +4,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { DB, type Db } from '../db/db.module.js';
 import type { ConceptEdgeType, ConceptTerms } from './concept.js';
 import { concept, conceptEdge, track } from './concept.schema.js';
+import type { Vocabulary } from './concept-proposal.js';
 import type { ConceptSeed } from './concept-seed.js';
 
 /** 개념 요약: 학습 맥락에 싣는 부분. */
@@ -35,6 +36,23 @@ export class ConceptRepository {
       .from(concept)
       .where(eq(concept.status, 'ACTIVE'))
       .orderBy(concept.id);
+  }
+
+  /** 새 개념 제안과 비교할 어휘. 승인 대기·거절 개념까지 모두 담는다. */
+  async findVocabulary(): Promise<Vocabulary> {
+    const tracks = await this.db.select({ key: track.key }).from(track).orderBy(track.id);
+    const concepts = await this.db
+      .select({
+        id: concept.id,
+        name: concept.name,
+        aliases: concept.aliases,
+        status: concept.status,
+        track: track.key,
+      })
+      .from(concept)
+      .innerJoin(track, eq(track.id, concept.trackId))
+      .orderBy(concept.id);
+    return { tracks: tracks.map((t) => t.key), concepts };
   }
 
   /** 개념 요약을 [ids] 순서대로 돌려준다. 없는 id는 빠진다. */

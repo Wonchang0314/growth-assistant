@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, count, eq, notInArray } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, notInArray } from 'drizzle-orm';
 import { DB, type Db } from '../db/db.module.js';
 import { documentChunk, sourceDocument, syncCursor } from './source-document.schema.js';
 import {
@@ -105,6 +105,46 @@ export class SourceDocumentRepository {
       )
       .returning({ id: sourceDocument.id });
     return deleted.length;
+  }
+
+  /**
+   * 경험 카드를 뽑을 문서와 본문. [ids]가 있으면 추출 상태와 상관없이 그 문서를(다시 뽑아 볼 때),
+   * 없으면 아직 뽑지 않았거나 실패한(PENDING·FAILED) 문서를 id 순서로 [limit]개까지 돌려준다.
+   */
+  async findForExtraction(options: {
+    ids?: readonly number[] | undefined;
+    limit?: number | undefined;
+  }): Promise<{ id: number; title: string; chunks: string[] }[]> {
+    const docs = await this.db
+      .select({ id: sourceDocument.id, title: sourceDocument.title })
+      .from(sourceDocument)
+      .where(
+        options.ids === undefined
+          ? inArray(sourceDocument.extractionStatus, ['PENDING', 'FAILED'])
+          : inArray(sourceDocument.id, [...options.ids]),
+      )
+      .orderBy(asc(sourceDocument.id))
+      .limit(options.limit ?? Number.MAX_SAFE_INTEGER);
+    if (docs.length === 0) return [];
+    const chunks = await this.db
+      .select({ documentId: documentChunk.documentId, content: documentChunk.content })
+      .from(documentChunk)
+      .where(
+        inArray(
+          documentChunk.documentId,
+          docs.map((d) => d.id),
+        ),
+      )
+      .orderBy(asc(documentChunk.seq));
+    const byDocument = Map.groupBy(chunks, (c) => c.documentId);
+    return docs.map((d) => ({ ...d, chunks: (byDocument.get(d.id) ?? []).map((c) => c.content) }));
+  }
+
+  async markExtractionFailed(documentId: number, error: string): Promise<void> {
+    await this.db
+      .update(sourceDocument)
+      .set({ extractionStatus: 'FAILED', lastError: error })
+      .where(eq(sourceDocument.id, documentId));
   }
 
   async markSynced(source: Source, at: Date): Promise<void> {
