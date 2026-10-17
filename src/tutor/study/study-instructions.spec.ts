@@ -3,6 +3,7 @@ import { ListPendingConceptsTool } from '../../core/ingestion/mcp/list-pending-c
 import { ReviewConceptTool } from '../../core/ingestion/mcp/review-concept.tool.js';
 import { GetLearningContextTool } from './mcp/get-learning-context.tool.js';
 import { RecordStudyNoteTool } from './mcp/record-study-note.tool.js';
+import { SearchExperienceTool } from './mcp/search-experience.tool.js';
 import { STUDY_INSTRUCTIONS } from './study-instructions.js';
 
 // 지침이 이름으로 가리키므로, 도구 이름·입력 필드를 바꾸면 지침도 함께 고치도록 여기서 잡는다.
@@ -13,6 +14,7 @@ describe('STUDY_INSTRUCTIONS', () => {
     const tools = [
       new GetLearningContextTool(undefined as never, undefined as never),
       recordTool,
+      new SearchExperienceTool(undefined as never),
       new ListPendingConceptsTool(undefined as never),
       new ReviewConceptTool(undefined as never),
     ];

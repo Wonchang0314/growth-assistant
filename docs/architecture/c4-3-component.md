@@ -16,7 +16,7 @@ flowchart TB
     end
 
     subgraph tutor
-        study["study<br/>학습 맥락 조회, 학습 기록"]
+        study["study<br/>학습 맥락 조회, 경험 카드 검색, 학습 기록"]
         quiz["quiz<br/>출제·검증·채점"]
         mastery["mastery<br/>FSRS, 숙련도·약점"]
         outreach["outreach<br/>아침 복습·저녁 주제·주간 리포트"]

@@ -7,6 +7,8 @@ import { ConceptRepository } from '../src/core/knowledge/concept.repository.js';
 import { concept, track } from '../src/core/knowledge/concept.schema.js';
 import type { ConceptSeed } from '../src/core/knowledge/concept-seed.js';
 import { McpServerHost } from '../src/core/mcp/mcp-server.host.js';
+import { ExperienceRepository } from '../src/core/memory/experience.repository.js';
+import { SourceDocumentRepository } from '../src/core/memory/source-document.repository.js';
 import { connectTestDb } from './db/test-db.js';
 import { FixedClock } from './fakes/fixed-clock.js';
 
@@ -95,6 +97,7 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       'list_pending_concepts',
       'record_study_note',
       'review_concept',
+      'search_experience',
       'sync_status',
     ]);
     expect(tools.find((t) => t.name === 'get_learning_context')?.annotations?.readOnlyHint).toBe(true);
@@ -113,7 +116,13 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
     const result = await client.callTool({ name: 'get_learning_context', arguments: { topic: '양자역학' } });
 
     expect(result.isError).toBeFalsy();
-    expect(result.structuredContent).toEqual({ topic: '양자역학', concepts: [], relatedNotes: [], recentNotes: [] });
+    expect(result.structuredContent).toEqual({
+      topic: '양자역학',
+      concepts: [],
+      experiences: [],
+      relatedNotes: [],
+      recentNotes: [],
+    });
     expect(JSON.stringify(result.content)).toContain('아직 학습 기록이 없다');
   });
 
@@ -157,6 +166,7 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
     expect(result.structuredContent).toEqual({
       topic: 'index',
       concepts: [expect.objectContaining({ name: '인덱스 원리' })],
+      experiences: [],
       relatedNotes: [
         {
           id: 1,
@@ -168,6 +178,83 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
         },
       ],
       recentNotes: [expect.objectContaining({ id: 2, topic: 'TCP 혼잡 제어', confusedPoints: [] })],
+    });
+  });
+
+  describe('경험 카드', () => {
+    beforeEach(async () => {
+      const documents = new SourceDocumentRepository(testDb.db);
+      await documents.save(
+        'NOTION',
+        { externalId: 'a', title: '인덱스 사고', url: 'https://notion.so/a', updatedAt: clock.now(), chunks: ['본문'] },
+        clock.now(),
+      );
+      const [doc] = await documents.findForExtraction({});
+      const indexId = (await testDb.db.select().from(concept).where(eq(concept.name, '인덱스 원리')))[0]?.id ?? -1;
+      const card = (title: string, lesson: string, concepts: number[]) => ({
+        projectName: 'GIS',
+        title,
+        situation: '조회가 느렸다',
+        task: '원인 찾기',
+        action: '처음에는 캐시를 의심했다',
+        result: '함수로 감싼 컬럼이 원인',
+        lesson,
+        occurredAt: '2026-03-02',
+        concepts,
+      });
+      await new ExperienceRepository(testDb.db).saveExtraction({
+        documentId: doc?.id ?? -1,
+        summary: '',
+        cards: [
+          card('함수로 감싼 컬럼이 인덱스를 못 탐', '컬럼을 함수로 감싸면 인덱스를 쓰지 못한다', [indexId]),
+          card('마커가 깜빡임', 'keepPreviousData는 useQueries 안에서 동작하지 않는다', []),
+        ],
+        newConcepts: [],
+        aliasAdds: [],
+        now: clock.now(),
+      });
+    });
+
+    it('get_learning_context가 관련 개념에 연결된 경험 카드를 원문 문서와 함께 준다', async () => {
+      const result = await client.callTool({ name: 'get_learning_context', arguments: { topic: '인덱스' } });
+
+      expect((result.structuredContent as { experiences: unknown }).experiences).toEqual([
+        {
+          id: 1,
+          title: '함수로 감싼 컬럼이 인덱스를 못 탐',
+          projectName: 'GIS',
+          occurredAt: '2026-03-02',
+          situation: '조회가 느렸다',
+          lesson: '컬럼을 함수로 감싸면 인덱스를 쓰지 못한다',
+          document: { title: '인덱스 사고', url: 'https://notion.so/a' },
+        },
+      ]);
+      expect(JSON.stringify(result.content)).toContain(
+        '[경험] 함수로 감싼 컬럼이 인덱스를 못 탐 (GIS, 2026-03-02): 컬럼을 함수로 감싸면 인덱스를 쓰지 못한다',
+      );
+    });
+
+    it('search_experience가 개념이 없는 카드도 글자로 찾아 STAR+L 전체를 준다', async () => {
+      const result = await client.callTool({ name: 'search_experience', arguments: { query: 'keepPreviousData' } });
+
+      expect(result.structuredContent).toMatchObject({
+        query: 'keepPreviousData',
+        experiences: [
+          { title: '마커가 깜빡임', action: '처음에는 캐시를 의심했다', result: '함수로 감싼 컬럼이 원인' },
+        ],
+      });
+      expect(JSON.stringify(result.content)).toContain('행동: 처음에는 캐시를 의심했다');
+    });
+
+    it('search_experience는 개념으로 찾은 카드를 먼저 주고, 못 찾으면 그렇다고 알려 준다', async () => {
+      const found = await client.callTool({ name: 'search_experience', arguments: { query: 'index 컬럼' } });
+      const none = await client.callTool({ name: 'search_experience', arguments: { query: '쿠버네티스' } });
+
+      expect((found.structuredContent as { experiences: { title: string }[] }).experiences.map((e) => e.title)).toEqual(
+        ['함수로 감싼 컬럼이 인덱스를 못 탐', '마커가 깜빡임'],
+      );
+      expect(none.structuredContent).toMatchObject({ experiences: [] });
+      expect(JSON.stringify(none.content)).toContain('찾은 경험 카드가 없다');
     });
   });
 

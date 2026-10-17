@@ -142,4 +142,52 @@ describe('ExperienceRepository', () => {
       'PENDING',
     );
   });
+
+  describe('조회', () => {
+    let partialId: number;
+
+    beforeEach(async () => {
+      await repository.saveExtraction({
+        documentId: await documentId('a'),
+        summary: '',
+        cards: [
+          { ...card('인덱스만 다룬 카드', [indexId]), occurredAt: '2026-01-01' },
+          { ...card('두 개념을 다룬 카드', [indexId, '부분 인덱스']), occurredAt: null },
+          {
+            ...card('나중의 인덱스 카드', [indexId]),
+            occurredAt: '2026-05-01',
+            lesson: '선택도 100%_전부는 인덱스가 무의미',
+          },
+          card('개념 없는 카드'),
+        ],
+        newConcepts: [partialIndex],
+        aliasAdds: [],
+        now,
+      });
+      partialId = (await testDb.db.select().from(concept).where(eq(concept.name, '부분 인덱스')))[0]?.id ?? -1;
+    });
+
+    it('개념에 연결된 카드를 맞은 개념이 많은 것부터, 같으면 최근 경험부터 원문 문서와 함께 돌려준다', async () => {
+      const found = await repository.findByConcepts([indexId, partialId], 10);
+
+      expect(found.map((c) => c.title)).toEqual(['두 개념을 다룬 카드', '나중의 인덱스 카드', '인덱스만 다룬 카드']);
+      expect(found[0]).toMatchObject({
+        projectName: 'GIS',
+        situation: '상황',
+        lesson: '교훈',
+        occurredAt: null,
+        document: { title: 'a', url: 'https://notion.so/a' },
+      });
+      expect(await repository.findByConcepts([indexId], 1)).toHaveLength(1);
+      expect(await repository.findByConcepts([], 10)).toEqual([]);
+    });
+
+    it('제목·STAR+L에서 검색어를 찾는다. %와 _는 글자 그대로 찾는다', async () => {
+      expect((await repository.search(['개념 없는'], 10)).map((c) => c.title)).toEqual(['개념 없는 카드']);
+      expect((await repository.search(['100%_전부'], 10)).map((c) => c.title)).toEqual(['나중의 인덱스 카드']);
+      // _를 와일드카드로 읽으면 "00_"가 "00%"에 걸린다.
+      expect(await repository.search(['00_'], 10)).toEqual([]);
+      expect(await repository.search([], 10)).toEqual([]);
+    });
+  });
 });
