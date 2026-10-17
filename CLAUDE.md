@@ -27,7 +27,7 @@ src/
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L), 판단 사례(회사 맥락을 걷어낸 버전, ADR-0021)
 │   ├── knowledge        # 트랙 6개(ADR-0022), 개념 그래프, 시드 개념(seed/<트랙>.yaml)
-│   ├── ingestion        # Notion 수집, 증분 동기화, 경험 카드 추출
+│   ├── ingestion        # Notion 수집, 증분 동기화, 경험 카드 추출, 수집에서 생긴 개념 검토 MCP 도구
 │   ├── scheduler        # 예약 작업, 놓친 실행 복구
 │   └── setting          # 실행 중 정해지는 키-값 설정 (app_setting)
 └── tutor                # 튜터 기능 모듈

@@ -48,3 +48,22 @@
 | 날짜 | 릴리스 | 결과 | 발견한 문제 |
 |---|---|---|---|
 | 2026-10-17 | `20261017-163436` | 1단계 전 항목 통과. 학습 기록 5건, 헷갈린 개념 `CONFUSED` 연결, "답 알려줘" 뒤 `answer_revealed`, 별칭("isolation level")으로 지난 오개념 재확인, DB 중지 때 오류 안내 후 재시작하면 같은 프로세스로 복구 | 같은 대화나 프로젝트 밖에서 "다시 복습하자"를 하면 `get_learning_context`를 부르지 않는다(새 대화·튜터 프로젝트에서는 부름). DB 중지 중 `record_study_note` 실패 경로는 불리지 않아 확인하지 못함 |
+
+## 2단계: 개념 검토
+
+**준비:** 배포(`ops/deploy.sh`) 뒤 Desktop 다시 시작. 도구 메뉴에 `list_pending_concepts`, `review_concept`가 보인다.
+
+- [ ] "승인 대기 개념 보여줘"라고 하면 `list_pending_concepts`를 부르고, 개념마다 카드 수와 카드 제목을 보여 준 뒤 무엇을 할지 묻는다
+- [ ] 사용자가 답하지 않은 개념은 Claude가 스스로 승인·병합·거절하지 않는다
+- [ ] "이름을 X로 고쳐서 승인", "Y랑 병합", "거절"이 각각 `review_concept`의 `APPROVE`(고칠 값 포함)·`MERGE`(`into`)·`REJECT`로 반영된다
+  ```bash
+  docker compose exec postgres psql -U growth growth \
+    -c "SELECT name, status, auto_approved, aliases FROM concept WHERE origin = 'INGESTION' ORDER BY updated_at DESC LIMIT 10;"
+  ```
+- [ ] 승인한 개념을 주제로 꺼내면 `get_learning_context`의 관련 개념에 나온다
+
+### 기록
+
+| 날짜 | 릴리스 | 결과 | 발견한 문제 |
+|---|---|---|---|
+| | | | |

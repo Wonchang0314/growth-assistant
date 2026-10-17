@@ -4,10 +4,10 @@ import { type ConceptProposal, planConcepts, type Vocabulary } from './concept-p
 const vocabulary: Vocabulary = {
   tracks: ['database', 'infra'],
   concepts: [
-    { id: 1, name: '인덱스', aliases: ['index'], status: 'ACTIVE', track: 'database' },
-    { id: 2, name: '컨테이너', aliases: ['container'], status: 'ACTIVE', track: 'infra' },
-    { id: 3, name: 'GIS', aliases: [], status: 'PROPOSED', track: 'database' },
-    { id: 4, name: 'ORM 매직', aliases: [], status: 'REJECTED', track: 'database' },
+    { id: 1, name: '인덱스', aliases: ['index'], status: 'ACTIVE', origin: 'SEED', track: 'database' },
+    { id: 2, name: '컨테이너', aliases: ['container'], status: 'ACTIVE', origin: 'SEED', track: 'infra' },
+    { id: 3, name: 'GIS', aliases: [], status: 'PROPOSED', origin: 'INGESTION', track: 'database' },
+    { id: 4, name: 'ORM 매직', aliases: [], status: 'REJECTED', origin: 'INGESTION', track: 'database' },
   ],
 };
 
