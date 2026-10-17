@@ -16,7 +16,8 @@ const input = z.object({
   into: name.optional().describe('MERGE일 때 합칠 기존 개념 이름'),
   name: name.optional().describe('APPROVE일 때 새 이름. 개념 하나만 담는다'),
   track: z.string().trim().min(1).optional().describe('APPROVE일 때 옮길 트랙 키'),
-  parent: name.nullable().optional().describe('APPROVE일 때 상위 개념 이름(PART_OF). null이면 상위 관계를 지운다'),
+  parent: name.optional().describe('APPROVE일 때 새 상위 개념 이름(PART_OF)'),
+  removeParent: z.boolean().optional().describe('APPROVE일 때 true면 상위 관계를 지운다. parent와 함께 주지 않는다'),
   description: z.string().trim().min(1).max(500).optional().describe('APPROVE일 때 새 설명'),
   aliases: z
     .array(name)
@@ -37,7 +38,11 @@ export class ReviewConceptTool implements McpToolHandler<typeof input> {
 
   constructor(private readonly service: ConceptReviewService) {}
 
-  async handle({ concept, action, into, ...edit }: z.output<typeof input>): Promise<McpToolResult> {
+  async handle(args: z.output<typeof input>): Promise<McpToolResult> {
+    const { concept, action, into, parent, removeParent, ...rest } = args;
+    if (removeParent && parent !== undefined) throw new Error('parent와 removeParent는 함께 줄 수 없다');
+    // 지우기를 parent: null로 받으면 모델이 문자열 "null"을 보내 그 이름의 개념을 찾는다(2026-10-18). 그래서 따로 받는다.
+    const edit: ConceptEdit = { ...rest, parent: removeParent ? null : parent };
     const text = await this.service.review({ concept, decision: decisionOf(action, into, edit) });
     return { text };
   }
