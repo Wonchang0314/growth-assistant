@@ -43,6 +43,13 @@
       "when": 1792244067556,
       "tag": "0005_experience",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792261917393,
+      "tag": "0006_decision_case",
+      "breakpoints": true
     }
   ]
 }

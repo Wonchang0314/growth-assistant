@@ -188,10 +188,12 @@ document_chunk      id, document_id, seq, chunk_hash, content
 experience          id, document_id NULL, origin (DOCUMENT | CONVERSATION),
                     project_name, title,
                     situation, task, action, result, lesson,   -- STAR+L 형식
-                    occurred_at, created_at, updated_at
+                    occurred_at,
+                    case_screen NULL (DECISION | NO_DECISION),  -- 판단 사례 선별 결과
+                    created_at, updated_at
 experience_concept  experience_id, concept_id
 sync_cursor         source PK, last_synced_at
-decision_case       id, experience_id NULL, document_id NULL,
+decision_case       id, experience_id UNIQUE,  -- 카드를 다시 뽑으면 함께 지워진다
                     situation, constraints text[],
                     options jsonb,             -- [{ text, chosen, reason }]
                     decision, rationale, outcome,
@@ -201,7 +203,7 @@ decision_case       id, experience_id NULL, document_id NULL,
 decision_case_concept  case_id, concept_id
 ```
 
-- `decision_case`(판단 사례)는 경험 카드에서 회사 맥락을 걷어낸 버전이다(ADR-0021). 회사 고유 이름이 들어 있지 않아야 하며, 상황 판단형 문제(7.3)의 재료가 된다.
+- `decision_case`(판단 사례)는 경험 카드에서 회사 맥락을 걷어낸 버전이다(ADR-0021). 회사 고유 이름이 들어 있지 않아야 하며, 상황 판단형 문제(7.3)의 재료가 된다. 카드 하나에 하나이고, 개념은 원래 카드의 개념을 그대로 잇는다(`decision_case_concept`). `review_note`는 게이트에 걸린 이유나 검토하며 남긴 말이다.
 
 ### 5.3 Mastery: FSRS와 숙련도
 
@@ -277,7 +279,7 @@ concept N:M decision_case (decision_case_concept)
 concept N:M study_note (study_note_concept)
 source_document 1─N document_chunk
 source_document 1─N experience
-experience 1─N decision_case 1─N quiz_question (SCENARIO)
+experience 1─1 decision_case 1─N quiz_question (SCENARIO)
 ```
 
 ---
@@ -339,7 +341,7 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 - 동시 실행은 최대 2개(세마포어). 용도별 타임아웃을 두고, 타임아웃이 나면 1회 재시도한다.
 - JSON 형식이 깨지면 오류 내용을 붙여 1회 재요청한다.
 - 모든 호출을 `llm_call_log`에 기록한다.
-- 용도별 모델은 `claude.settings.ts`에서 지정한다. 2026-10-17 결정: 경험 카드 추출과 판단 사례 치환은 Sonnet, 판단 사례의 독립 검증은 Opus(사용량과 품질의 절충). 출제·채점 모델은 3단계에서 정한다.
+- 용도별 모델은 `claude.settings.ts`에서 지정한다. 2026-10-17 결정: 경험 카드 추출과 판단 사례 선별·치환은 Sonnet, 판단 사례의 독립 검증은 Opus(사용량과 품질의 절충). 출제·채점 모델은 3단계에서 정한다.
 
 ### 7.1 수집 (백필, 증분 동기화)
 
@@ -356,7 +358,7 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 4. PENDING·FAILED 문서마다 Claude 추출 호출 (Sonnet, 구조화 출력)
    - 입력: 트랙 키 + 개념 목록(이름·트랙·별칭, 거절된 개념은 뺌) + 문서 본문 전체(최대 2만 자 정도라 한 번에 넣는다)
    - 출력: 경험 카드(STAR+L, 카드마다 개념 이름), 새 개념 제안(트랙, 상위 개념, 확신 여부), 문서 요약
-5. 판단이 들어 있는 경험 카드에서 판단 사례를 추상화한다 (아래 "판단 사례", 아직 구현 전)
+5. 판단이 들어 있는 경험 카드에서 판단 사례를 추상화한다 (아래 "판단 사례". 지금은 추출과 따로 `npm run abstract`로 돌린다)
 6. 승인 정책(6장)을 코드로 적용하고 하나의 트랜잭션으로 반영한다. 그 문서에서 뽑았던 카드는 지우고 새 카드로 바꾼다
 7. 실패한 문서는 FAILED로 표시하고, 다음 실행 때 재시도한다 (다른 문서 처리는 계속). 사용량 한도·로그인 오류면 남은 문서를 그대로 두고 멈춘다
 ```
@@ -378,12 +380,14 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 
 업무 문서의 경험은 회사 테이블·데이터 원천·업무 규칙 위에서 쓰였다. 그대로 문제로 만들면 회사 사정을 알아야 풀 수 있고, 회사 고유 정보가 문제와 대화에 퍼진다. 그래서 수집할 때 한 번 추상화해 `decision_case`로 저장하고, 출제는 이것으로 한다.
 
+0. **선별 (`claude -p`, Sonnet, 카드 40장씩 한 번에):** 상황 판단형 문제로 만들 만큼 판단이 분명한 카드만 고른다(사용자 결정 2026-10-18). 둘 이상의 선택지 중 하나를 일반 원칙으로 고른 기록(되돌린 판단, 진단 순서 포함)이어야 하고, 선택지 없는 작업 기록, 다른 방법을 따지지 않은 버그 수정, 정리 노트, 회사 규칙만이 근거인 카드는 뺀다. 애매하면 뺀다. 결과는 `experience.case_screen`에 남겨 다시 묻지 않는다.
 1. **추출 (`claude -p`, 구조화 출력):** 상황, 제약, 선택지(고른 것과 고르지 않은 이유), 결정, 근거, 결과, 불변 조건, 연결 개념을 받는다. 특정 조직을 가리키는 이름(회사·고객사·협력사, 사내 시스템·DB·테이블·컬럼·코드값, 서버 주소)은 지우지 않고 역할 설명으로 치환해 일반 상황으로 고쳐 쓴다. 회사 용어 목록은 쓰지 않는다(ADR-0024). 불변 조건은 도메인을 바꿔도 반드시 남아야 하는 사실이다(예: "원천 테이블은 기존 행을 제자리에서 UPDATE한다").
 2. **패턴 게이트 (코드):** 결과 전체를 정규식으로 검사하고 통과·거부만 한다. 검사 대상은 목록 없이 모양으로 잡히는 IP 주소, URL·도메인, `UPPER_SNAKE` 식별자다. 걸리면 걸린 문자열을 붙여 1회 다시 추출한다.
 3. **독립 검증 (`claude -p`, Opus, 별도 호출):** 원문과 추상화본을 함께 주고 묻는다. 같은 근거로 같은 결론이 나오는가, 불변 조건이 모두 살아 있는가, 회사 밖 사람이 이 사례만 보고 이해할 수 있는가(특정 조직을 가리키는 이름이 남았는가).
 4. 통과하면 `ACTIVE`가 된다. 다시 실패하면 `PENDING`으로 두고 Claude 앱 대화에서 `list_pending_cases`·`review_case`로 승인·수정·거절한다(개념 승인 정책과 같은 구조). 자동 승인된 사례는 주간 리포트에서 사후 확인한다(4단계).
 
 - 실무 결정이 일반적인 정답은 아닐 수 있다. 결정을 되돌린 기록이 있으면 되돌린 뒤의 판단과 그 이유를 근거로 쓴다.
+- **구현 상태 (2026-10-18):** 선별·치환·패턴 게이트·독립 검증과 진입점(`npm run abstract`, `--limit`·`--ids`)까지 만들었다. 원문은 경험 카드(STAR+L)만 넣고 문서 본문은 넣지 않는다. 게이트나 검증에 걸리면 걸린 문자열·문제를 붙여 한 번 다시 쓰고(카드당 치환 최대 2회, 검증 최대 2회), 그래도 걸리면 마지막 결과를 `PENDING`으로 저장한다. 검토 도구(`list_pending_cases`·`review_case`)는 10장 시험 결과를 본 뒤 만든다. 응답 스키마의 선택지(`options`)에 "고른 이유·버린 이유"를 묻는 설명을 달면 Sonnet의 안전 장치(`reasoning_extraction`)에 걸려 응답을 받지 못했다(첫 시험 10장 중 9장). 그래서 선택지 규칙은 스키마 설명이 아니라 시스템 프롬프트에 둔다.
 
 ### 7.2 튜터링 대화
 

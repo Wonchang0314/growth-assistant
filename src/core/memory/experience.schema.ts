@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { bigint, check, date, index, pgTable, primaryKey, text, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { inList } from '../db/sql.js';
 import { concept } from '../knowledge/concept.schema.js';
+import { CASE_SCREENS } from './decision-case.js';
 import { EXPERIENCE_ORIGINS } from './experience.js';
 import { sourceDocument } from './source-document.schema.js';
 
@@ -20,12 +21,15 @@ export const experience = pgTable(
     result: text('result').notNull(),
     lesson: text('lesson').notNull(),
     occurredAt: date('occurred_at'),
+    /** 판단 사례로 만들 만한 판단이 들어 있는지 선별한 결과. 아직 보지 않았으면 null. */
+    caseScreen: varchar('case_screen', { length: 16, enum: CASE_SCREENS }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   (t) => [
     index('idx_experience_document').on(t.documentId),
     check('experience_origin_check', sql`${t.origin} IN (${inList(EXPERIENCE_ORIGINS)})`),
+    check('experience_case_screen_check', sql`${t.caseScreen} IN (${inList(CASE_SCREENS)})`),
   ],
 );
 

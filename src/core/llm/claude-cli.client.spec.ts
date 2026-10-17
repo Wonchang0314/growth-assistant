@@ -6,7 +6,7 @@ import type { AdminNotifier } from '../logging/admin-notifier.js';
 import { ClaudeException, type ClaudeRequest } from './claude.client.js';
 import { ClaudeCliClient } from './claude-cli.client.js';
 import type { ClaudeProcessRunner, ProcessResult } from './claude-process.runner.js';
-import { ClaudeSettings } from './claude.settings.js';
+import { ClaudeSettings, DEFAULT_PURPOSES } from './claude.settings.js';
 import type { LlmCallLogRepository } from './llm-call-log.repository.js';
 import type { NewLlmCallLog } from './llm-call-log.schema.js';
 
@@ -64,9 +64,9 @@ function setup(runner: ClaudeProcessRunner, { maxConcurrency = 2, failLogs = fal
     workDir: '/tmp/growth-assistant-test-claude-work',
     maxConcurrency,
     purposes: {
+      ...DEFAULT_PURPOSES,
       TUTOR_CHAT: { model: 'sonnet', timeoutMs: 180_000, webAccess: true },
       SESSION_SUMMARY: { model: 'haiku', timeoutMs: 60_000, webAccess: false },
-      EXTRACTION: { model: 'sonnet', timeoutMs: 300_000, webAccess: false },
     },
   });
   const client = new ClaudeCliClient(
