@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Desktop 설정(claude_desktop_config.json)의 mcpServers에 넣을 growth-assistant 항목을 출력한다. 파일은 고치지 않는다.
 # Desktop은 터미널의 PATH를 물려받지 않으므로 node와 서버 파일을 절대 경로로 적는다.
-# 서버 파일은 current 링크를 가리키므로 ops/deploy.sh로 새로 배포하면 Desktop을 다시 시작하기만 하면 된다.
+# node는 app/node, 서버 파일은 current 링크를 가리키므로 ops/deploy.sh로 새로 배포하면(node 버전을 바꿨어도) Desktop을 다시 시작하기만 하면 된다.
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -11,8 +11,8 @@ LOG_DIR="${GROWTH_LOG_DIR:-$HOME/.growth-assistant/logs}"
 SERVER="$APP_DIR/current/dist/mcp-stdio.js"
 ENV_FILE="$PROJECT_DIR/.env"
 
-NODE="$(command -v node)" || { echo "node를 찾지 못했다. Node.js 24를 설치한다 (docs/ops.md)." >&2; exit 1; }
-[[ -f "$SERVER" ]] || { echo "배포된 릴리스가 없다: $SERVER. ops/deploy.sh를 먼저 실행한다." >&2; exit 1; }
+NODE="$APP_DIR/node"
+[[ -f "$SERVER" && -x "$NODE" ]] || { echo "배포된 릴리스가 없다: $SERVER, $NODE. ops/deploy.sh를 먼저 실행한다." >&2; exit 1; }
 [[ -f "$ENV_FILE" ]] || { echo ".env가 없다: $ENV_FILE. cp .env.example .env 후 값을 채운다." >&2; exit 1; }
 
 NODE="$NODE" SERVER="$SERVER" ENV_FILE="$ENV_FILE" LOG_DIR="$LOG_DIR" "$NODE" -e '

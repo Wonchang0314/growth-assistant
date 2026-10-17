@@ -14,7 +14,7 @@
    - 문제 내는 UI가 마음에 들지 않는다는 의견이 있었다. 퀴즈 UI는 3단계에서 MCP Apps로 만들기로 했다. 그 전에는 프로젝트 지침(`docs/claude-project-instructions.md`)의 형식 규칙(보기는 줄바꿈 목록, 한 번에 한 문제)으로 다듬는다
 3. **다음 (2단계 수집):** 원천은 Notion 하나다(ADR-0023). Notion 통합 토큰 발급·페이지 공유, 수집 범위를 정해야 시작할 수 있다(설계 문서 13장). 수집한 경험은 ADR-0022의 커리큘럼 개념에 연결한다. 범위 밖 경험(GIS, React, CI/CD, nginx)은 새 개념 제안으로 올라온다
 
-**맥미니 상태 (2026-10-17):** 예전 봇 launchd 해제함. Desktop 설정 `claude_desktop_config.json`에 `growth-assistant` 등록함(원본 백업 `.bak-20261017`), running 확인. 배포 릴리스 `20261017-163026`(새 시드, 관계 동기화 수정 전). Node v24.13.1이라 `@nestjs/schematics`(24.15 이상) 경고가 나온다. nvm으로 올리면 Desktop 설정의 node 경로가 바뀌므로 `ops/desktop-config.sh` 출력을 다시 넣는다
+**맥미니 상태 (2026-10-17):** 예전 봇 launchd 해제함. Desktop 설정 `claude_desktop_config.json`에 `growth-assistant` 등록함(원본 백업 `.bak-20261017`), running 확인. 배포 릴리스 `20261017-163026`(새 시드, 관계 동기화 수정 전). Node v24.13.1이라 `@nestjs/schematics`(24.15 이상) 경고가 나온다. `chore/pin-node-version` PR에서 버전을 `.nvmrc`(24.22.0)로 고정하고 `engine-strict`를 켰다. 머지하면 24.13.1에서는 배포가 멈추므로 순서를 지킨다: 지금 `main` 배포(새 개념 확인) → PR 머지 → `git pull && nvm install && ops/deploy.sh` → `ops/desktop-config.sh` 출력으로 Desktop 설정의 `command`를 `app/node` 링크로 한 번 바꾸고 재시작. 그 뒤로는 Node를 올려도 설정을 다시 넣지 않는다. mise는 아직 들이지 않았다(nvm이 `.nvmrc`를 그대로 읽고, Desktop 문제는 링크로 풀었으므로 도구를 바꿀 이유가 약하다)
 
 ## 학습 (현재 구현 이해하기)
 

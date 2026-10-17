@@ -4,7 +4,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 
 ## 처음 설치
 
-1. **준비물:** Node.js 24(`brew install node@24`), Docker(Docker Desktop 또는 OrbStack), Git, `claude` CLI, Claude Desktop.
+1. **준비물:** Node.js(버전은 `.nvmrc`. nvm이면 레포에서 `nvm install`), Docker(Docker Desktop 또는 OrbStack), Git, `claude` CLI, Claude Desktop.
 2. **Docker 자동 실행:** Docker 앱 설정에서 로그인할 때 시작하도록 켠다.
 3. **`claude` 로그인:** 터미널에서 `claude`를 실행해 구독 계정으로 로그인한다. 확인:
    ```bash
@@ -33,7 +33,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    {
      "mcpServers": {
        "growth-assistant": {
-         "command": "/opt/homebrew/opt/node@24/bin/node",
+         "command": "/Users/<사용자>/.growth-assistant/app/node",
          "args": ["/Users/<사용자>/.growth-assistant/app/current/dist/mcp-stdio.js"],
          "env": {
            "GROWTH_ENV_FILE": "/Users/<사용자>/<레포>/.env",
@@ -45,7 +45,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    ```
    - Desktop의 Settings → Developer → Edit Config로 `~/Library/Application Support/Claude/claude_desktop_config.json`을 열고, `mcpServers`에 `growth-assistant` 항목을 더한다. 다른 서버가 이미 있으면 그 옆에 넣는다.
    - Desktop을 완전히 종료(⌘Q)했다가 다시 연다. Settings → Developer에서 `growth-assistant`가 running이면 연결된 것이다.
-   - 경로를 모두 절대 경로로 적는 이유: Desktop은 터미널의 PATH와 작업 디렉터리를 물려받지 않는다. `args`는 `current` 링크를 가리키므로 새로 배포한 뒤에는 Desktop을 다시 시작하기만 하면 된다.
+   - 경로를 모두 절대 경로로 적는 이유: Desktop은 셸을 거치지 않고 macOS가 띄우므로 터미널의 PATH(nvm이 바꾼 것 포함)와 작업 디렉터리를 물려받지 않는다. `command`는 배포가 바꾸는 `app/node` 링크를, `args`는 `current` 링크를 가리키므로 새로 배포한 뒤에는(node 버전을 바꿨어도) Desktop을 다시 시작하기만 하면 된다.
    - `LOG_DIR`는 `.env`가 아니라 여기서 준다. 진입점이 `.env`를 읽기 전에 로거를 만들기 때문이다.
    - 튜터링은 Claude 프로젝트를 하나 만들고, 그 지침에 `docs/claude-project-instructions.md`의 본문을 붙여 넣은 뒤 그 안에서 대화한다.
 8. **점검:** [수동 점검 체크리스트](manual-check.md)의 1단계 항목을 확인한다.
@@ -55,6 +55,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 | 할 일 | 명령 |
 |---|---|
 | 새 코드 배포 | `git pull && ops/deploy.sh` (의존성 설치 → 검사·테스트 → 빌드 → 새 릴리스 → 마이그레이션 → 시드 적재 → `current` 교체) 후 Claude Desktop 다시 시작. 릴리스는 최근 3개를 남긴다 |
+| Node 버전 올리기 | `.nvmrc`를 고쳐 머지한 뒤 `git pull && nvm install && ops/deploy.sh` → Claude Desktop 다시 시작. 배포는 `node --version`이 `.nvmrc`와 다르면 멈추고, `app/node` 링크를 새 node로 바꾼다. `package.json`의 `engines`와 `.npmrc`의 `engine-strict` 때문에 범위 밖 버전에서는 `npm ci`가 실패한다 |
 | 이전 릴리스로 되돌리기 | `ls ~/.growth-assistant/app/releases` 후 `ln -sfn ~/.growth-assistant/app/releases/<이전> ~/.growth-assistant/app/current` → Claude Desktop 다시 시작. DB 마이그레이션은 되돌리지 않으므로 스키마가 바뀐 릴리스 사이에서는 쓰지 않는다 |
 | 마이그레이션만 적용 | `npm run db:migrate` (작업 트리의 `.env` 기준) |
 | 시드 개념만 적재 | `npm run db:seed` (작업 트리의 `.env` 기준). 시드 YAML을 고친 뒤. 개념은 이름으로 찾아 트랙·별칭·설명을 고치고, 승인 상태는 건드리지 않으며, 시드 개념끼리의 관계는 YAML대로 맞추고, YAML에서 빠진 시드 개념(관계 포함)과 트랙은 지운다. 학습 기록이 연결된 개념을 지우려 하면 적재 전체가 취소된다 |

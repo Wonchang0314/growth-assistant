@@ -41,7 +41,7 @@ src/
 
 ## 명령
 
-- 처음 한 번: `cp .env.example .env` 후 값 채우기
+- 처음 한 번: `nvm install`(Node 버전은 `.nvmrc`, `engine-strict`라 범위 밖 버전이면 `npm ci`가 실패한다), `cp .env.example .env` 후 값 채우기
 - DB 실행: `docker compose up -d`
 - 의존성 설치: `npm ci`
 - 전체 검사: `npm run check` (타입 검사, 린트, 형식, 테스트. 테스트 DB는 Testcontainers가 띄우므로 Docker만 실행 중이면 된다)

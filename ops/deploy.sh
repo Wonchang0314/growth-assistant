@@ -4,6 +4,7 @@
 # 실행 중인 릴리스의 파일을 덮어쓰지 않도록 릴리스마다 디렉터리를 따로 만든다. 최근 3개만 남긴다.
 #   ~/.growth-assistant/app/releases/<시각>/{dist, node_modules, package.json}
 #   ~/.growth-assistant/app/current -> releases/<시각>
+#   ~/.growth-assistant/app/node -> 배포에 쓴 node (Claude Desktop 설정이 가리키는 고정 경로)
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,6 +14,8 @@ KEEP_RELEASES=3
 
 cd "$PROJECT_DIR"
 [[ -f .env ]] || { echo ".env가 없다. cp .env.example .env 후 값을 채운다." >&2; exit 1; }
+want="v$(tr -d '[:space:]' < .nvmrc)"
+[[ "$(node --version)" == "$want" ]] || { echo "node $(node --version)로는 배포하지 않는다. .nvmrc의 $want로 바꾼다 (nvm install)." >&2; exit 1; }
 npm ci --no-audit --no-fund
 npm run check   # 타입 검사, 린트, 형식, 테스트 (DB 테스트에 Docker가 필요하다)
 npm run build
@@ -28,7 +31,9 @@ GROWTH_ENV_FILE="$PROJECT_DIR/.env" node "$release/dist/migrate.js"
 GROWTH_ENV_FILE="$PROJECT_DIR/.env" node "$release/dist/seed.js"
 
 ln -sfn "$release" "$APP_DIR/current"
-echo "배포함: $release"
+# Desktop은 셸을 거치지 않아 nvm의 PATH를 모른다. 버전이 바뀌어도 설정을 다시 넣지 않도록 고정 경로의 링크를 바꾼다.
+ln -sfn "$(command -v node)" "$APP_DIR/node"
+echo "배포함: $release (node $want)"
 
 # 오래된 릴리스를 지운다 (current는 항상 가장 최근 것이다).
 ls -1d "$APP_DIR"/releases/*/ | sort -r | tail -n +$((KEEP_RELEASES + 1)) | while read -r old; do
