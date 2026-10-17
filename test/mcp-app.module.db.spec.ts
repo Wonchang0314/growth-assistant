@@ -2,7 +2,9 @@ import { Test } from '@nestjs/testing';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it, vi } from 'vitest';
 import { Clock } from '../src/core/clock/clock.js';
+import { eq } from 'drizzle-orm';
 import { ConceptRepository } from '../src/core/knowledge/concept.repository.js';
+import { concept, track } from '../src/core/knowledge/concept.schema.js';
 import type { ConceptSeed } from '../src/core/knowledge/concept-seed.js';
 import { McpServerHost } from '../src/core/mcp/mcp-server.host.js';
 import { connectTestDb } from './db/test-db.js';
@@ -88,7 +90,13 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
   it('학습 도구와 수집 상태 도구를 등록한다', async () => {
     const { tools } = await client.listTools();
 
-    expect(tools.map((t) => t.name).sort()).toEqual(['get_learning_context', 'record_study_note', 'sync_status']);
+    expect(tools.map((t) => t.name).sort()).toEqual([
+      'get_learning_context',
+      'list_pending_concepts',
+      'record_study_note',
+      'review_concept',
+      'sync_status',
+    ]);
     expect(tools.find((t) => t.name === 'get_learning_context')?.annotations?.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === 'record_study_note')?.annotations?.readOnlyHint).toBe(false);
   });
@@ -161,6 +169,42 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       ],
       recentNotes: [expect.objectContaining({ id: 2, topic: 'TCP 혼잡 제어', confusedPoints: [] })],
     });
+  });
+
+  it('승인 대기 개념을 보여 주고, review_concept로 고쳐서 승인하면 학습 맥락에 나온다', async () => {
+    await testDb.db.insert(concept).values({
+      trackId: (await testDb.db.select({ id: track.id }).from(track).where(eq(track.key, 'cs')))[0]?.id ?? -1,
+      name: '공간 인덱스와 PostGIS',
+      aliases: ['GiST'],
+      description: '좌표 범위 검색',
+      status: 'PROPOSED',
+      origin: 'INGESTION',
+      createdAt: clock.now(),
+      updatedAt: clock.now(),
+    });
+
+    const pending = await client.callTool({ name: 'list_pending_concepts', arguments: {} });
+    expect(JSON.stringify(pending.content)).toContain('공간 인덱스와 PostGIS [승인 대기] cs, 카드 0장');
+    const before = await client.callTool({ name: 'get_learning_context', arguments: { topic: 'GiST' } });
+    expect((before.structuredContent as { concepts: unknown }).concepts).toEqual([]);
+
+    const reviewed = await client.callTool({
+      name: 'review_concept',
+      arguments: { concept: '공간 인덱스와 PostGIS', action: 'APPROVE', name: '공간 인덱스', parent: '인덱스 원리' },
+    });
+
+    expect(reviewed.content).toEqual([{ type: 'text', text: '승인: 공간 인덱스 (이전 이름 공간 인덱스와 PostGIS)' }]);
+    const context = await client.callTool({ name: 'get_learning_context', arguments: { topic: '공간 인덱스' } });
+    expect((context.structuredContent as { concepts: unknown }).concepts).toContainEqual(
+      expect.objectContaining({ name: '공간 인덱스', parent: '인덱스 원리' }),
+    );
+  });
+
+  it('MERGE에 합칠 개념을 주지 않으면 오류를 돌려준다', async () => {
+    const result = await client.callTool({ name: 'review_concept', arguments: { concept: '인덱스', action: 'MERGE' } });
+
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain('MERGE에는 into');
   });
 
   it('입력이 스키마에 맞지 않으면 저장하지 않고 오류를 돌려준다', async () => {

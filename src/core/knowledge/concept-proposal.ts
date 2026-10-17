@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type ConceptStatus, type ConceptTerms, normalizeTerm, resolveConcept } from './concept.js';
+import { type ConceptOrigin, type ConceptStatus, type ConceptTerms, normalizeTerm, resolveConcept } from './concept.js';
 
 /** 추출할 때 Claude가 개념 목록에 없어 새로 제안한 개념 (설계 문서 6장). */
 export const conceptProposalSchema = z.object({
@@ -12,11 +12,17 @@ export const conceptProposalSchema = z.object({
 });
 export type ConceptProposal = z.infer<typeof conceptProposalSchema>;
 
-/** 제안을 처리할 때 비교하는 개념 어휘. 거절된 개념도 담아 다시 만들지 않게 한다. */
+/** 제안·검토할 때 비교하는 개념 어휘. 거절된 개념도 담아 다시 만들지 않게 한다. */
 export interface Vocabulary {
   readonly tracks: readonly string[];
-  readonly concepts: readonly (ConceptTerms & { readonly status: ConceptStatus; readonly track: string })[];
+  readonly concepts: readonly VocabularyConcept[];
 }
+
+export type VocabularyConcept = ConceptTerms & {
+  readonly status: ConceptStatus;
+  readonly origin: ConceptOrigin;
+  readonly track: string;
+};
 
 export interface NewConcept {
   readonly name: string;

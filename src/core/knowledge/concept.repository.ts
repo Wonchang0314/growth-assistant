@@ -47,6 +47,7 @@ export class ConceptRepository {
         name: concept.name,
         aliases: concept.aliases,
         status: concept.status,
+        origin: concept.origin,
         track: track.key,
       })
       .from(concept)
