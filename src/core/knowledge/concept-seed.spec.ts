@@ -55,8 +55,8 @@ describe('loadSeed (src/core/knowledge/seed)', () => {
   it('저장소의 시드 파일은 검증을 통과한다', () => {
     const loaded = loadSeed();
 
-    expect(loaded.tracks.map((t) => t.key).sort()).toEqual(['backend', 'cs', 'frontend', 'infra', 'interview']);
-    expect(loaded.concepts.length).toBeGreaterThan(200);
+    expect(loaded.tracks.map((t) => t.key).sort()).toEqual(['backend', 'database', 'infra', 'js', 'mcp', 'network']);
+    expect(loaded.concepts.length).toBeGreaterThan(150);
     // 숫자로 읽히는 별칭이 문자열로 남아 있어야 한다 (0600이 600이 되지 않게).
     expect(loaded.concepts.flatMap((c) => c.aliases)).toContain('0600');
   });

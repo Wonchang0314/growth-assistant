@@ -1,0 +1,145 @@
+# 시드 개념: 네트워크 (ADR-0022). 형식은 js.yaml 머리말
+
+track:
+  key: network
+  name: 네트워크
+  weight: 0.2
+  description: 웹 서비스가 통신하는 원리. 주소·전송 계층, HTTP, TLS, 프록시 (리눅스에서 구성·진단하는 법은 IT 인프라)
+
+concepts:
+  - name: 컴퓨터 네트워크
+    aliases: [네트워크, networking, OSI 7계층, TCP/IP 4계층, 계층 모델, 캡슐화]
+    description: 데이터가 계층을 거쳐 패킷으로 목적지에 닿는 원리
+
+  - name: IP 주소와 서브넷
+    parent: 컴퓨터 네트워크
+    aliases: [IP address, IP 주소, CIDR, 서브넷, subnet, 사설 IP, 공인 IP, private IP, IPv4, IPv6]
+    description: 공인·사설 대역, CIDR 표기로 주소 묶음을 나타내는 법
+
+  - name: 라우팅
+    parent: 컴퓨터 네트워크
+    aliases: [routing, 라우팅 테이블, 게이트웨이, default gateway, 기본 게이트웨이, traceroute, 홉]
+    description: 패킷이 다음 홉을 고르는 방식과 라우팅 테이블 읽기
+    requires: [IP 주소와 서브넷]
+
+  - name: TCP
+    parent: 컴퓨터 네트워크
+    aliases:
+      [
+        TCP handshake,
+        3-way handshake,
+        4-way handshake,
+        흐름 제어,
+        혼잡 제어,
+        재전송,
+        connection refused,
+        connection timeout,
+        SYN,
+        TIME_WAIT,
+      ]
+    description: 연결 수립·종료, 신뢰성(재전송, 흐름·혼잡 제어), 연결 실패 유형이 어느 단계에서 났다는 뜻인지
+    requires: [IP 주소와 서브넷]
+
+  - name: UDP
+    parent: 컴퓨터 네트워크
+    aliases: [데이터그램, datagram]
+    description: 연결 없는 전송의 특징과 TCP 대신 쓰는 경우
+    related: [TCP]
+
+  - name: 소켓과 포트
+    parent: 컴퓨터 네트워크
+    aliases: [socket, 소켓, port, 포트, 포트 번호, listen, 소켓 바인드, 소켓 API, 유닉스 도메인 소켓, ephemeral port]
+    description: 포트로 프로세스를 구분하는 법, 소켓 API 흐름, 0.0.0.0과 127.0.0.1에 바인드하는 차이
+    requires: [TCP]
+
+  - name: DNS 이름 해석
+    parent: 컴퓨터 네트워크
+    aliases: [DNS, 도메인 이름 해석, resolver, 리졸버, A 레코드, CNAME, TTL, /etc/hosts, DNS 캐시]
+    description: 이름이 IP로 바뀌는 과정, 레코드 종류, 캐시와 TTL
+
+  - name: HTTP
+    parent: 컴퓨터 네트워크
+    aliases: [Hypertext Transfer Protocol, 웹 통신]
+    description: 요청·응답으로 이루어진 웹의 응용 계층 프로토콜
+    requires: [TCP]
+
+  - name: HTTP 메시지와 메서드
+    parent: HTTP
+    aliases: [HTTP 메서드, HTTP method, 멱등 메서드, 안전한 메서드, HTTP 헤더, 콘텐츠 협상, Content-Type]
+    description: 요청·응답 메시지 구조, 메서드의 의미(안전·멱등), 주요 헤더
+
+  - name: HTTP 상태 코드
+    parent: HTTP
+    aliases: [status code, 상태 코드, '200', '301', '304', '400', '401', '403', '404', '409', '500', '502', '503']
+    description: 상태 코드 범주와 401·403, 502·503처럼 헷갈리는 코드의 뜻
+
+  - name: HTTP 캐싱
+    parent: HTTP
+    aliases: [Cache-Control, ETag, Last-Modified, 조건부 요청, max-age, no-cache, no-store, 브라우저 캐시]
+    description: 신선도와 재검증, 캐시 지시자를 고르는 법
+    requires: [HTTP 메시지와 메서드]
+
+  - name: 쿠키와 세션
+    parent: HTTP
+    aliases: [cookie, 쿠키, session, 세션, Set-Cookie, SameSite, HttpOnly, Secure 속성]
+    description: 무상태 HTTP에서 상태를 유지하는 법, 쿠키 속성과 보안
+    requires: [HTTP 메시지와 메서드]
+
+  - name: 동일 출처 정책과 CORS
+    parent: HTTP
+    aliases: [CORS, SOP, same-origin policy, 동일 출처 정책, preflight, 프리플라이트, Access-Control-Allow-Origin]
+    description: 브라우저가 다른 출처 요청을 막는 이유와 CORS 헤더·프리플라이트 동작
+    requires: [HTTP 메시지와 메서드]
+    related: [쿠키와 세션]
+
+  - name: HTTP 버전 차이
+    parent: HTTP
+    aliases: [HTTP/1.1, HTTP/2, HTTP/3, QUIC, keep-alive, 멀티플렉싱, multiplexing, HOL blocking, 헤더 압축]
+    description: 버전마다 연결 재사용·다중화를 어떻게 바꿨고 무엇을 해결했나
+    requires: [HTTP 메시지와 메서드]
+    related: [UDP]
+
+  - name: 실시간 통신 방식
+    parent: HTTP
+    aliases: [WebSocket, 웹소켓, SSE, server-sent events, 롱 폴링, long polling, 폴링]
+    description: 서버가 먼저 보내야 할 때 고르는 방식과 각각의 연결·확장 비용
+    requires: [HTTP 메시지와 메서드]
+
+  - name: 공개키 암호와 전자서명
+    parent: 컴퓨터 네트워크
+    aliases: [공개키 암호, public key, 비대칭 암호, 대칭키 암호, 전자서명, digital signature, 해시 함수, RSA, ECDSA]
+    description: 대칭·비대칭 암호의 쓰임 차이와 서명으로 위조를 막는 원리
+
+  - name: TLS와 인증서
+    parent: 컴퓨터 네트워크
+    aliases: [TLS, SSL, HTTPS, TLS 핸드셰이크, 인증서, certificate, 인증서 체인, CA, 인증 기관, SNI]
+    description: 핸드셰이크로 키를 합의하고 인증서 체인으로 서버를 확인하는 과정
+    requires: [공개키 암호와 전자서명, TCP]
+
+  - name: 프록시와 로드 밸런싱
+    parent: 컴퓨터 네트워크
+    aliases:
+      [
+        reverse proxy,
+        리버스 프록시,
+        포워드 프록시,
+        load balancer,
+        로드 밸런서,
+        L4 로드 밸런서,
+        L7 로드 밸런서,
+        X-Forwarded-For,
+      ]
+    description: 중간에서 요청을 받아 넘기는 구조, L4·L7 차이, 원래 클라이언트 정보를 넘기는 법
+    requires: [HTTP 메시지와 메서드]
+
+  - name: CDN
+    parent: 컴퓨터 네트워크
+    aliases: [Content Delivery Network, 엣지 캐시, edge cache, CDN 캐시 무효화]
+    description: 가까운 엣지에서 응답해 지연을 줄이는 구조와 캐시 키·무효화
+    requires: [HTTP 캐싱]
+
+  - name: URL 입력부터 화면 표시까지
+    parent: 컴퓨터 네트워크
+    aliases: [브라우저 요청 흐름, 주소창에 URL을 입력하면]
+    description: DNS·TCP·TLS·HTTP가 한 요청에서 차례로 일어나는 전체 흐름
+    requires: [DNS 이름 해석, TLS와 인증서, HTTP 메시지와 메서드]
