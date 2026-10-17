@@ -40,7 +40,8 @@
 - [x] 개념 승인 도구 (`list_pending_concepts`, `review_concept`)
 - [x] 결정: 회사 용어 목록 없이 패턴 게이트와 독립 검증으로 거름 (ADR-0024)
 - [ ] 판단 사례 추상화: 치환, 패턴 게이트, 독립 검증(Opus), 검토 도구 (`list_pending_cases`, `review_case`, ADR-0021·0024)
-- [ ] 대화에 기억 연결 (`search_experience`, `get_learning_context` 확장)
+- [x] 대화에 기억 연결 (`search_experience`, `get_learning_context`에 경험 카드)
+- [ ] 2단계 완료 확인: Desktop 대화에서 Claude가 경험 카드를 인용 (`docs/manual-check.md` 2단계)
 
 ## 3. 퀴즈·복습: 객관식·빈칸, FSRS, 숙련도, 약점 (ADR-0019)
 - [ ] `quiz` 모듈 레이어 폴더 구조 시도, 3단계 끝에 평가 (ADR-0020)

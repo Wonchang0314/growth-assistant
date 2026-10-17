@@ -31,7 +31,7 @@ src/
 │   ├── scheduler        # 예약 작업, 놓친 실행 복구
 │   └── setting          # 실행 중 정해지는 키-값 설정 (app_setting)
 └── tutor                # 튜터 기능 모듈
-    ├── study            # 학습 맥락 조회·학습 기록 MCP 도구, 서버 instructions
+    ├── study            # 학습 맥락 조회·경험 카드 검색·학습 기록 MCP 도구, 서버 instructions
     ├── quiz             # 출제·검증·채점 (레이어 폴더 시도, ADR-0020)
     ├── mastery          # FSRS, 숙련도·약점
     └── outreach         # 아침 복습, 저녁 주제, 주간 리포트

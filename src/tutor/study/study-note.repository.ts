@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { desc, ilike, inArray, notInArray, or, type SQL, sql } from 'drizzle-orm';
+import { desc, inArray, notInArray, sql } from 'drizzle-orm';
 import { DB, type Db } from '../../core/db/db.module.js';
+import { containsAnyTerm } from '../../core/db/sql.js';
 import { studyNote, studyNoteConcept } from './study-note.schema.js';
 import type { NewStudyNote, StudyNote, StudyNoteConceptLink } from './study-note.js';
 
@@ -40,19 +41,15 @@ export class StudyNoteRepository {
 
   /** 주제·요약·헷갈린 점 중 하나에 검색어가 하나라도 들어간 기록을 최근 것부터. 검색어가 없으면 빈 배열. */
   async search(terms: readonly string[], limit: number): Promise<StudyNote[]> {
-    if (terms.length === 0) return [];
-    const conditions = terms.flatMap((term): SQL[] => {
-      const pattern = `%${escapeLike(term)}%`;
-      return [
-        ilike(studyNote.topic, pattern),
-        ilike(studyNote.summary, pattern),
-        sql`array_to_string(${studyNote.confusedPoints}, ' ') ILIKE ${pattern}`,
-      ];
-    });
+    const condition = containsAnyTerm(
+      [studyNote.topic, studyNote.summary, sql`array_to_string(${studyNote.confusedPoints}, ' ')`],
+      terms,
+    );
+    if (condition === undefined) return [];
     return this.db
       .select()
       .from(studyNote)
-      .where(or(...conditions))
+      .where(condition)
       .orderBy(desc(studyNote.createdAt), desc(studyNote.id))
       .limit(limit);
   }
@@ -66,9 +63,4 @@ export class StudyNoteRepository {
       .orderBy(desc(studyNote.createdAt), desc(studyNote.id))
       .limit(limit);
   }
-}
-
-/** LIKE 패턴의 특수 문자(`%`, `_`, `\`)를 글자 그대로 찾게 한다. */
-function escapeLike(term: string): string {
-  return term.replace(/[\\%_]/g, (c) => `\\${c}`);
 }

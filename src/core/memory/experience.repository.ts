@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DB, type Db } from '../db/db.module.js';
+import { containsAnyTerm } from '../db/sql.js';
 import { concept, conceptEdge, track } from '../knowledge/concept.schema.js';
 import type { ConceptPlan } from '../knowledge/concept-proposal.js';
 import type { ExperienceCard } from './experience.js';
@@ -10,9 +11,72 @@ import { sourceDocument } from './source-document.schema.js';
 /** 문서에서 뽑은 카드. [concepts]는 기존 개념 id나 같이 저장하는 새 개념 이름이다 (`ConceptPlan.resolve`). */
 export type ExtractedCard = ExperienceCard & { readonly concepts: readonly (number | string)[] };
 
+/** 대화에 싣는 경험 카드. 원문 문서가 있으면 제목과 링크를 함께 준다. */
+export type FoundExperience = Omit<ExperienceCard, 'occurredAt'> & {
+  readonly id: number;
+  readonly occurredAt: string | null;
+  readonly document: { readonly title: string; readonly url: string } | null;
+};
+
+const foundColumns = {
+  id: experience.id,
+  projectName: experience.projectName,
+  title: experience.title,
+  situation: experience.situation,
+  task: experience.task,
+  action: experience.action,
+  result: experience.result,
+  lesson: experience.lesson,
+  occurredAt: experience.occurredAt,
+  documentTitle: sourceDocument.title,
+  documentUrl: sourceDocument.url,
+};
+
 @Injectable()
 export class ExperienceRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
+
+  /** [conceptIds] 중 하나라도 연결된 카드. 맞은 개념이 많은 것부터, 같으면 최근 경험부터. */
+  async findByConcepts(conceptIds: readonly number[], limit: number): Promise<FoundExperience[]> {
+    if (conceptIds.length === 0) return [];
+    const matched = count(experienceConcept.conceptId);
+    const rows = await this.db
+      .select(foundColumns)
+      .from(experience)
+      .innerJoin(
+        experienceConcept,
+        and(eq(experienceConcept.experienceId, experience.id), inArray(experienceConcept.conceptId, [...conceptIds])),
+      )
+      .leftJoin(sourceDocument, eq(sourceDocument.id, experience.documentId))
+      .groupBy(experience.id, sourceDocument.id)
+      .orderBy(desc(matched), sql`${experience.occurredAt} DESC NULLS LAST`, desc(experience.id))
+      .limit(limit);
+    return rows.map(toFound);
+  }
+
+  /** 제목이나 STAR+L 중 하나에 검색어가 하나라도 들어간 카드. 최근 경험부터. 검색어가 없으면 빈 배열. */
+  async search(terms: readonly string[], limit: number): Promise<FoundExperience[]> {
+    const condition = containsAnyTerm(
+      [
+        experience.title,
+        experience.situation,
+        experience.task,
+        experience.action,
+        experience.result,
+        experience.lesson,
+      ],
+      terms,
+    );
+    if (condition === undefined) return [];
+    const rows = await this.db
+      .select(foundColumns)
+      .from(experience)
+      .leftJoin(sourceDocument, eq(sourceDocument.id, experience.documentId))
+      .where(condition)
+      .orderBy(sql`${experience.occurredAt} DESC NULLS LAST`, desc(experience.id))
+      .limit(limit);
+    return rows.map(toFound);
+  }
 
   /**
    * 문서 하나의 추출 결과를 한 트랜잭션으로 반영한다 (설계 문서 7.1의 6).
@@ -82,4 +146,12 @@ export class ExperienceRepository {
         .where(eq(sourceDocument.id, documentId));
     });
   }
+}
+
+/** [foundColumns]로 읽은 행. 원문 문서는 left join이라 없을 수 있다. */
+type FoundRow = Omit<FoundExperience, 'document'> & { documentTitle: string | null; documentUrl: string | null };
+
+function toFound({ documentTitle, documentUrl, ...card }: FoundRow): FoundExperience {
+  const document = documentTitle === null || documentUrl === null ? null : { title: documentTitle, url: documentUrl };
+  return { ...card, document };
 }
