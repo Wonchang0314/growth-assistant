@@ -36,7 +36,7 @@
 ### 성공 기준
 
 - Claude 앱에서 튜터링 대화와 복습을 이어갈 수 있다. 처음에는 맥미니의 Claude Desktop에서 직접 시작하고, 먼저 말 걸기(4단계)와 원격 전환(5단계) 뒤에는 아침 복습·저녁 주제를 모바일·아이패드에서도 받는다.
-- 튜터가 대화와 문제에서 내 실제 경험(Notion·velog)을 근거로 연결한다.
+- 튜터가 대화와 문제에서 내 실제 경험(Notion)을 근거로 연결한다.
 - 개념별 숙련도와 약점이 객관적인 풀이 기록으로 추적되고, 주간 리포트로 변화가 보인다.
 - 모든 LLM 사용이 Claude 구독(Claude 앱, `claude` CLI)으로 동작한다. API 키를 사용하지 않는다.
 
@@ -58,7 +58,7 @@
 | 저장소 | PostgreSQL 16 단일 저장소 (Docker) | 소규모 그래프는 재귀 CTE로 충분, 정합성 단순 |
 | 그래프 DB | 사용하지 않음. `ConceptGraphRepository` 인터페이스로 추상화 | 필요 시 Apache AGE·Neo4j로 교체 가능 |
 | 임베딩 | 초기에는 사용하지 않음. 통제 어휘 개념 태그 + 그래프 이웃으로 검색 | 나중에 pgvector로 하이브리드 확장 |
-| 기억 출처 | Notion, velog (GitHub 제외) | GitHub에는 일부·오래된 프로젝트만 있고, 사내 레포는 사용 불가 |
+| 기억 출처 | Notion (velog·GitHub 제외, ADR-0023) | GitHub에는 일부·오래된 프로젝트만 있고, 사내 레포는 사용 불가. velog는 사용자가 원천에서 뺐다 |
 | 기억 수집 | 1회 백필 → 이후 청크 단위 증분 동기화. 런타임에는 DB만 조회 | 사용량 절감 |
 | 간격 반복 | **FSRS** (`ts-fsrs` 라이브러리, 기본 파라미터로 시작, ADR-0016) | SM-2보다 예측 정확도가 높음. 공식 TS 구현, MIT |
 | 복습 단위 | 개념 (복습할 때마다 같은 개념의 다른 문제) | 문제 암기 방지 |
@@ -73,7 +73,7 @@
 | 단계 | 내용 | 완료 조건 |
 |---|---|---|
 | **1. MVP** | 로컬 MCP 서버(stdio), 첫 도구(학습 맥락 조회·학습 기록), 튜터 지침, Discord 코드 제거 | 맥미니 Claude Desktop에서 도구로 대화하고 학습 기록이 DB에 남음 |
-| **2. 기억** | Notion·velog 수집, 경험 카드·개념 추출, 판단 사례 추상화, 시드 개념, 승인 정책 | 백필 완료, 대화에서 Claude가 도구로 관련 경험 카드를 인용 |
+| **2. 기억** | Notion 수집, 경험 카드·개념 추출, 판단 사례 추상화, 시드 개념, 승인 정책 | 백필 완료, 대화에서 Claude가 도구로 관련 경험 카드를 인용 |
 | **3. 퀴즈·복습** | 객관식·빈칸 출제·검증·채점, 상황 판단형 객관식, 약점 기반 출제, 변형 문제, FSRS, 숙련도·약점 지도, 문제 피드백·출제 지침 편집 | 대화에서 복습 세트 풀기, 서버 채점, 약점 조회 동작. 퀴즈 품질에 만족 |
 | **4. 먼저 말 걸기** | 핵심 기능 검증 뒤 예약 작업 실행 방식 결정(ADR-0019), 아침 복습, 저녁 주제, 주간 리포트, 정기 동기화·문제 풀 보충 | 예약된 시각에 Claude 앱에서 결과를 받음 |
 | **5. 원격 전환** | 원격 커스텀 커넥터(Streamable HTTP), 공개 경로, 인증, 알림, MCP Apps 화면 검토 (새 ADR) | 모바일·아이패드 Claude 앱에서 같은 도구를 씀 |
@@ -99,7 +99,7 @@
 │   │ mcp          도구 등록, 처리기 탐색     │                     │
 │   │ memory       경험 카드, 원문 문서·청크   │                     │
 │   │ knowledge    개념 그래프, 트랙           │                     │
-│   │ ingestion    Notion·velog 수집, 증분 동기화│                   │
+│   │ ingestion    Notion 수집, 증분 동기화     │                     │
 │   │ llm          ClaudeCliClient           │                     │
 │   │ scheduler    예약 작업, 놓친 실행 복구    │                     │
 │   ├──────────────── tutor ───────────────┤                     │
@@ -136,7 +136,7 @@ src/
 │   ├── llm          # ClaudeClient, ClaudeCliClient, 프롬프트 템플릿, 호출 로그
 │   ├── memory       # SourceDocument, DocumentChunk, Experience, DecisionCase
 │   ├── knowledge    # Track, Concept, ConceptEdge, ConceptGraphRepository
-│   ├── ingestion    # Source 인터페이스, NotionSource, VelogSource, 동기화 서비스
+│   ├── ingestion    # Source 인터페이스, NotionSource, 동기화 서비스
 │   └── scheduler    # 예약 작업, 실행 기록, 놓친 실행 복구
 └── tutor
     ├── study        # 학습 맥락 조회, 학습 기록 도구, 서버 instructions
@@ -177,12 +177,12 @@ concept_edge   from_id, to_id, type (PREREQUISITE | PART_OF | RELATED)
 ### 5.2 Memory: 원문, 청크, 경험 카드
 
 ```
-source_document     id, source (NOTION | VELOG), external_id, title, url,
+source_document     id, source (NOTION), external_id, title, url,
                     summary, content_hash, source_updated_at, synced_at,
                     extraction_status (PENDING | DONE | FAILED), last_error
                     UNIQUE (source, external_id)
 document_chunk      id, document_id, seq, chunk_hash, content
-                    (Notion: 블록 단위, velog: 문단 단위.
+                    (Notion 블록 단위.
                      나중에 임베딩 컬럼을 추가할 단위)
 experience          id, document_id NULL, origin (DOCUMENT | CONVERSATION),
                     project_name, title,
@@ -335,8 +335,8 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 ```
 트리거: 최초 백필, sync_now 도구, 매일 03:00 (상시 실행 진입점)
 
-1. 소스별로 변경된 문서를 조회한다 (sync_cursor 이후 수정된 Notion 페이지, velog 글)
-2. 청크로 나눈다 (Notion: 블록, velog: 문단) → 청크 해시를 비교해 추가·수정·삭제된 청크를 찾는다
+1. 소스별로 변경된 문서를 조회한다 (sync_cursor 이후 수정된 Notion 페이지)
+2. Notion 블록 단위 청크로 나눈다 → 청크 해시를 비교해 추가·수정·삭제된 청크를 찾는다
 3. 바뀐 청크가 없으면 건너뛴다
 4. Claude 추출 호출
    - 입력: 바뀐 청크 + 문서 요약 + 이 문서에서 이미 뽑은 경험 카드 + 개념 목록
@@ -348,7 +348,6 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 
 - `sync_now`는 동기화를 시작만 하고 바로 돌려준다. 결과는 `sync_status` 같은 조회로 확인한다.
 - Notion API 호출 속도는 초당 약 3회로 제한한다.
-- velog는 비공식 GraphQL API를 쓰므로, 어댑터를 분리하고 수집이 실패하면 로그와 다음 주간 리포트에 남긴다.
 
 **판단 사례** (ADR-0021)
 
@@ -566,7 +565,6 @@ weakness_score = (1 − mastery_score) × 확신도 보정 + 반복 오개념 �
 
 - 문서 단위로 실패를 격리하고, 실패한 문서는 다음 실행 때 재시도한다.
 - Notion 호출 속도를 제한한다.
-- velog API 형식이 바뀌어 수집이 실패하면 로그와 주간 리포트에 남긴다.
 
 ### MCP 프로세스
 
@@ -630,7 +628,7 @@ weakness_score = (1 − mastery_score) × 확신도 보정 + 반복 오개념 �
 
 ## 13. 구현 전에 정할 것
 
-- velog 사용자명, 수집할 Notion 범위(워크스페이스 전체인지 특정 페이지·DB인지)
+- 수집할 Notion 범위(워크스페이스 전체인지 특정 페이지·DB인지)
 - 용도별 Claude 모델 기본값
 - 맥미니 Claude Desktop에 MCP 서버 등록, 튜터용 Claude 프로젝트 지침 작성 (사용자가 직접 진행, 설정 예시는 운영 가이드에)
 - Notion 통합(Integration) 토큰 발급과 페이지 공유 (사용자가 직접 진행)

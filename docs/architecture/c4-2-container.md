@@ -5,7 +5,6 @@
 ```mermaid
 flowchart TB
     notion["Notion API"]
-    velog["velog GraphQL API"]
 
     subgraph mac["사용자 Mac"]
         desktop["Claude Desktop<br/>(대화, Claude 앱 모델)"]
@@ -22,7 +21,6 @@ flowchart TB
     app -- "stdin 프롬프트 → JSON 출력" --> cli
     cli -- "HTTPS" --> anthropic["Anthropic<br/>(Claude, 웹 검색)"]
     app -- "HTTPS" --> notion
-    app -- "HTTPS" --> velog
 ```
 
 | 컨테이너 | 기술 | 책임 |
