@@ -2,22 +2,20 @@
 
 세션을 이어 갈 때 읽는 메모다. 진행 상태의 기준은 [로드맵](roadmap.md)이고, 이 파일에는 로드맵에 남기지 않는 맥락(다음에 할 일의 순서, 학습 진도, 조사 결론)만 둔다. 다 처리한 항목은 지운다.
 
-**마지막 갱신:** 2026-10-17, `feat/seed-curriculum` (맥미니에서, 아직 커밋하지 않음)
+**마지막 갱신:** 2026-10-17, `fix/seed-edge-sync` (맥미니에서)
 
 ## 작업
 
 다음 세션은 1번부터 한다.
 
-1. **시드 커리큘럼 검토 → 커밋·PR:** `feat/seed-curriculum` 브랜치에 커밋하지 않은 변경이 있다(`git status`로 확인). 사용자가 `src/core/knowledge/seed/*.yaml` 여섯 개를 훑어보고 빼거나 더할 개념을 정한 뒤 커밋하고 PR을 연다. `npm run check`는 통과한 상태다
-   - 내용(ADR-0022): 시드를 앞으로 배울 커리큘럼으로 바꿨다. 트랙 6개(`js` 30, `database` 39, `backend` 30, `infra` 40, `network` 20, `mcp` 34 = 193개, 가중치 각 0.2는 상대 비율). IT 인프라는 인프런 "Docker가 쉬워지는 운영체제 이야기" 섹션 순서를 따른다. 코딩테스트는 직접 풀어 보는 편이 나아 뺐다. `mcp` 트랙은 MCP 스펙, 모델의 도구 사용, 이 서버의 설계 결정(ADR)과 대안·트레이드오프, 확장·성능 개선 지점을 다룬다
-   - 코드: 시드 적재가 YAML에서 빠진 시드 개념·트랙을 지운다(`ConceptRepository.applySeed`, 결과에 `removedConcepts`). 영문 별칭은 단어 경계에서만 부분 일치한다(`containsTerm`. "POST"가 "PostgreSQL", "nest"가 "nested" 안에서 걸리던 문제)
-2. **머지 뒤 맥미니 배포:** 사용자가 `git pull && ops/deploy.sh`를 실행한다(자동 모드에서 배포는 막혀 있다). 예전 개념 256개가 지워지고 새 개념이 들어간다. `study_note`가 0건이라 지우다 막히지 않는다. Desktop을 다시 시작한다
+1. **시드 커리큘럼 (완료, PR #12 머지·배포 2026-10-17, ADR-0022):** 트랙 6개(`js` 30, `database` 39, `backend` 30, `infra` 40, `network` 20, `mcp` 34 = 193개, 가중치 각 0.2는 상대 비율). 사용자가 YAML을 보며 고칠 개념이 있으면 고치고 다시 배포한다
+2. **관계 동기화 수정 → PR·배포:** 배포 뒤 DB 관계가 360개(YAML 기준 350개)였다. 이름이 같아 살아남은 개념 37개 사이에 예전 관계가 남아 "B-tree 인덱스"의 상위 개념이 둘로 나온다. `fix/seed-edge-sync`(커밋 `22d9a4a`)에서 시드 개념끼리의 관계를 YAML대로 맞추게 고쳤다. push·PR 뒤 머지하고 `git pull && ops/deploy.sh`를 돌리면 "관계 지움"이 0보다 크게 나와야 한다
 3. **1단계 체크리스트 확인:** `docs/manual-check.md`. 지난번에 `get_learning_context`는 Desktop에서 4번 불렸지만 `record_study_note`는 한 번도 불리지 않았다. 주제를 마무리할 때 기록되는지부터 본다. 대화 뒤 DB 조회로 기록·개념 연결을 함께 확인한다. 끝나면 로드맵 1단계를 닫는다
    - 추천 프롬프트: "트랜잭션 격리 수준 공부하자"(일부러 "REPEATABLE READ면 팬텀 리드도 막지?"라고 틀리기) → 새 대화 "isolation level 다시 복습하자"(별칭으로 지난 기록 찾기), "MCP stdio 전송은 어떻게 동작해?"(새 `mcp` 트랙), 프로젝트 밖에서 "이 문장 영어로 바꿔줘"(도구를 부르지 않아야 함)
    - 문제 내는 UI가 마음에 들지 않는다는 의견이 있었다. 퀴즈 UI는 3단계에서 MCP Apps로 만들기로 했다. 그 전에는 프로젝트 지침(`docs/claude-project-instructions.md`)의 형식 규칙(보기는 줄바꿈 목록, 한 번에 한 문제)으로 다듬는다
 4. **다음 (2단계 수집):** Notion 통합 토큰 발급·페이지 공유, velog 사용자명, 수집 범위를 정해야 시작할 수 있다(설계 문서 13장). 수집한 경험은 ADR-0022의 커리큘럼 개념에 연결한다. 범위 밖 경험(GIS, React, CI/CD, nginx)은 새 개념 제안으로 올라온다
 
-**맥미니 상태 (2026-10-17):** 예전 봇 launchd 해제함. Desktop 설정 `claude_desktop_config.json`에 `growth-assistant` 등록함(원본 백업 `.bak-20261017`), running 확인. 배포 릴리스 `20261017-141735`(예전 시드). Node v24.13.1이라 `@nestjs/schematics`(24.15 이상) 경고가 나온다. nvm으로 올리면 Desktop 설정의 node 경로가 바뀌므로 `ops/desktop-config.sh` 출력을 다시 넣는다
+**맥미니 상태 (2026-10-17):** 예전 봇 launchd 해제함. Desktop 설정 `claude_desktop_config.json`에 `growth-assistant` 등록함(원본 백업 `.bak-20261017`), running 확인. 배포 릴리스 `20261017-163026`(새 시드, 관계 동기화 수정 전). Node v24.13.1이라 `@nestjs/schematics`(24.15 이상) 경고가 나온다. nvm으로 올리면 Desktop 설정의 node 경로가 바뀌므로 `ops/desktop-config.sh` 출력을 다시 넣는다
 
 ## 학습 (현재 구현 이해하기)
 

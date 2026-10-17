@@ -25,7 +25,7 @@ const pool = new Pool({
 try {
   const result = await new ConceptRepository(drizzle({ client: pool })).applySeed(seed, new Date());
   process.stderr.write(
-    `시드 적재 완료: 트랙 ${result.tracks}, 개념 ${result.concepts}(새로 ${result.newConcepts}, 지움 ${result.removedConcepts}), 새 관계 ${result.newEdges}\n`,
+    `시드 적재 완료: 트랙 ${result.tracks}, 개념 ${result.concepts}(새로 ${result.newConcepts}, 지움 ${result.removedConcepts}), 관계 새로 ${result.newEdges}, 지움 ${result.removedEdges}\n`,
   );
 } finally {
   await pool.end();

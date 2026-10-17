@@ -37,9 +37,27 @@ describe('ConceptRepository', () => {
     const first = await repository.applySeed(seed, now);
     const second = await repository.applySeed(seed, now);
 
-    expect(first).toEqual({ tracks: 2, concepts: 4, newConcepts: 4, newEdges: 5, removedConcepts: 0 });
-    expect(second).toEqual({ tracks: 2, concepts: 4, newConcepts: 0, newEdges: 0, removedConcepts: 0 });
+    const unchanged = { tracks: 2, concepts: 4, removedConcepts: 0, removedEdges: 0 };
+    expect(first).toEqual({ ...unchanged, newConcepts: 4, newEdges: 5 });
+    expect(second).toEqual({ ...unchanged, newConcepts: 0, newEdges: 0 });
     expect(await testDb.count('concept_edge')).toBe(5);
+  });
+
+  it('시드 개념끼리의 관계는 시드대로 맞춘다: 시드에서 빠진 상위·관련 관계는 지운다', async () => {
+    await repository.applySeed(seed, now);
+
+    const result = await repository.applySeed(
+      {
+        ...seed,
+        concepts: seed.concepts.map((x) =>
+          x.name === 'B-tree 인덱스' || x.name === '실행계획 읽기' ? { ...x, parent: undefined, related: [] } : x,
+        ),
+      },
+      now,
+    );
+
+    expect(result).toMatchObject({ newEdges: 0, removedEdges: 2 });
+    expect(await testDb.count('concept_edge')).toBe(3);
   });
 
   it('시드에서 빠진 시드 개념과 트랙은 지우고, 시드가 아닌 개념은 남긴다', async () => {
