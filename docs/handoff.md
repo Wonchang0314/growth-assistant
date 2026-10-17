@@ -2,16 +2,13 @@
 
 세션을 이어 갈 때 읽는 메모다. 진행 상태의 기준은 [로드맵](roadmap.md)이고, 이 파일에는 로드맵에 남기지 않는 맥락(다음에 할 일의 순서, 학습 진도, 조사 결론)만 둔다. 다 처리한 항목은 지운다.
 
-**마지막 갱신:** 2026-10-18 01:45, `fix/review-concept-remove-parent` (맥미니에서). `review_concept` 상위 개념 지우기 버그를 고쳤다(`removeParent: true`)
+**마지막 갱신:** 2026-10-18 01:50, `feat/adr-0025-infra-parents` (맥미니에서). `review_concept` 상위 개념 지우기 버그(`removeParent: true`, PR #25)와 ADR-0025·운영 상위 개념 시드(PR #26)
 
 ## 작업
 
-다음 세션은 1번부터 한다. 각 항목은 PR 하나다.
+다음 세션은 1번부터 한다. 따로 적지 않았으면 각 항목은 PR 하나다.
 
-1. **ADR-0025와 시드 상위 개념 (한 PR):**
-   - **ADR-0025:** 수집한 경험에서 나온 프런트엔드·GIS 개념을 받는다(사용자 결정 2026-10-18: "전부 거절은 너무 박하다, 너무 좁거나 지엽적인 것만 뺀다"). 프런트엔드는 `js` 트랙, GIS는 `database` 트랙. 기준은 "여러 경험에 다시 쓰일 일반 개념"(라이브러리 API 하나, 이 프로젝트만의 규칙, 좁은 CSS 기법은 거절). 시드 커리큘럼은 그대로다. ADR-0022 상태를 "일부 대체됨(0025)"으로, 설계 문서 1장 학습 목표 표 아래에 한 줄
-   - **시드 YAML(`src/core/knowledge/seed/infra.yaml`)에 상위 개념 3개:** `CI/CD 파이프라인`(별칭 CI/CD, CI, CD, 지속적 통합, continuous integration, 지속적 배포, continuous delivery, 빌드 파이프라인. requires Docker), `배포 전략`(parent CI/CD 파이프라인. 별칭 deployment strategy, 무중단 배포, 롤백, rollback), `리눅스 서버 운영`(별칭 서버 운영, Linux server administration. requires 프로세스와 실행). GitLab CI·GitHub Actions 같은 도구 이름은 별칭에 넣지 않는다
-   - **배포한 뒤** `review_concept` APPROVE로 상위 개념만 지정한다(상위 개념을 지우려면 `removeParent: true`, 배포 뒤 Desktop을 다시 시작해야 새 스키마가 보인다): CI/CD 파이프라인 ← CI 잡 직렬화, CI Runner 태그 라우팅, CI 잡 실행 조건 rules, CI 파이프라인 구조(parent-child와 flat) / 배포 전략 ← SSH 푸시 배포, 헬스체크와 롤백 / 리눅스 서버 운영 ← systemd 서비스 유닛(지금 상위 "프로세스와 실행"), 무인 자동 업데이트, nginx 지시어 상속, SSH 키 인증
+1. **운영 개념에 상위 개념 지정 (PR 없음, Desktop 대화나 MCP 클라이언트):** PR #25·#26을 머지하고 `ops/deploy.sh`로 배포(시드 적재가 상위 개념 3개를 만든다)한 뒤 Desktop을 완전히 종료했다 다시 연다. 그다음 `review_concept` APPROVE의 `parent`로 지정한다: CI/CD 파이프라인 ← CI 잡 직렬화, CI Runner 태그 라우팅, CI 잡 실행 조건 rules, CI 파이프라인 구조(parent-child와 flat) / 배포 전략 ← SSH 푸시 배포, 헬스체크와 롤백 / 리눅스 서버 운영 ← systemd 서비스 유닛(지금 상위 "프로세스와 실행"), 무인 자동 업데이트, nginx 지시어 상속, SSH 키 인증. 끝나면 로드맵 "운영 수집 개념 10개에 상위 개념 지정"을 체크한다
 2. **2단계 완료 확인 (사용자, Desktop):** `docs/manual-check.md` 2단계 "경험 카드". 새 대화에서 "서버 캐시 공부하자"·"운영 중 스키마 변경 공부하자"로 Claude가 경험을 한두 문장으로 인용하는지, "내가 겪은 인덱스 사고 사례 보여줘"·"keepPreviousData 겪었던 거"로 `search_experience`가 원하는 카드를 주는지. 2026-10-18 01:25~01:26에 `get_learning_context`·`search_experience`가 한 번씩 불렸지만 인용 여부는 사용자 답을 아직 못 받았다. 확인되면 체크리스트 기록 표를 채우고 로드맵의 "2단계 완료 확인"을 체크한다. 튜터 프로젝트 지침을 `docs/claude-project-instructions.md` 새 본문(경험 카드 한 줄 추가)으로 바꿨는지도 확인한다
 3. **판단 사례 추상화 (ADR-0021·0024, 2단계 마지막):** 치환(Sonnet) → 패턴 게이트(IP·URL·`UPPER_SNAKE`, 코드) → 독립 검증(Opus) → ACTIVE/PENDING, 검토 도구 `list_pending_cases`·`review_case`. 사용량이 크므로 10개로 시험하고 손으로 확인한 평가 세트(설계 10장)로 본 뒤 전체를 돌린다. 시작 전에 사용자와 정할 것: 대상 카드(전부 / 판단이 분명한 카드만 / 그 선별을 LLM에 맡길지)
 4. **프로젝트를 iCloud 동기화 밖으로 옮기기 (사용자와 정하기):** `~/Desktop` 아래라 동기화 복사본(" 2", " 3" 붙은 파일)이 두 번 생겼다(2026-10-18 00:17 13개, 01:3x 18개. 모두 이번 작업 파일의 옛 버전이라 scratchpad로 옮겼다). `git status`에 untracked로 보이거나 `npm run check`·배포 타입 검사가 `* 2.ts`에서 깨지면 이것이다. 옮기면 `.env` 경로(Desktop 설정의 `GROWTH_ENV_FILE`)와 `ops/desktop-config.sh` 출력으로 Desktop 설정을 함께 바꾼다
