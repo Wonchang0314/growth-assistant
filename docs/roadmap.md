@@ -34,7 +34,8 @@
 - [x] 개념 그래프: `track`·`concept`·`concept_edge`, 이름·별칭 매칭, 선수 체인(재귀 CTE), 시드 적재(`npm run db:seed`, 배포 때 실행)
 - [x] 학습 기록에 개념 연결(`study_note_concept`), `get_learning_context`에 관련 개념·상위·선수 개념
 - [x] 결정: 기억의 원천은 Notion 하나 (ADR-0023)
-- [ ] Notion 수집, 청크 증분 동기화 (`sync_now`, `sync_status`)
+- [x] Notion 수집 범위 결정, 원문·청크 증분 동기화 (`npm run sync`, `sync_status`)
+- [ ] `sync_now` (4단계 상시 실행 진입점과 함께)
 - [ ] 경험 카드 추출, 승인 정책 (`list_pending_concepts`, `review_concept`)
 - [ ] 판단 사례 추상화: 치환, 금지어 게이트, 독립 검증, 검토 도구 (`list_pending_cases`, `review_case`, ADR-0021)
 - [ ] 대화에 기억 연결 (`search_experience`, `get_learning_context` 확장)

@@ -12,9 +12,8 @@ import {
   timestamp,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { inList } from '../db/sql.js';
 import { CONCEPT_EDGE_TYPES, CONCEPT_ORIGINS, CONCEPT_STATUSES } from './concept.js';
-
-const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 /** 학습 트랙 (설계 문서 1장, ADR-0021). 가중치는 새 개념을 고를 때 쓴다. */
 export const track = pgTable('track', {
