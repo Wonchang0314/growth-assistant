@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { ConceptRepository } from './concept.repository.js';
-import { concept } from './concept.schema.js';
+import { concept, track } from './concept.schema.js';
 import type { ConceptSeed, SeedConcept } from './concept-seed.js';
 
 const testDb = connectTestDb();
@@ -37,9 +37,37 @@ describe('ConceptRepository', () => {
     const first = await repository.applySeed(seed, now);
     const second = await repository.applySeed(seed, now);
 
-    expect(first).toEqual({ tracks: 2, concepts: 4, newConcepts: 4, newEdges: 5 });
-    expect(second).toEqual({ tracks: 2, concepts: 4, newConcepts: 0, newEdges: 0 });
+    expect(first).toEqual({ tracks: 2, concepts: 4, newConcepts: 4, newEdges: 5, removedConcepts: 0 });
+    expect(second).toEqual({ tracks: 2, concepts: 4, newConcepts: 0, newEdges: 0, removedConcepts: 0 });
     expect(await testDb.count('concept_edge')).toBe(5);
+  });
+
+  it('시드에서 빠진 시드 개념과 트랙은 지우고, 시드가 아닌 개념은 남긴다', async () => {
+    await repository.applySeed(seed, now);
+    const [cs] = await testDb.db.select({ id: track.id }).from(track).where(eq(track.key, 'cs'));
+    await testDb.db.insert(concept).values({
+      trackId: cs?.id ?? -1,
+      name: '대화에서 생긴 개념',
+      description: '설명',
+      status: 'PROPOSED',
+      origin: 'CONVERSATION',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const result = await repository.applySeed(
+      { tracks: seed.tracks.filter((t) => t.key === 'cs'), concepts: seed.concepts.slice(0, 2) },
+      now,
+    );
+
+    expect(result.removedConcepts).toBe(2);
+    expect((await testDb.db.select({ name: concept.name }).from(concept)).map((r) => r.name).sort()).toEqual([
+      'B-tree 인덱스',
+      '대화에서 생긴 개념',
+      '인덱스 원리',
+    ]);
+    expect(await testDb.count('track')).toBe(1);
+    expect(await testDb.count('concept_edge')).toBe(1);
   });
 
   it('다시 적재하면 설명·별칭은 시드대로 고치고 승인 상태는 건드리지 않는다', async () => {

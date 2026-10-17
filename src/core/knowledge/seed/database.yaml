@@ -1,0 +1,280 @@
+# 시드 개념: 관계형 DB (ADR-0022). 형식은 js.yaml 머리말
+
+track:
+  key: database
+  name: 관계형 DB
+  weight: 0.2
+  description: 데이터 모델링·ERD·실무 정규화, SQL과 쿼리 최적화, 트랜잭션, DB 내부 동작 (PostgreSQL 기준)
+
+concepts:
+  # 관계형 모델
+  - name: 관계형 모델
+    aliases: [관계형 데이터베이스, RDB, RDBMS, relational model, 릴레이션, relation, PostgreSQL, Postgres]
+    description: 데이터를 릴레이션(테이블)과 키로 표현하는 모델
+
+  - name: 키와 제약 조건
+    parent: 관계형 모델
+    aliases:
+      [
+        기본 키,
+        primary key,
+        PK,
+        외래 키,
+        foreign key,
+        FK,
+        유니크 제약,
+        unique,
+        CHECK 제약,
+        후보 키,
+        대리 키,
+        surrogate key,
+        자연 키,
+        natural key,
+      ]
+    description: 행을 식별하고 무결성을 지키는 키와 제약, 대리 키와 자연 키를 고르는 기준
+
+  - name: SQL NULL과 3값 논리
+    parent: 관계형 모델
+    aliases: ['NULL', 3값 논리, three-valued logic, IS DISTINCT FROM, NULL 안전 비교, COALESCE, 모름과 없음]
+    description: NULL이 비교·집계·조인에서 동작하는 방식과 "모름"과 "없음"을 구분하는 설계
+
+  # 데이터 모델링
+  - name: 데이터 모델링
+    aliases: [data modeling, 모델링, DB 설계, 스키마 설계]
+    description: 업무 요구를 엔터티와 관계로 옮기고 테이블로 구체화하는 과정
+
+  - name: 모델링 단계
+    parent: 데이터 모델링
+    aliases: [개념적 모델링, 논리적 모델링, 물리적 모델링, 개념 모델, 논리 모델, 물리 모델]
+    description: 개념·논리·물리 모델링이 각각 정하는 것
+
+  - name: ERD 설계
+    parent: 데이터 모델링
+    aliases: [ERD, ER 다이어그램, ER diagram, 엔터티, entity, 카디널리티, cardinality, 식별 관계, 비식별 관계, 표기법]
+    description: 엔터티·속성·관계를 그리는 법, 카디널리티와 식별·비식별 관계를 정하는 기준
+    requires: [키와 제약 조건]
+
+  - name: 정규화
+    parent: 데이터 모델링
+    aliases: [normalization, 1NF, 2NF, 3NF, BCNF, 제1정규형, 함수 종속, functional dependency, 이상 현상, anomaly]
+    description: 함수 종속으로 중복과 이상 현상을 없애는 단계별 정규형
+    requires: [키와 제약 조건]
+
+  - name: 반정규화
+    parent: 데이터 모델링
+    aliases: [denormalization, 역정규화, 중복 허용, 사전집계, 집계 테이블, 데이터 마트]
+    description: 조회 성능이나 단순함을 위해 정규화를 되돌리는 기준과 정합성을 지키는 비용
+    requires: [정규화]
+
+  - name: 다대다와 연결 테이블
+    parent: 데이터 모델링
+    aliases: [다대다, many-to-many, N:M, 연결 테이블, 조인 테이블, 매핑 테이블, 교차 엔터티]
+    description: 다대다 관계를 연결 테이블로 풀고 연결 자체에 속성을 두는 법
+    requires: [ERD 설계]
+
+  - name: 이력과 상태 모델링
+    parent: 데이터 모델링
+    aliases: [이력 테이블, 변경 이력, history table, SCD, 상태 모델링, 상태 컬럼, soft delete, 소프트 삭제, 유효 기간]
+    description: 시간에 따라 바뀌는 데이터와 상태 전이를 테이블로 표현하는 패턴
+    requires: [정규화]
+
+  - name: 데이터 그레인
+    parent: 데이터 모델링
+    aliases: [grain, 그레인, 한 행의 의미, 행 단위]
+    description: 한 행이 무엇 하나를 뜻하는지 정하는 일과, 그레인이 다른 테이블을 조인할 때 생기는 문제
+
+  - name: 운영 중 스키마 변경
+    parent: 데이터 모델링
+    aliases:
+      [
+        스키마 마이그레이션,
+        schema migration,
+        마이그레이션,
+        DDL,
+        확장-축소,
+        expand-contract,
+        무중단 마이그레이션,
+        DDL 락,
+      ]
+    description: 서비스 중에 컬럼·제약을 바꾸는 순서와 잠금, 배포와 맞추는 법
+    requires: [키와 제약 조건]
+    related: [락과 동시성 제어]
+
+  # SQL
+  - name: SQL 쿼리
+    aliases: [SQL, 쿼리, query, SELECT]
+    description: 집합을 다루는 선언형 질의 언어로 원하는 결과를 정확히 표현하는 법
+
+  - name: 조인
+    parent: SQL 쿼리
+    aliases: [JOIN, 내부 조인, INNER JOIN, 외부 조인, LEFT JOIN, OUTER JOIN, 셀프 조인, 행 증식, 카테시안 곱]
+    description: 조인 종류와 결과 행 수가 정해지는 원리, 조인으로 행이 불어나는 함정
+    requires: [키와 제약 조건]
+
+  - name: 집계와 GROUP BY
+    parent: SQL 쿼리
+    aliases: [GROUP BY, HAVING, 집계 함수, aggregate, COUNT, 조건부 집계, FILTER 절]
+    description: 그룹으로 묶어 요약하는 법과 WHERE·HAVING의 차이, 조건부 집계
+    related: [SQL NULL과 3값 논리]
+
+  - name: 서브쿼리와 CTE
+    parent: SQL 쿼리
+    aliases: [subquery, 서브쿼리, 상관 서브쿼리, CTE, WITH 절, 재귀 CTE, recursive CTE, LATERAL, EXISTS]
+    description: 쿼리를 나눠 쓰는 방법들과 각각이 실행되는 방식, 재귀 CTE로 계층을 따라가는 법
+
+  - name: 윈도 함수
+    parent: SQL 쿼리
+    aliases: [window function, 윈도우 함수, ROW_NUMBER, RANK, LAG, LEAD, PARTITION BY, OVER]
+    description: 행을 줄이지 않고 그룹 안에서 순위·누적·이전 값을 계산하는 법
+    related: [집계와 GROUP BY]
+
+  - name: UPSERT와 일괄 처리
+    parent: SQL 쿼리
+    aliases: [UPSERT, ON CONFLICT, MERGE, 일괄 삽입, bulk insert, COPY, RETURNING]
+    description: 있으면 고치고 없으면 넣기, 대량 데이터를 한 번에 넣고 바꾸는 법
+    requires: [키와 제약 조건]
+
+  # 인덱스와 최적화
+  - name: 인덱스와 쿼리 최적화
+    aliases: [쿼리 최적화, query optimization, 쿼리 튜닝, 성능 튜닝, 슬로 쿼리]
+    description: 느린 쿼리의 원인을 찾고 인덱스와 쿼리 구조로 고치는 법
+
+  - name: 인덱스 원리
+    parent: 인덱스와 쿼리 최적화
+    aliases: [인덱스, index, DB index, 데이터베이스 인덱스]
+    description: 인덱스가 조회를 빠르게 하는 원리와 쓰기·저장 비용, 인덱스를 거는 편이 나은 조건
+    related: [데이터 페이지와 저장 구조]
+
+  - name: B-tree 인덱스
+    parent: 인덱스와 쿼리 최적화
+    aliases: [B-tree, B+tree, 비트리, 범위 검색]
+    description: B-tree 구조와 등호·범위·정렬 조회에 쓰이는 방식
+    requires: [인덱스 원리]
+
+  - name: 복합 인덱스 설계
+    parent: 인덱스와 쿼리 최적화
+    aliases:
+      [
+        복합 인덱스,
+        composite index,
+        다중 컬럼 인덱스,
+        인덱스 컬럼 순서,
+        커버링 인덱스,
+        covering index,
+        Index Only Scan,
+        부분 인덱스,
+      ]
+    description: 컬럼 순서를 정하는 기준, 커버링·부분 인덱스
+    requires: [B-tree 인덱스]
+
+  - name: 인덱스를 못 타는 조건
+    parent: 인덱스와 쿼리 최적화
+    aliases: [인덱스 무효화, sargable, 함수 인덱스, 표현식 인덱스, 암시적 형 변환, LIKE 앞쪽 와일드카드]
+    description: 컬럼 가공·형 변환·조건 모양 때문에 인덱스를 쓰지 못하는 경우와 고치는 법
+    requires: [B-tree 인덱스]
+
+  - name: 옵티마이저와 통계
+    parent: 인덱스와 쿼리 최적화
+    aliases:
+      [optimizer, 옵티마이저, 쿼리 플래너, 통계 정보, 선택도, selectivity, 카디널리티 추정, ANALYZE, 비용 기반 최적화]
+    description: 플래너가 통계로 행 수를 추정해 실행 방법을 고르는 원리와 추정이 틀릴 때
+    requires: [인덱스 원리]
+
+  - name: 조인 알고리즘
+    parent: 인덱스와 쿼리 최적화
+    aliases: [Nested Loop, 중첩 루프 조인, Hash Join, 해시 조인, Merge Join, 병합 조인]
+    description: 세 가지 조인 방식이 각각 유리한 조건
+    requires: [조인]
+
+  - name: 실행계획 읽기
+    parent: 인덱스와 쿼리 최적화
+    aliases: [EXPLAIN, EXPLAIN ANALYZE, 실행 계획, query plan, Seq Scan, Index Scan, Bitmap Scan]
+    description: 실행계획의 노드·비용·실제 행 수를 읽고 병목을 찾는 법
+    requires: [옵티마이저와 통계, 조인 알고리즘]
+
+  - name: 페이지네이션
+    parent: 인덱스와 쿼리 최적화
+    aliases: [pagination, 오프셋 페이지네이션, OFFSET, 커서 페이지네이션, keyset pagination, 무한 스크롤]
+    description: OFFSET이 느려지는 이유와 키셋(커서) 방식
+    requires: [복합 인덱스 설계]
+
+  # 트랜잭션과 동시성
+  - name: 트랜잭션과 동시성
+    aliases: [동시성 제어, concurrency control]
+    description: 여러 작업이 동시에 같은 데이터를 다룰 때 정합성을 지키는 방법
+
+  - name: 트랜잭션과 ACID
+    parent: 트랜잭션과 동시성
+    aliases: [트랜잭션, transaction, ACID, 원자성, 일관성, 격리성, 지속성, COMMIT, ROLLBACK, 세이브포인트]
+    description: 트랜잭션이 보장하는 네 가지 성질과 각각을 DB가 지키는 방법
+
+  - name: 트랜잭션 격리 수준
+    parent: 트랜잭션과 동시성
+    aliases:
+      [
+        isolation level,
+        격리 수준,
+        READ COMMITTED,
+        REPEATABLE READ,
+        SERIALIZABLE,
+        dirty read,
+        non-repeatable read,
+        phantom read,
+        팬텀 리드,
+      ]
+    description: 동시 트랜잭션끼리 서로의 변경이 보이는 정도와 수준별 이상 현상
+    requires: [트랜잭션과 ACID]
+
+  - name: MVCC
+    parent: 트랜잭션과 동시성
+    aliases: [다중 버전 동시성 제어, multi-version concurrency control, 스냅샷, snapshot, 튜플 버전, VACUUM, dead tuple]
+    description: 행 버전을 여러 개 두어 읽기와 쓰기가 서로 막지 않게 하는 방식과 정리(VACUUM) 비용
+    requires: [트랜잭션 격리 수준]
+
+  - name: 락과 동시성 제어
+    parent: 트랜잭션과 동시성
+    aliases: [lock, 락, 행 락, row lock, 테이블 락, SELECT FOR UPDATE, 비관적 락, 낙관적 락, 데드락, deadlock]
+    description: 잠금 종류와 범위, 비관적·낙관적 잠금을 고르는 기준, 데드락
+    requires: [트랜잭션과 ACID]
+
+  - name: 갱신 경쟁
+    parent: 트랜잭션과 동시성
+    aliases: [lost update, 갱신 손실, race condition, 경쟁 조건, check-then-act, 확인 후 실행, 재고 차감 문제]
+    description: 읽고 판단한 뒤 쓰는 사이에 다른 트랜잭션이 끼어드는 문제와 막는 방법들
+    requires: [락과 동시성 제어]
+    related: [트랜잭션 격리 수준]
+
+  # 내부 구조
+  - name: DB 내부 구조
+    aliases: [DB 작동 방식, 데이터베이스 내부, database internals, 스토리지 엔진, storage engine]
+    description: DB가 데이터를 저장하고 쿼리를 실행하고 장애에서 복구하는 방식
+
+  - name: 데이터 페이지와 저장 구조
+    parent: DB 내부 구조
+    aliases: [데이터 페이지, heap file, 힙 파일, 튜플, tuple, 버퍼 풀, buffer pool, shared_buffers, TOAST, fillfactor]
+    description: 행이 디스크 페이지에 저장되는 구조와 버퍼 풀이 디스크 접근을 줄이는 방식
+    related: [메모리 계층]
+
+  - name: 쿼리 처리 과정
+    parent: DB 내부 구조
+    aliases: [쿼리 실행 과정, query processing, 파서, 리라이터, 실행기, executor, prepared statement]
+    description: SQL 문이 파싱·재작성·계획·실행을 거쳐 결과가 되는 과정
+    related: [옵티마이저와 통계]
+
+  - name: WAL과 장애 복구
+    parent: DB 내부 구조
+    aliases: [WAL, write-ahead log, 로그 선행 기록, 체크포인트, checkpoint, crash recovery, 장애 복구, redo log, fsync]
+    description: 변경을 로그에 먼저 써서 지속성을 보장하고 장애 뒤 복구하는 방식
+    requires: [트랜잭션과 ACID, 데이터 페이지와 저장 구조]
+
+  - name: 커넥션과 프로세스 구조
+    parent: DB 내부 구조
+    aliases: [커넥션, connection, 커넥션 풀, connection pool, max_connections, postmaster, 백엔드 프로세스, PgBouncer]
+    description: 연결마다 프로세스를 띄우는 구조와 커넥션 풀이 필요한 이유, 풀 크기 정하기
+    requires: [프로세스와 스레드]
+
+  - name: 복제와 백업
+    parent: DB 내부 구조
+    aliases: [replication, 복제, 레플리카, read replica, 읽기 전용 복제본, 백업, backup, pg_dump, PITR, 시점 복구]
+    description: WAL로 복제본을 맞추는 방식, 논리·물리 백업과 시점 복구
+    requires: [WAL과 장애 복구]

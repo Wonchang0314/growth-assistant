@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { DB, type Db } from '../db/db.module.js';
 import type { ConceptEdgeType, ConceptTerms } from './concept.js';
@@ -20,6 +20,7 @@ export interface SeedResult {
   readonly concepts: number;
   readonly newConcepts: number;
   readonly newEdges: number;
+  readonly removedConcepts: number;
 }
 
 @Injectable()
@@ -92,7 +93,9 @@ export class ConceptRepository {
    * 시드를 한 트랜잭션으로 반영한다. 여러 번 돌려도 결과가 같다.
    * - 트랙은 키로, 개념은 이름으로 찾아 있으면 트랙·별칭·설명을 시드대로 고친다. 승인 상태는 건드리지 않는다
    *   (대화에서 거절한 개념을 시드 적재가 되살리지 않게).
-   * - 관계는 없는 것만 더한다. 시드에서 지운 개념과 관계는 DB에서 지우지 않는다.
+   * - 관계는 없는 것만 더한다.
+   * - 시드에서 빠진 시드 개념(관계 포함)과 트랙은 지운다. 수집·대화에서 생긴 개념은 남긴다.
+   *   학습 기록이 연결된 개념이나 다른 개념이 남은 트랙을 지우려 하면 외래 키 오류로 전체가 취소된다.
    */
   async applySeed(seed: ConceptSeed, now: Date): Promise<SeedResult> {
     return this.db.transaction(async (tx) => {
@@ -161,11 +164,26 @@ export class ConceptRepository {
           ? []
           : await tx.insert(conceptEdge).values(edges).onConflictDoNothing().returning({ fromId: conceptEdge.fromId });
 
+      const removed = await tx
+        .delete(concept)
+        .where(
+          and(
+            eq(concept.origin, 'SEED'),
+            notInArray(
+              concept.name,
+              seed.concepts.map((c) => c.name),
+            ),
+          ),
+        )
+        .returning({ id: concept.id });
+      await tx.delete(track).where(notInArray(track.key, [...trackId.keys()]));
+
       return {
         tracks: tracks.length,
         concepts: concepts.length,
         newConcepts: (after[0]?.count ?? 0) - (before[0]?.count ?? 0),
         newEdges: inserted.length,
+        removedConcepts: removed.length,
       };
     });
   }

@@ -4,7 +4,7 @@ import { parse } from 'yaml';
 import { z } from 'zod';
 import { normalizeTerm } from './concept.js';
 
-/** 트랙별 시드 YAML (`seed/<트랙>.yaml`, 형식은 cs.yaml 머리말). 빌드할 때 dist로 함께 복사한다 (nest-cli.json). */
+/** 트랙별 시드 YAML (`seed/<트랙>.yaml`, 형식은 js.yaml 머리말). 빌드할 때 dist로 함께 복사한다 (nest-cli.json). */
 export const SEED_DIR = join(import.meta.dirname, 'seed');
 
 const names = z.array(z.string().trim().min(1)).default([]);

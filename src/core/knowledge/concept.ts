@@ -86,6 +86,23 @@ function tokensOf(text: string): string[] {
 /** 짧은 별칭(JS, DI, OS)이 다른 단어 안에서 잘못 걸리지 않도록, 부분 문자열 매칭은 이 길이부터 한다. */
 const MIN_SUBSTRING_LENGTH = 3;
 
+const ASCII_WORD_CHAR = /[a-z0-9]/;
+
+/**
+ * 정규화한 주제 안에 용어가 들어 있는지. 영문·숫자로 시작하거나 끝나는 용어는 그쪽 옆이 영문·숫자가 아닐 때만 인정한다
+ * ("nest"가 "nestedloop", "tree"가 "btree" 안에서 걸리지 않고, "jpa"는 "jpa를쓸때"에서 걸리게).
+ */
+function containsTerm(text: string, term: string): boolean {
+  if (term.length < MIN_SUBSTRING_LENGTH) return false;
+  const isAscii = (char: string | undefined) => ASCII_WORD_CHAR.test(char ?? '');
+  for (let i = text.indexOf(term); i !== -1; i = text.indexOf(term, i + 1)) {
+    const joinedBefore = isAscii(term.at(0)) && isAscii(text[i - 1]);
+    const joinedAfter = isAscii(term.at(-1)) && isAscii(text[i + term.length]);
+    if (!joinedBefore && !joinedAfter) return true;
+  }
+  return false;
+}
+
 /**
  * 주제의 단어가 개념 이름 안에 들어 있는지 볼 만한지. 한글은 2글자부터, 영문·숫자는 3글자부터 본다
  * ("JS"가 "NestJS", "JSON" 안에서 걸리지 않게).
@@ -114,7 +131,7 @@ export function matchConcepts(topic: string, concepts: readonly ConceptTerms[], 
       if (t.length === 0) continue;
       if (t === whole) best = Math.max(best, 1000);
       else if (tokens.includes(t)) best = Math.max(best, 500 + t.length);
-      else if (t.length >= MIN_SUBSTRING_LENGTH && whole.includes(t)) best = Math.max(best, 300 + t.length);
+      else if (containsTerm(whole, t)) best = Math.max(best, 300 + t.length);
     }
     const name = normalizeTerm(concept.name);
     for (const token of tokens) {

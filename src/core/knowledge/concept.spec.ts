@@ -39,6 +39,19 @@ describe('matchConcepts', () => {
     expect(names('JS 클로저')).toEqual(['JavaScript 언어']);
   });
 
+  it('영문 별칭은 다른 영문 단어 안에서 걸리지 않고, 한글이 바로 붙은 경우에는 찾는다', () => {
+    const terms: ConceptTerms[] = [
+      { id: 1, name: 'NestJS', aliases: ['Nest'] },
+      { id: 2, name: '트리와 유니온 파인드', aliases: ['tree'] },
+      { id: 3, name: '지연 로딩과 N+1', aliases: ['JPA'] },
+    ];
+    const match = (topic: string) => matchConcepts(topic, terms, 5).map((c) => c.name);
+
+    expect(match('nested loop 조인')).toEqual([]);
+    expect(match('B-tree가 뭐야')).toEqual([]);
+    expect(match('JPA를 쓸 때')).toEqual(['지연 로딩과 N+1']);
+  });
+
   it('한글 단어 끝의 조사를 떼고도 비교한다', () => {
     expect(names('복합인덱스를 설계하자')).toContain('복합 인덱스 설계');
     expect(names('트랜잭션 격리 수준이 뭐야')[0]).toBe('트랜잭션 격리 수준');

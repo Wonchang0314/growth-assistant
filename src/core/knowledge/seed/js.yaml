@@ -1,0 +1,213 @@
+# 시드 개념: JS/TS (ADR-0022)
+# 형식 (모든 트랙 파일 공통)
+#   track: 트랙 키·이름·가중치·범위
+#   concepts[]:
+#     name         전체 트랙에서 유일한 개념 이름 (한국어 기준). 크기는 강의 한 편·책 한 절 정도
+#     parent       상위 개념 이름 (PART_OF). 없으면 트랙의 최상위 개념
+#     aliases      다른 표기 (영문, 약어, 세부 키워드). 학습 맥락 조회의 이름 매칭에 쓴다
+#     description  한 줄 설명. 무엇을 다루는 개념인지
+#     requires     먼저 알아야 하는 개념 이름 (PREREQUISITE). 다른 트랙의 개념도 된다
+#     related      관련 개념 이름 (RELATED)
+# 앞으로 배우고 싶은 것(커리큘럼)을 담는다. 이미 아는 것은 학습 기록과 수집이 채운다.
+
+track:
+  key: js
+  name: JS/TS
+  weight: 0.2
+  description: 언어 이해(코드를 빨리 읽고 리뷰하기), JS 생태계(모듈·패키지·빌드 도구가 왜 생겼고 어떻게 동작하나). 코딩테스트는 직접 풀어 보는 편이 나아 다루지 않는다
+
+concepts:
+  # 언어
+  - name: JavaScript 언어
+    aliases: [JavaScript, JS, 자바스크립트, ECMAScript]
+    description: 값·스코프·객체·비동기로 이루어진 언어의 동작 원리
+
+  - name: 타입과 값
+    parent: JavaScript 언어
+    aliases: [원시 타입, 참조 타입, 형 변환, type coercion, 동등 비교, 참조 동일성, NaN, undefined와 null]
+    description: 원시값과 참조값, 암묵적 형 변환, ==와 ===, 특수 값의 함정
+
+  - name: 실행 컨텍스트와 스코프
+    parent: JavaScript 언어
+    aliases: [execution context, 스코프, scope, 호이스팅, hoisting, TDZ, 렉시컬 환경, 스코프 체인]
+    description: 코드가 실행될 때 변수와 함수가 어디에 등록되고 어떻게 찾아지는지
+
+  - name: 클로저
+    parent: JavaScript 언어
+    aliases: [closure]
+    description: 함수가 만들어질 때의 렉시컬 환경을 기억하는 원리와 쓰임, 메모리 비용
+    requires: [실행 컨텍스트와 스코프]
+
+  - name: this 바인딩
+    parent: JavaScript 언어
+    aliases: [this, call, apply, bind, 화살표 함수, arrow function]
+    description: 호출 방식에 따라 this가 정해지는 규칙과 화살표 함수의 차이
+    requires: [실행 컨텍스트와 스코프]
+
+  - name: 프로토타입과 클래스
+    parent: JavaScript 언어
+    aliases: [prototype, 프로토타입 체인, class, 클래스, 상속, extends]
+    description: 프로토타입 체인으로 속성을 찾는 방식과 class 문법이 그 위에서 동작하는 방식
+    related: [this 바인딩]
+
+  - name: 복사와 불변성
+    parent: JavaScript 언어
+    aliases: [얕은 복사, 깊은 복사, structuredClone, Object.freeze, 스프레드 연산자, 불변 객체]
+    description: 참조를 공유할 때 생기는 변경 전파와, 복사·불변 객체로 막는 법
+    requires: [타입과 값]
+
+  - name: 이터러블과 제너레이터
+    parent: JavaScript 언어
+    aliases: [iterator, iterable, 이터레이터, generator, 제너레이터, Symbol.iterator, for...of]
+    description: 이터레이션 프로토콜과 제너레이터로 값을 지연해 만드는 법
+
+  - name: 이벤트 루프
+    parent: JavaScript 언어
+    aliases: [event loop, call stack, 콜 스택, task queue, 태스크 큐, macrotask, 마이크로태스크, microtask]
+    description: 싱글 스레드에서 콜 스택·태스크 큐·마이크로태스크 큐가 비동기 작업을 처리하는 순서
+
+  - name: Promise와 async/await
+    parent: JavaScript 언어
+    aliases: [Promise, 프로미스, async, await, 비동기 함수, Promise.all, Promise.allSettled]
+    description: Promise 상태 전이와 체이닝, async 함수가 이벤트 루프 위에서 동작하는 방식, 병렬 실행
+    requires: [이벤트 루프]
+
+  - name: 오류 처리
+    parent: JavaScript 언어
+    aliases: [try/catch, Error 객체, 예외 처리, unhandled rejection, 에러 전파]
+    description: 동기·비동기 오류가 전파되는 경로와 잡지 못한 오류가 일으키는 일
+    related: [Promise와 async/await]
+
+  - name: 가비지 컬렉션과 메모리 누수
+    parent: JavaScript 언어
+    aliases: [GC, garbage collection, 가비지 컬렉션, 메모리 누수, WeakMap, WeakRef, 도달 가능성]
+    description: 도달 가능성 기준의 메모리 회수와 흔한 누수 패턴
+    related: [클로저]
+
+  # TypeScript
+  - name: TypeScript 타입 시스템
+    aliases: [TypeScript, TS, 타입스크립트]
+    description: 정적 타입으로 JS 코드의 의도를 표현하고 검사하는 방식
+
+  - name: 구조적 타이핑
+    parent: TypeScript 타입 시스템
+    aliases: [structural typing, 덕 타이핑, 타입 호환성, 초과 속성 검사, 할당 가능성]
+    description: 이름이 아니라 모양으로 타입 호환을 판단하는 규칙과 그 예외
+
+  - name: 타입 좁히기와 판별 유니온
+    parent: TypeScript 타입 시스템
+    aliases:
+      [
+        narrowing,
+        타입 좁히기,
+        타입 가드,
+        type guard,
+        판별 유니온,
+        discriminated union,
+        리터럴 타입,
+        never,
+        exhaustive check,
+      ]
+    description: 유니온 타입을 조건문으로 좁히는 방법과 불가능한 상태를 타입으로 막는 설계
+    requires: [구조적 타이핑]
+
+  - name: 제네릭
+    parent: TypeScript 타입 시스템
+    aliases: [generics, 타입 매개변수, 제네릭 제약, 타입 추론]
+    description: 타입을 매개변수로 받아 재사용하는 법과 제약·추론 규칙
+
+  - name: 조건부 타입과 매핑된 타입
+    parent: TypeScript 타입 시스템
+    aliases:
+      [conditional type, mapped type, infer, keyof, typeof 타입 연산자, 유틸리티 타입, Partial, Pick, Omit, Record]
+    description: 타입을 계산해 만드는 법과 표준 유틸리티 타입이 만들어지는 원리
+    requires: [제네릭]
+
+  - name: 타입 단언과 런타임 검증
+    parent: TypeScript 타입 시스템
+    aliases: [타입 단언, as, any, unknown, satisfies, 런타임 경계 검증, zod, 스키마 검증]
+    description: 타입은 런타임에 사라진다는 점, 단언의 위험, 경계에서 한 번 검증하고 타입을 끌어오는 법
+    requires: [타입 좁히기와 판별 유니온]
+
+  - name: tsconfig와 컴파일
+    parent: TypeScript 타입 시스템
+    aliases: [tsconfig, strict 모드, tsc, 컴파일 옵션, 선언 파일, d.ts, 타입 선언 파일, DefinitelyTyped]
+    description: 컴파일 옵션이 검사와 출력에 주는 영향, 선언 파일로 JS 라이브러리에 타입을 붙이는 법
+
+  # 생태계와 도구
+  - name: JS 생태계와 도구
+    aliases: [자바스크립트 생태계, JS 툴체인, toolchain, 프론트엔드 도구]
+    description: 모듈·패키지·빌드·실행 도구가 어떤 문제를 풀려고 생겼고 어떻게 동작하나
+
+  - name: 모듈 시스템
+    parent: JS 생태계와 도구
+    aliases:
+      [CommonJS, CJS, ESM, ES Modules, require, import, export, 모듈 해석, module resolution, 듀얼 패키지, exports 필드]
+    description: CommonJS와 ESM의 차이(로딩 시점, 정적 분석), Node의 모듈 해석 규칙, 둘이 섞일 때의 문제
+
+  - name: 패키지 매니저
+    parent: JS 생태계와 도구
+    aliases:
+      [
+        npm,
+        yarn,
+        pnpm,
+        package.json,
+        lockfile,
+        잠금 파일,
+        package-lock,
+        semver,
+        시맨틱 버전,
+        node_modules,
+        peerDependencies,
+        호이스팅된 의존성,
+        유령 의존성,
+      ]
+    description: 의존성 해석·설치 방식(평탄화, 심볼릭 링크), 잠금 파일과 버전 범위, 매니저별 차이
+
+  - name: 모노레포와 워크스페이스
+    parent: JS 생태계와 도구
+    aliases: [monorepo, 모노레포, workspaces, 워크스페이스, Turborepo, Nx, Lerna]
+    description: 여러 패키지를 한 저장소에서 관리하는 방식과 빌드 캐시·의존 그래프
+    requires: [패키지 매니저]
+
+  - name: 트랜스파일러
+    parent: JS 생태계와 도구
+    aliases: [transpiler, Babel, SWC, 다운레벨링, 폴리필, polyfill, 소스맵, source map]
+    description: 새 문법을 옛 환경에서 돌리기 위한 변환과 폴리필의 차이, 소스맵
+
+  - name: 번들러
+    parent: JS 생태계와 도구
+    aliases: [bundler, 번들링, webpack, Rollup, esbuild, 트리 셰이킹, tree shaking, 코드 스플리팅, code splitting, 청크]
+    description: 모듈 그래프를 묶는 이유와 방식, 트리 셰이킹과 코드 스플리팅이 되는 조건
+    requires: [모듈 시스템]
+    related: [트랜스파일러]
+
+  - name: 개발 서버와 HMR
+    parent: JS 생태계와 도구
+    aliases: [Vite, 개발 서버, dev server, HMR, 핫 모듈 교체, 네이티브 ESM 개발 서버, 개발 서버 프록시]
+    description: Vite가 개발 때는 번들하지 않고 네이티브 ESM으로 서빙하는 이유와 HMR 동작
+    requires: [모듈 시스템]
+    related: [번들러]
+
+  - name: Node.js 런타임
+    parent: JS 생태계와 도구
+    aliases: [Node.js, Node, 노드, V8, libuv, 스레드 풀, worker threads, 워커 스레드]
+    description: V8과 libuv로 이루어진 구조, I/O를 스레드 풀과 이벤트 루프로 처리하는 방식
+    requires: [이벤트 루프]
+
+  - name: 런타임 비교
+    parent: JS 생태계와 도구
+    aliases: [Deno, Bun, 서버 JS 런타임, 엣지 런타임]
+    description: Node·Deno·Bun이 내세우는 차이(보안 모델, 내장 도구, 호환성)와 고를 때 볼 것
+    requires: [Node.js 런타임]
+
+  - name: 린터와 포매터
+    parent: JS 생태계와 도구
+    aliases: [ESLint, Prettier, Biome, 린트, lint, 포매터, formatter, 정적 분석]
+    description: 린터와 포매터가 맡는 일의 경계, 규칙·플러그인 구조
+
+  - name: 테스트 러너
+    parent: JS 생태계와 도구
+    aliases: [Vitest, Jest, test runner, 테스트 프레임워크, 스냅샷 테스트]
+    description: 테스트 러너가 파일을 찾고 격리해 실행하는 방식, 모킹과 ESM 지원의 차이
