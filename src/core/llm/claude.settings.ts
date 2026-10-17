@@ -13,6 +13,8 @@ export interface PurposeSettings {
 export const DEFAULT_PURPOSES: Record<LlmPurpose, PurposeSettings> = {
   TUTOR_CHAT: { model: 'sonnet', timeoutMs: 180_000, webAccess: true },
   SESSION_SUMMARY: { model: 'sonnet', timeoutMs: 120_000, webAccess: false },
+  // 문서 하나(최대 2만 자)와 개념 목록을 읽고 카드 여러 장을 쓴다.
+  EXTRACTION: { model: 'sonnet', timeoutMs: 300_000, webAccess: false },
 };
 
 /** `claude` CLI 실행 설정. 클래스라 Nest 주입 토큰으로 바로 쓴다. */

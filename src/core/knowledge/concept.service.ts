@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { matchConcepts, type RelatedConcept, resolveConcept } from './concept.js';
 import { ConceptRepository } from './concept.repository.js';
+import type { Vocabulary } from './concept-proposal.js';
 
 const RELATED_LIMIT = 5;
 /** 선수 관계를 따라가는 깊이. 바로 앞 단계와 그 앞 단계까지만 맥락에 싣는다. */
@@ -10,6 +11,11 @@ const PREREQUISITE_DEPTH = 2;
 @Injectable()
 export class ConceptService {
   constructor(private readonly repository: ConceptRepository) {}
+
+  /** 수집할 때 새 개념 제안을 처리하는 데 쓰는 전체 어휘 (승인 대기·거절 개념 포함). */
+  vocabulary(): Promise<Vocabulary> {
+    return this.repository.findVocabulary();
+  }
 
   /** 주제와 관련 있는 개념과 그 상위·선수 개념. 맞는 개념이 없으면 빈 배열. */
   async relatedConcepts(topic: string): Promise<RelatedConcept[]> {

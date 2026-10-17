@@ -10,7 +10,7 @@ flowchart TB
         logging["logging<br/>로거, 운영 알림 (AdminNotifier)"]
         memory["memory<br/>문서·청크·경험 카드·판단 사례"]
         knowledge["knowledge<br/>트랙, 개념 그래프, 시드 적재"]
-        ingestion["ingestion<br/>Notion 수집"]
+        ingestion["ingestion<br/>Notion 수집, 경험 카드 추출"]
         scheduler["scheduler<br/>예약 작업, 놓친 실행 복구"]
         setting["setting<br/>키-값 설정 (출제 지침 등)"]
     end

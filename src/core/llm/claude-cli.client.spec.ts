@@ -66,6 +66,7 @@ function setup(runner: ClaudeProcessRunner, { maxConcurrency = 2, failLogs = fal
     purposes: {
       TUTOR_CHAT: { model: 'sonnet', timeoutMs: 180_000, webAccess: true },
       SESSION_SUMMARY: { model: 'haiku', timeoutMs: 60_000, webAccess: false },
+      EXTRACTION: { model: 'sonnet', timeoutMs: 300_000, webAccess: false },
     },
   });
   const client = new ClaudeCliClient(
