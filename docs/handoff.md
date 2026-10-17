@@ -2,19 +2,17 @@
 
 세션을 이어 갈 때 읽는 메모다. 진행 상태의 기준은 [로드맵](roadmap.md)이고, 이 파일에는 로드맵에 남기지 않는 맥락(다음에 할 일의 순서, 학습 진도, 조사 결론)만 둔다. 다 처리한 항목은 지운다.
 
-**마지막 갱신:** 2026-10-17, `docs/notion-only-source` (맥미니에서)
+**마지막 갱신:** 2026-10-17, `docs/stage1-check` (맥미니에서)
 
 ## 작업
 
 다음 세션은 1번부터 한다.
 
 1. **시드 커리큘럼 (완료, PR #12·#13 머지·배포 2026-10-17, ADR-0022):** 트랙 6개(`js` 31, `database` 39, `backend` 30, `infra` 40, `network` 20, `mcp` 34 = 194개, 가중치 각 0.2는 상대 비율). 배포 뒤 DB 관계 350개로 YAML과 같았다. 그 뒤 학습 기록을 붙일 개념이 없어 `js`에 "Node 버전 관리"를 더했다(배포 전). 사용자가 YAML을 보며 고칠 개념이 있으면 고치고 다시 배포한다
-2. **1단계 체크리스트 확인:** `docs/manual-check.md`. 지난번에 `get_learning_context`는 Desktop에서 4번 불렸지만 `record_study_note`는 한 번도 불리지 않았다(2026-10-17 `study_note` 0건). 주제를 마무리할 때 기록되는지부터 본다. 대화 뒤 DB 조회로 기록·개념 연결을 함께 확인한다. 끝나면 로드맵 1단계를 닫는다
-   - 추천 프롬프트: "트랜잭션 격리 수준 공부하자"(일부러 "REPEATABLE READ면 팬텀 리드도 막지?"라고 틀리기) → 새 대화 "isolation level 다시 복습하자"(별칭으로 지난 기록 찾기), "MCP stdio 전송은 어떻게 동작해?"(새 `mcp` 트랙), 프로젝트 밖에서 "이 문장 영어로 바꿔줘"(도구를 부르지 않아야 함)
-   - 문제 내는 UI가 마음에 들지 않는다는 의견이 있었다. 퀴즈 UI는 3단계에서 MCP Apps로 만들기로 했다. 그 전에는 프로젝트 지침(`docs/claude-project-instructions.md`)의 형식 규칙(보기는 줄바꿈 목록, 한 번에 한 문제)으로 다듬는다
-3. **2단계 남은 순서 (2026-10-17 계획):** ① 경험 카드 추출(`npm run extract -- --limit 5`로 품질 먼저, Sonnet) → ② 개념 승인 도구(`list_pending_concepts`, `review_concept`) → ③ 판단 사례 추상화(회사 용어 목록 없이 패턴 게이트 + Opus 독립 검증, ADR-0024) → ④ `search_experience`·학습 맥락에 경험 카드. Notion 수집은 끝났다(문서 164개, 청크 2,420개, `npm run sync`). 용어 목록 PR(#18)은 ADR-0024로 닫았고 로컬 DB의 `domain_term`도 지웠다. Claude가 만든 용어 제안 파일 `~/.growth-assistant/domain-terms.tsv`가 남아 있다(쓰지 않음, 지울지는 사용자가 정한다)
+2. **2단계 남은 순서 (2026-10-17 계획):** ① 경험 카드 추출(`npm run extract -- --limit 5`로 품질 먼저, Sonnet) → ② 개념 승인 도구(`list_pending_concepts`, `review_concept`) → ③ 판단 사례 추상화(회사 용어 목록 없이 패턴 게이트 + Opus 독립 검증, ADR-0024) → ④ `search_experience`·학습 맥락에 경험 카드. Notion 수집은 끝났다(문서 164개, 청크 2,420개, `npm run sync`). 용어 목록 PR(#18)은 ADR-0024로 닫았고 로컬 DB의 `domain_term`도 지웠다. Claude가 만든 용어 제안 파일 `~/.growth-assistant/domain-terms.tsv`가 남아 있다(쓰지 않음, 지울지는 사용자가 정한다)
+3. **퀴즈 형식:** 문제 내는 UI가 마음에 들지 않는다는 의견이 있었다. 퀴즈 UI는 3단계에서 MCP Apps로 만들기로 했다. 그 전에는 프로젝트 지침(`docs/claude-project-instructions.md`)의 형식 규칙(보기는 줄바꿈 목록, 한 번에 한 문제)으로 다듬는다
 
-**맥미니 상태 (2026-10-17):** 예전 봇 launchd 해제함. Desktop 설정 `claude_desktop_config.json`에 `growth-assistant` 등록함(원본 백업 `.bak-20261017`), running 확인. 배포 릴리스 `20261017-163026`(새 시드, 관계 동기화 수정 전). Node v24.13.1이라 `@nestjs/schematics`(24.15 이상) 경고가 나온다. `chore/pin-node-version` PR에서 버전을 `.nvmrc`(24.22.0)로 고정하고 `engine-strict`를 켰다. 머지하면 24.13.1에서는 배포가 멈추므로 순서를 지킨다: 지금 `main` 배포(새 개념 확인) → PR 머지 → `git pull && nvm install && ops/deploy.sh` → `ops/desktop-config.sh` 출력으로 Desktop 설정의 `command`를 `app/node` 링크로 한 번 바꾸고 재시작. 그 뒤로는 Node를 올려도 설정을 다시 넣지 않는다. mise는 아직 들이지 않았다(nvm이 `.nvmrc`를 그대로 읽고, Desktop 문제는 링크로 풀었으므로 도구를 바꿀 이유가 약하다)
+**맥미니 상태 (2026-10-17):** 예전 봇 launchd 해제함. Desktop 설정 `claude_desktop_config.json`에 `growth-assistant` 등록함(원본 백업 `.bak-20261017`), running 확인. Node는 `.nvmrc`(24.22.0)로 고정했고 최신 배포 릴리스는 `20261017-214842`, `app/node` 링크는 24.22.0을 가리킨다. Desktop 설정의 `command`를 `app/node` 링크로 바꾸고(백업 `.bak-20261017-node`) 다시 시작해 도구 3개(`sync_status` 포함)로 연결된 것을 확인했다. 1단계 체크리스트는 그 전에 떠 있던 옛 릴리스(`20261017-163436`, Node 24.13.1)로 확인했다. 앞으로 Node를 올려도 설정을 다시 넣지 않는다. 배포한 뒤에는 Desktop을 완전히 종료했다 다시 열어야 새 릴리스가 뜬다. mise는 아직 들이지 않았다(nvm이 `.nvmrc`를 그대로 읽고, Desktop 문제는 링크로 풀었으므로 도구를 바꿀 이유가 약하다)
 
 ## 학습 (현재 구현 이해하기)
 
