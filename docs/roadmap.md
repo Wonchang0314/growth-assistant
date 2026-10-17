@@ -36,6 +36,7 @@
 - [x] 결정: 기억의 원천은 Notion 하나 (ADR-0023)
 - [x] Notion 수집 범위 결정, 원문·청크 증분 동기화 (`npm run sync`, `sync_status`)
 - [ ] `sync_now` (4단계 상시 실행 진입점과 함께)
+- [x] 회사 고유 용어 등록 (`domain_term`, `npm run terms`: 코드 후보 + Claude 제안 + 사용자 검토)
 - [ ] 경험 카드 추출, 승인 정책 (`list_pending_concepts`, `review_concept`)
 - [ ] 판단 사례 추상화: 치환, 금지어 게이트, 독립 검증, 검토 도구 (`list_pending_cases`, `review_case`, ADR-0021)
 - [ ] 대화에 기억 연결 (`search_experience`, `get_learning_context` 확장)

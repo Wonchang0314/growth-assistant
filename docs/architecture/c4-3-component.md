@@ -33,6 +33,8 @@ flowchart TB
     ingestion --> memory
     ingestion --> knowledge
 
+    memory -->|"용어 제안"| llm
+
     study --> memory
     study --> knowledge
     study --> mastery

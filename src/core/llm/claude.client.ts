@@ -1,7 +1,7 @@
 import type { z } from 'zod';
 
 /** 용도마다 모델·타임아웃·웹 허용 여부를 따로 정한다 (`claude.settings.ts`). */
-export const LLM_PURPOSES = ['TUTOR_CHAT', 'SESSION_SUMMARY'] as const;
+export const LLM_PURPOSES = ['TUTOR_CHAT', 'SESSION_SUMMARY', 'TERM_SUGGESTION'] as const;
 export type LlmPurpose = (typeof LLM_PURPOSES)[number];
 
 export interface ClaudeRequest {

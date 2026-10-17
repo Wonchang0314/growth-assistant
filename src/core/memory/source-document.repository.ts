@@ -107,6 +107,21 @@ export class SourceDocumentRepository {
     return deleted.length;
   }
 
+  /** 모든 문서의 청크 본문. 회사 용어 후보를 찾을 때 쓴다. */
+  async allChunkContents(): Promise<string[]> {
+    const rows = await this.db.select({ content: documentChunk.content }).from(documentChunk);
+    return rows.map((r) => r.content);
+  }
+
+  /** 모든 문서의 제목. 코드 패턴으로 못 찾는 한글 고유명을 Claude가 찾을 때 쓴다. */
+  async allTitles(): Promise<string[]> {
+    const rows = await this.db
+      .select({ title: sourceDocument.title })
+      .from(sourceDocument)
+      .orderBy(asc(sourceDocument.title));
+    return rows.map((r) => r.title);
+  }
+
   async markSynced(source: Source, at: Date): Promise<void> {
     await this.db
       .insert(syncCursor)

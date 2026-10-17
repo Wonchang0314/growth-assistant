@@ -49,6 +49,7 @@ src/
 - 실제 `claude` CLI 확인(구독 사용량 소모, 기본 건너뜀): `CLAUDE_LIVE=1 npx vitest run claude-cli.live`
 - 마이그레이션 생성: `*.schema.ts`를 고친 뒤 `npm run db:generate -- --name <이름>`. 적용: `npm run db:migrate`(빌드 후 적용). MCP 서버는 시작할 때 적용하지 않는다(배포 스크립트가 적용한다). DB 둘러보기: `npm run db:studio`
 - Notion 동기화: `npm run sync` (`.env`의 `NOTION_TOKEN`, `NOTION_ROOT_IDS`. 처음이 백필이고 그 뒤로는 바뀐 문서만 읽는다)
+- 회사 고유 용어: `npm run terms -- candidates`(후보와 Claude 제안을 레포 밖 TSV로) → 파일 검토 → `npm run terms -- import`, 확인 `npm run terms -- list`. 용어는 레포에 커밋하지 않는다
 - 시드 개념 적재: `npm run db:seed` (`src/core/knowledge/seed/*.yaml`을 검증한 뒤 반영, 여러 번 돌려도 같고 YAML에서 빠진 시드 개념·트랙은 지운다. 배포 스크립트도 마이그레이션 뒤에 돌린다)
 - 스타일 자동 수정: `npm run format`, `npx eslint --fix .`
 - MCP 서버: `npm run build && npm run mcp` (stdio. 표준출력은 MCP 메시지 통로라 로그는 표준에러나 `LOG_DIR/mcp`에 쓴다. `.env` 위치는 `GROWTH_ENV_FILE`)

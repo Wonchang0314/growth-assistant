@@ -13,6 +13,8 @@ export interface PurposeSettings {
 export const DEFAULT_PURPOSES: Record<LlmPurpose, PurposeSettings> = {
   TUTOR_CHAT: { model: 'sonnet', timeoutMs: 180_000, webAccess: true },
   SESSION_SUMMARY: { model: 'sonnet', timeoutMs: 120_000, webAccess: false },
+  /** 회사 용어 후보 수백 개를 한 번에 분류한다 (`npm run terms -- candidates`). */
+  TERM_SUGGESTION: { model: 'sonnet', timeoutMs: 600_000, webAccess: false },
 };
 
 /** `claude` CLI 실행 설정. 클래스라 Nest 주입 토큰으로 바로 쓴다. */
