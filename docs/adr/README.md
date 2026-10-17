@@ -9,7 +9,7 @@
 | [0003](0003-discord-jda-private-server.md) | Discord 개인 서버를 인터페이스로, JDA를 사용한다 | 대체됨(0014) |
 | [0004](0004-postgres-single-store.md) | PostgreSQL 단일 저장소, 그래프 DB를 쓰지 않는다 | 채택 |
 | [0005](0005-no-embeddings-controlled-vocabulary.md) | 임베딩 없이 통제 어휘 개념 태그로 검색한다 | 채택 |
-| [0006](0006-ingestion-backfill-incremental.md) | 기억은 1회 백필 후 청크 단위 증분 동기화한다 | 채택 |
+| [0006](0006-ingestion-backfill-incremental.md) | 기억은 1회 백필 후 청크 단위 증분 동기화한다 | 일부 대체됨(0023) |
 | [0007](0007-concept-approval-policy.md) | 개념 승인: 백필은 조건부 자동, 증분은 자동 + 안전장치 | 채택 |
 | [0008](0008-fsrs-concept-level.md) | 간격 반복은 FSRS, 복습 단위는 개념 | 대체됨(0016) |
 | [0009](0009-mastery-by-code.md) | 숙련도는 코드가 계산하고, 힌트 없는 응답만 인정한다 | 채택 |
@@ -26,3 +26,4 @@
 | [0020](0020-quiz-layered-folders.md) | quiz 모듈에서 레이어 폴더 구조를 먼저 시도한다 | 채택 |
 | [0021](0021-tracks-and-decision-cases.md) | 학습 트랙에 IT 인프라를 더하고 가중치를 다시 나누며, 업무 경험은 회사 맥락을 걷어낸 판단 사례로 바꿔 상황 판단형 객관식으로 낸다 | 일부 대체됨(0022) |
 | [0022](0022-seed-as-curriculum.md) | 시드 개념을 앞으로 배울 커리큘럼으로 바꾸고, 트랙을 JS/TS·관계형 DB·백엔드·IT 인프라·네트워크·MCP로 다시 짠다 | 채택 |
+| [0023](0023-notion-only-source.md) | 기억의 원천은 Notion 하나로 하고 velog 수집은 하지 않는다 | 채택 |

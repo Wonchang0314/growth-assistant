@@ -202,6 +202,27 @@ concepts:
     description: Node·Deno·Bun이 내세우는 차이(보안 모델, 내장 도구, 호환성)와 고를 때 볼 것
     requires: [Node.js 런타임]
 
+  - name: Node 버전 관리
+    parent: JS 생태계와 도구
+    aliases:
+      [
+        nvm,
+        mise,
+        fnm,
+        Volta,
+        asdf,
+        .nvmrc,
+        .node-version,
+        engines 필드,
+        engine-strict,
+        shim,
+        버전 관리자,
+        version manager,
+      ]
+    description: 프로젝트마다 Node 버전을 고정하고 바꾸는 도구가 PATH를 바꾸는 방식(셸 함수·훅·shim)과, 셸을 거치지 않는 프로그램에서 생기는 문제
+    requires: [프로그램 설치]
+    related: [Node.js 런타임, 패키지 매니저]
+
   - name: 린터와 포매터
     parent: JS 생태계와 도구
     aliases: [ESLint, Prettier, Biome, 린트, lint, 포매터, formatter, 정적 분석]

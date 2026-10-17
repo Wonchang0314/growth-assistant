@@ -1,6 +1,6 @@
 # growth-assistant
 
-내 프로젝트·문제 해결 경험(Notion·velog)을 기억하고, 약점 보완과 다음 학습을 이끄는 개인 AI 어시스턴트. 첫 모듈은 튜터(퀴즈·간격 반복·튜터링 대화·먼저 말 걸기)이고, Claude 앱에 붙이는 MCP 서버로 쓴다. LLM은 Claude 구독(Claude 앱, `claude -p` CLI)으로만 쓰고 API 키는 쓰지 않는다.
+내 프로젝트·문제 해결 경험(Notion)을 기억하고, 약점 보완과 다음 학습을 이끄는 개인 AI 어시스턴트. 첫 모듈은 튜터(퀴즈·간격 반복·튜터링 대화·먼저 말 걸기)이고, Claude 앱에 붙이는 MCP 서버로 쓴다. LLM은 Claude 구독(Claude 앱, `claude -p` CLI)으로만 쓰고 API 키는 쓰지 않는다.
 
 ## 기술 스택
 
@@ -27,7 +27,7 @@ src/
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L), 판단 사례(회사 맥락을 걷어낸 버전, ADR-0021)
 │   ├── knowledge        # 트랙 6개(ADR-0022), 개념 그래프, 시드 개념(seed/<트랙>.yaml)
-│   ├── ingestion        # Notion·velog 수집, 증분 동기화
+│   ├── ingestion        # Notion 수집, 증분 동기화
 │   ├── scheduler        # 예약 작업, 놓친 실행 복구
 │   └── setting          # 실행 중 정해지는 키-값 설정 (app_setting)
 └── tutor                # 튜터 기능 모듈

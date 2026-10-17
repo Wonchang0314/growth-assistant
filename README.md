@@ -1,6 +1,6 @@
 # growth-assistant
 
-내 프로젝트·문제 해결 경험(Notion·velog)을 기억하고, 약점 보완과 다음 학습을 이끄는 개인 AI 어시스턴트. 첫 모듈은 Discord 개인 서버에서 동작하는 튜터다. LLM은 Claude 구독(`claude -p` CLI)으로만 호출한다.
+내 프로젝트·문제 해결 경험(Notion)을 기억하고, 약점 보완과 다음 학습을 이끄는 개인 AI 어시스턴트. 첫 모듈은 Discord 개인 서버에서 동작하는 튜터다. LLM은 Claude 구독(`claude -p` CLI)으로만 호출한다.
 
 **방향 전환:** Discord 대신 PWA + HTTP API로 바꾼다([ADR-0017](docs/adr/0017-pwa-http-api.md)). 아래는 전환 전 Discord 버전 기준이다.
 

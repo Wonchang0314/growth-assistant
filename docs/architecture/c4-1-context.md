@@ -9,13 +9,11 @@ flowchart TB
     desktop["Claude Desktop<br/>(맥미니, MCP 클라이언트)"]
     claude["Claude<br/>(구독, claude CLI)<br/>+ 웹 검색"]
     notion["Notion<br/>회고·트러블슈팅 기록"]
-    velog["velog<br/>기술 블로그"]
 
     user -- "튜터링 대화, 퀴즈 풀이" --> desktop
     desktop -- "MCP 도구 호출 (stdio)" --> ga
     ga -- "출제·검증·추출 요청" --> claude
     ga -- "변경된 페이지 수집" --> notion
-    ga -- "변경된 글 수집" --> velog
 ```
 
 | 요소 | 역할 |
@@ -23,4 +21,4 @@ flowchart TB
 | 사용자 | 유일한 사용자. 맥미니의 Claude Desktop으로 상호작용한다 (ADR-0018) |
 | Claude Desktop | 인터페이스. 대화는 Claude 앱의 모델이 하고, growth-assistant는 MCP 도구(학습 맥락 조회, 학습 기록, 이후 복습·채점)를 제공한다 |
 | Claude | Claude 앱은 대화를, `claude` CLI는 대화 밖 작업(출제·검증·경험 추출)을 맡는다. 상태는 없다 |
-| Notion, velog | 과거 경험의 원천. 읽기만 한다 |
+| Notion | 과거 경험의 유일한 원천. 읽기만 한다 (ADR-0023) |
