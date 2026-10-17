@@ -285,6 +285,26 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
     expect((context.structuredContent as { concepts: unknown }).concepts).toContainEqual(
       expect.objectContaining({ name: '공간 인덱스', parent: '인덱스 원리' }),
     );
+
+    await client.callTool({
+      name: 'review_concept',
+      arguments: { concept: '공간 인덱스', action: 'APPROVE', removeParent: true },
+    });
+
+    const removed = await client.callTool({ name: 'get_learning_context', arguments: { topic: '공간 인덱스' } });
+    expect((removed.structuredContent as { concepts: unknown }).concepts).toContainEqual(
+      expect.objectContaining({ name: '공간 인덱스', parent: null }),
+    );
+  });
+
+  it('상위 개념을 지우면서 새 상위 개념을 주면 오류를 돌려준다', async () => {
+    const result = await client.callTool({
+      name: 'review_concept',
+      arguments: { concept: '인덱스', action: 'APPROVE', parent: '인덱스 원리', removeParent: true },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain('removeParent');
   });
 
   it('MERGE에 합칠 개념을 주지 않으면 오류를 돌려준다', async () => {
