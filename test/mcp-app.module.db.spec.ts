@@ -7,6 +7,8 @@ import { ConceptRepository } from '../src/core/knowledge/concept.repository.js';
 import { concept, track } from '../src/core/knowledge/concept.schema.js';
 import type { ConceptSeed } from '../src/core/knowledge/concept-seed.js';
 import { McpServerHost } from '../src/core/mcp/mcp-server.host.js';
+import { DecisionCaseRepository } from '../src/core/memory/decision-case.repository.js';
+import { decisionCase } from '../src/core/memory/decision-case.schema.js';
 import { ExperienceRepository } from '../src/core/memory/experience.repository.js';
 import { SourceDocumentRepository } from '../src/core/memory/source-document.repository.js';
 import { connectTestDb } from './db/test-db.js';
@@ -94,8 +96,10 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
 
     expect(tools.map((t) => t.name).sort()).toEqual([
       'get_learning_context',
+      'list_pending_cases',
       'list_pending_concepts',
       'record_study_note',
+      'review_case',
       'review_concept',
       'search_experience',
       'sync_status',
@@ -255,6 +259,74 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       );
       expect(none.structuredContent).toMatchObject({ experiences: [] });
       expect(JSON.stringify(none.content)).toContain('찾은 경험 카드가 없다');
+    });
+
+    describe('판단 사례 검토', () => {
+      const cases = () => testDb.db.select().from(decisionCase);
+
+      beforeEach(async () => {
+        await new DecisionCaseRepository(testDb.db).save({
+          experienceId: 1,
+          body: {
+            situation: '고객 테이블 조회가 느리다',
+            constraints: ['쓰기가 많다'],
+            options: [
+              { text: '컬럼을 함수로 감싼 채 인덱스를 더한다', chosen: false, reason: '인덱스를 못 탄다' },
+              { text: '함수 결과에 맞는 식 인덱스를 만든다', chosen: true, reason: '조건과 인덱스가 맞는다' },
+            ],
+            decision: '식 인덱스를 만들었다',
+            rationale: '인덱스는 조건식과 같은 식에만 쓰인다',
+            outcome: '조회가 빨라졌다',
+            invariants: ['조회 조건은 컬럼을 함수로 감싼다'],
+          },
+          status: 'PENDING',
+          reviewNote: '원래 카드에 없는 "쓰기가 많다"가 들어갔다',
+          now: clock.now(),
+        });
+      });
+
+      it('검토할 사례를 원래 카드와 검증 사유와 함께 보여 주고, 고쳐서 승인하면 목록에서 빠진다', async () => {
+        const pending = await client.callTool({ name: 'list_pending_cases', arguments: {} });
+        const text = JSON.stringify(pending.content);
+        expect(text).toContain('사례 1 (카드: 함수로 감싼 컬럼이 인덱스를 못 탐)');
+        expect(text).toContain('원래 카드에 없는');
+        expect(text).toContain('고객 테이블 조회가 느리다');
+        expect(text).toContain('처음에는 캐시를 의심했다');
+
+        const reviewed = await client.callTool({
+          name: 'review_case',
+          arguments: { caseId: 1, action: 'APPROVE', constraints: [] },
+        });
+
+        expect(reviewed.content).toEqual([{ type: 'text', text: '승인: 사례 1 (고친 항목: constraints)' }]);
+        expect(await cases()).toEqual([
+          expect.objectContaining({ status: 'ACTIVE', constraints: [], reviewNote: null }),
+        ]);
+        const after = await client.callTool({ name: 'list_pending_cases', arguments: {} });
+        expect(JSON.stringify(after.content)).toContain('검토할 판단 사례가 없다');
+      });
+
+      it('고친 내용이 패턴 검사에 걸리면 바꾸지 않고 걸린 문자열을 알려 준다', async () => {
+        const result = await client.callTool({
+          name: 'review_case',
+          arguments: { caseId: 1, action: 'APPROVE', situation: 'CUSTOMER_EXT 조회가 느리다' },
+        });
+
+        expect(result.isError).toBe(true);
+        expect(JSON.stringify(result.content)).toContain('CUSTOMER_EXT');
+        expect(await cases()).toEqual([expect.objectContaining({ status: 'PENDING' })]);
+      });
+
+      it('거절하면 사유를 남긴다', async () => {
+        await client.callTool({
+          name: 'review_case',
+          arguments: { caseId: 1, action: 'REJECT', note: '원래 카드에 정답을 정할 조건이 없다' },
+        });
+
+        expect(await cases()).toEqual([
+          expect.objectContaining({ status: 'REJECTED', reviewNote: '원래 카드에 정답을 정할 조건이 없다' }),
+        ]);
+      });
     });
   });
 

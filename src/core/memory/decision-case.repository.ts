@@ -20,10 +20,58 @@ const cardColumns = {
   lesson: experience.lesson,
 };
 
-/** 경험 카드에서 판단 사례를 만드는 데 필요한 읽기·쓰기 (설계 문서 7.1 "판단 사례"). */
+/** 검토할 판단 사례. 사람이 원래 카드와 비교할 수 있게 카드를 함께 싣는다. */
+export interface PendingCase {
+  readonly id: number;
+  readonly body: DecisionCaseBody;
+  readonly reviewNote: string | null;
+  readonly card: CaseSourceCard;
+}
+
+const bodyColumns = {
+  situation: decisionCase.situation,
+  constraints: decisionCase.constraints,
+  options: decisionCase.options,
+  decision: decisionCase.decision,
+  rationale: decisionCase.rationale,
+  outcome: decisionCase.outcome,
+  invariants: decisionCase.invariants,
+};
+
+/** 경험 카드에서 판단 사례를 만들고 검토하는 데 필요한 읽기·쓰기 (설계 문서 7.1 "판단 사례"). */
 @Injectable()
 export class DecisionCaseRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
+
+  /** PENDING 사례. 오래된 것부터. */
+  async findPending(limit: number): Promise<PendingCase[]> {
+    const rows = await this.db
+      .select({ id: decisionCase.id, reviewNote: decisionCase.reviewNote, body: bodyColumns, card: cardColumns })
+      .from(decisionCase)
+      .innerJoin(experience, eq(experience.id, decisionCase.experienceId))
+      .where(eq(decisionCase.status, 'PENDING'))
+      .orderBy(asc(decisionCase.id))
+      .limit(limit);
+    return rows;
+  }
+
+  async findBody(id: number): Promise<DecisionCaseBody | undefined> {
+    const [row] = await this.db.select(bodyColumns).from(decisionCase).where(eq(decisionCase.id, id));
+    return row;
+  }
+
+  /** 검토 결과를 반영한다. [body]를 주지 않으면 본문은 그대로 둔다. 없는 사례면 false. */
+  async review(
+    id: number,
+    input: { body?: DecisionCaseBody; status: DecisionCaseStatus; reviewNote: string | null; now: Date },
+  ): Promise<boolean> {
+    const updated = await this.db
+      .update(decisionCase)
+      .set({ ...input.body, status: input.status, reviewNote: input.reviewNote, updatedAt: input.now })
+      .where(eq(decisionCase.id, id))
+      .returning({ id: decisionCase.id });
+    return updated.length > 0;
+  }
 
   /** 아직 선별하지 않은 카드. 오래된 카드부터. */
   findUnscreened(limit: number): Promise<CaseSourceCard[]> {

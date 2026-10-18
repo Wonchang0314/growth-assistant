@@ -2,15 +2,16 @@
 
 내 프로젝트·문제 해결 경험(Notion)을 기억하고, 약점 보완과 다음 학습을 이끄는 개인 AI 어시스턴트. 첫 모듈은 튜터(퀴즈·간격 반복·튜터링 대화·먼저 말 걸기)이고, Claude 앱에 붙이는 MCP 서버로 쓴다([ADR-0018](docs/adr/0018-claude-mcp-server.md)). 튜터링 대화는 Claude 앱이 하고, 이 서버는 학습 기록과 개념 그래프를 다루는 도구를 제공한다. LLM은 Claude 구독(Claude 앱, `claude -p` CLI)으로만 쓰고 API 키는 쓰지 않는다.
 
-**지금 되는 것 (1~2단계):** 맥미니의 Claude Desktop에 로컬(stdio) MCP 서버로 붙는다. Notion 복습 문서를 모아(`npm run sync`) 경험 카드(STAR+L)를 뽑는다(`npm run extract`). 도구는 여섯 개다.
+**지금 되는 것 (1~2단계):** 맥미니의 Claude Desktop에 로컬(stdio) MCP 서버로 붙는다. Notion 복습 문서를 모아(`npm run sync`) 경험 카드(STAR+L)를 뽑고(`npm run extract`), 판단이 분명한 카드에서 회사 맥락을 걷어낸 판단 사례를 만든다(`npm run abstract`). 도구는 여덟 개다.
 
 - `get_learning_context`: 주제와 관련된 개념(상위·선수 개념), 그 개념을 겪은 경험 카드, 지난 학습 기록(요약, 헷갈렸던 점)을 돌려준다
 - `record_study_note`: 대화에서 이해한 것과 헷갈린 점을 기록하고 다룬 개념에 연결한다
 - `search_experience`: 경험 카드를 개념과 키워드로 찾는다
 - `list_pending_concepts`, `review_concept`: 수집에서 새로 생긴 개념을 대화로 검토한다(승인·병합·거절)
+- `list_pending_cases`, `review_case`: 자동 검증에 걸린 판단 사례를 원래 카드와 비교해 검토한다(승인·고쳐서 승인·거절)
 - `sync_status`: Notion 수집 상태를 본다
 
-개념 그래프는 앞으로 배울 커리큘럼(트랙 6개: JS/TS, 관계형 DB, 백엔드, IT 인프라, 네트워크, MCP)으로 시드한다([ADR-0022](docs/adr/0022-seed-as-curriculum.md)). 다음은 판단 사례, 퀴즈·복습이다([로드맵](docs/roadmap.md)).
+개념 그래프는 앞으로 배울 커리큘럼(트랙 6개: JS/TS, 관계형 DB, 백엔드, IT 인프라, 네트워크, MCP)으로 시드한다([ADR-0022](docs/adr/0022-seed-as-curriculum.md)). 다음은 판단 사례 전체 실행, 퀴즈·복습이다([로드맵](docs/roadmap.md)).
 
 ## 개발
 
