@@ -20,7 +20,7 @@ const input = z.object({
 export class GetReviewSetTool implements McpToolHandler<typeof input> {
   readonly name = 'get_review_set';
   readonly description =
-    '복습할 퀴즈 문제(객관식·빈칸)를 가져온다. 사용자가 "복습하자", "문제 내줘", "OO 문제 내줘"라고 하면 부른다. ' +
+    '복습할 퀴즈 문제(지금은 객관식)를 가져온다. 사용자가 "복습하자", "문제 내줘", "OO 문제 내줘"라고 하면 부른다. ' +
     '개념을 고르지 않으면 복습할 때가 된 개념, 헷갈렸던 개념, 약점, 새 개념 순으로 하루 10문제 안에서 고른다. ' +
     '정답은 돌려주지 않는다. 문제를 한 번에 하나씩 내고, 답을 들으면 확신도를 물은 뒤 submit_answer로 채점한다.';
   readonly inputSchema = input;

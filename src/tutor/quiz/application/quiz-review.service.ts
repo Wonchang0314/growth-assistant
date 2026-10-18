@@ -6,7 +6,7 @@ import { DecisionCaseRepository } from '../../../core/memory/decision-case.repos
 import { MasteryService } from '../../mastery/mastery.service.js';
 import { StudyNoteService } from '../../study/study-note.service.js';
 import { DAILY_LIMIT, pickConcepts } from '../domain/review-selection.js';
-import type { Question, QuestionType } from '../domain/quiz-question.js';
+import { ENABLED_TYPES, type Question, type QuestionType } from '../domain/quiz-question.js';
 import { nextQuestion } from '../domain/variant.js';
 import { QuizAttemptRepository, QuizQuestionRepository } from './ports.js';
 import { QuizGenerationService, RANDOM } from './quiz-generation.service.js';
@@ -152,7 +152,8 @@ export class QuizReviewService {
           this.cases.findActiveForConcept(conceptId),
           this.questions.usedCaseIds(conceptId),
         ]);
-        const type = counts.FILL_BLANK < counts.MULTIPLE_CHOICE ? 'FILL_BLANK' : 'MULTIPLE_CHOICE';
+        // 낼 수 있는 유형 중 검증을 통과한 문제가 적은 쪽.
+        const type = ENABLED_TYPES.reduce((a, b) => (counts[b] < counts[a] ? b : a));
         const used = new Set(usedCases);
         const next = nextQuestion(
           history,

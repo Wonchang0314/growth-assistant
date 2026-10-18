@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { FakeClaudeClient } from '../../../test/fakes/fake-claude.client.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
-import { fillBlankReply, multipleChoiceReply, solvedReply, variantCheckReply } from '../../../test/fixtures/quiz.js';
+import { multipleChoiceReply, solvedReply, variantCheckReply } from '../../../test/fixtures/quiz.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { DecisionCaseRepository } from '../../core/memory/decision-case.repository.js';
@@ -69,16 +69,33 @@ const submit = (questionId: number, answer: string, confidence: 'SURE' | 'UNSURE
   return grading.submit({ questionId, answer, confidence, hintUsed: false });
 };
 
+// 트랜잭션(2)을 알려면 인덱스(1)를 먼저 알아야 한다.
+const BASE_CONCEPTS = [
+  { name: '인덱스', requires: [] },
+  { name: '트랜잭션', requires: ['인덱스'] },
+];
+const seedConcepts = (list: readonly { name: string; requires: string[] }[]) =>
+  list.map((c) => ({ ...c, track: 'database', aliases: [], description: c.name, related: [] }));
+/** 근본 원인은 약점 둘 이상이 기대야 하므로(ADR-0033), 인덱스를 먼저 알아야 하는 격리 수준을 더하고 그 id를 돌려준다. */
+async function addIsolationLevel(): Promise<number> {
+  await new ConceptRepository(testDb.db).applySeed(
+    {
+      tracks: [{ key: 'database', name: '관계형 DB', weight: 1, description: 'DB' }],
+      concepts: seedConcepts([...BASE_CONCEPTS, { name: '격리 수준', requires: ['인덱스'] }]),
+    },
+    clock.now(),
+  );
+  const { resolved } = await concepts.resolve(['격리 수준']);
+  if (!resolved[0]) throw new Error('격리 수준 개념이 없다');
+  return resolved[0].id;
+}
+
 beforeEach(async () => {
   await testDb.truncateAll();
   await new ConceptRepository(testDb.db).applySeed(
     {
       tracks: [{ key: 'database', name: '관계형 DB', weight: 1, description: 'DB' }],
-      // 트랜잭션(2)을 알려면 인덱스(1)를 먼저 알아야 한다.
-      concepts: [
-        { name: '인덱스', requires: [] },
-        { name: '트랜잭션', requires: ['인덱스'] },
-      ].map((c) => ({ ...c, track: 'database', aliases: [], description: c.name, related: [] })),
+      concepts: seedConcepts(BASE_CONCEPTS),
     },
     clock.now(),
   );
@@ -112,7 +129,7 @@ afterAll(() => testDb.close());
 describe('get_review_set', () => {
   it('개념을 고르면 풀지 않은 문제를 정답 없이 내고, 모자라면 뒤에서 만들어 다음에 낸다', async () => {
     await addQuestion(1);
-    claude.reply(fillBlankReply).reply(solvedReply({ answer: '선택도' }));
+    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
 
     const first = await review.reviewSet({ concept: '인덱스', count: 2 });
     await review.idle();
@@ -133,10 +150,10 @@ describe('get_review_set', () => {
       failed: [],
       remainingToday: null,
     });
-    // 객관식이 이미 있어 빈칸을 만들었다.
+    // 빈칸은 복습에서 빼서(ENABLED_TYPES) 객관식이 이미 있어도 객관식을 만든다.
     expect(second.kind === 'READY' && second.questions.map((q) => [q.questionId, q.type])).toEqual([
       [1, 'MULTIPLE_CHOICE'],
-      [2, 'FILL_BLANK'],
+      [2, 'MULTIPLE_CHOICE'],
     ]);
     expect((await testDb.db.select().from(quizQuestion)).map((q) => q.usedCount)).toEqual([2, 1]);
   });
@@ -211,19 +228,30 @@ describe('submit_answer', () => {
 });
 
 describe('변형 문제', () => {
+  // 원래 문제(addQuestion)와 보기·정답이 달라야 변형의 모양 검사를 통과한다.
+  const variantReply = multipleChoiceReply({
+    choices: [
+      { text: '걸러지는 행이 적어서', misconception: null },
+      { text: '인덱스가 메모리에 없어서', misconception: '인덱스는 메모리에 있어야만 쓰인다고 믿음' },
+      { text: '통계가 오래돼서', misconception: '통계만 고치면 늘 인덱스를 탄다고 믿음' },
+      { text: '컬럼이 문자열이라서', misconception: '문자열 컬럼은 인덱스를 못 탄다고 믿음' },
+    ],
+    answer: '걸러지는 행이 적어서',
+  });
+
   it('틀린 문제는 뒤에서 그 변형(같은 핵심, 원래 문제 연결)을 만들고, 그때의 오답과 오개념을 출제에 넣는다', async () => {
     const original = await addQuestion(1);
     await submit(original, '2');
     claude
-      .reply(fillBlankReply)
-      .reply(solvedReply({ answer: '선택도' }))
+      .reply(variantReply)
+      .reply(solvedReply({ choice: 1 }))
       .reply(variantCheckReply());
 
     await review.reviewSet({ concept: '인덱스', count: 1 });
     await review.idle();
 
     const variant = (await questions.findHistory(1)).at(-1)?.question;
-    expect(variant).toMatchObject({ type: 'FILL_BLANK', variantOf: original, keyPoint: '핵심 1' });
+    expect(variant).toMatchObject({ type: 'MULTIPLE_CHOICE', variantOf: original, keyPoint: '핵심 1' });
     const prompt = claude.requestsFor('QUIZ_GENERATION')[0]?.prompt ?? '';
     expect(prompt).toContain('## 변형할 원래 문제');
     expect(prompt).toContain('그때 고른 오개념: 짧으면 안 된다고 믿음');
@@ -236,11 +264,11 @@ describe('변형 문제', () => {
     await submit(original, '2');
     const memorizable = variantCheckReply({ solvableByMemory: true });
     claude
-      .reply(fillBlankReply)
-      .reply(solvedReply({ answer: '선택도' }))
+      .reply(variantReply)
+      .reply(solvedReply({ choice: 1 }))
       .reply(memorizable)
-      .reply(fillBlankReply)
-      .reply(solvedReply({ answer: '선택도' }))
+      .reply(variantReply)
+      .reply(solvedReply({ choice: 1 }))
       .reply(memorizable);
 
     await review.reviewSet({ concept: '인덱스', count: 1 });
@@ -371,10 +399,13 @@ describe('개념 병합', () => {
 });
 
 describe('get_weakness', () => {
-  it('트랙별 약점 개념과 반복한 오개념, 선수 개념에서 찾은 근본 원인 후보, 미측정 수를 돌려준다', async () => {
-    const id = await addQuestion(2);
-    await submit(id, '2');
-    await submit(id, '2');
+  it('트랙별 약점 개념과 반복한 오개념, 약점 둘 이상이 기대는 근본 원인 후보, 미측정 수를 돌려준다', async () => {
+    const isolation = await addIsolationLevel();
+    for (const conceptId of [2, isolation]) {
+      const id = await addQuestion(conceptId);
+      await submit(id, '2');
+      await submit(id, '2');
+    }
 
     const report = await new QuizWeaknessService(mastery, concepts, attempts, clock).report();
 
@@ -382,10 +413,15 @@ describe('get_weakness', () => {
       tracks: [
         {
           track: '관계형 DB',
-          concepts: [{ name: '트랜잭션', repeatedMisconceptions: ['짧으면 안 된다고 믿음'] }],
+          concepts: [
+            { name: '트랜잭션', repeatedMisconceptions: ['짧으면 안 된다고 믿음'] },
+            { name: '격리 수준', repeatedMisconceptions: ['짧으면 안 된다고 믿음'] },
+          ],
         },
       ],
-      rootCauses: [{ concept: { name: '인덱스' }, level: 'UNSTUDIED', dependents: [{ name: '트랜잭션' }] }],
+      rootCauses: [
+        { concept: { name: '인덱스' }, level: 'UNSTUDIED', dependents: [{ name: '트랜잭션' }, { name: '격리 수준' }] },
+      ],
       unmeasured: 0,
     });
   });
@@ -415,9 +451,12 @@ describe('get_weakness', () => {
   });
 
   it('근본 원인 후보를 복습 맨 앞에 내고, 오늘 푼 뒤에는 다시 앞에 두지 않는다', async () => {
-    const weak = await addQuestion(2);
-    await submit(weak, '2');
-    await submit(weak, '2');
+    const isolation = await addIsolationLevel();
+    for (const conceptId of [2, isolation]) {
+      const weak = await addQuestion(conceptId);
+      await submit(weak, '2');
+      await submit(weak, '2');
+    }
     const cause = await addQuestion(1);
 
     const first = await review.reviewSet({ count: 1 });

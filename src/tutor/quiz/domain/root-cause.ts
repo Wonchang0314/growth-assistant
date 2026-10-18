@@ -12,9 +12,12 @@ export interface RootCause {
 }
 
 const LEVEL_ORDER = { WEAK: 0, UNMEASURED: 1, UNSTUDIED: 2 } as const;
+/** 근본 원인은 여러 약점의 공통 원인이다. 약점 하나만 기대는 선수 개념은 고르지 않는다 (사용자 결정 2026-10-18, ADR-0033). */
+const MIN_DEPENDENTS = 2;
 
 /**
- * 근본 원인 후보 (설계 문서 8장). 약점 개념의 선수 개념을 거슬러 올라가, 그 자신도 약하거나 아직 확인하지 않은 개념을 고른다.
+ * 근본 원인 후보 (설계 문서 8장). 약점 개념의 선수 개념을 거슬러 올라가, 약점 개념 [MIN_DEPENDENTS]개 이상이 기대고
+ * 그 자신도 약하거나 아직 확인하지 않은 개념을 고른다.
  * 그 개념을 먼저 알아야 하는 약점 개념이 많은 것부터, 같으면 약점 → 미측정 → 다룬 적 없음 순이다.
  */
 export function rootCauses(input: {
@@ -34,7 +37,7 @@ export function rootCauses(input: {
   return [...candidates.values()]
     .flatMap(({ concept, dependents }) => {
       const level = input.levels.get(concept.id) ?? 'UNSTUDIED';
-      return level === 'OK' ? [] : [{ concept, level, dependents }];
+      return level === 'OK' || dependents.length < MIN_DEPENDENTS ? [] : [{ concept, level, dependents }];
     })
     .sort(
       (a, b) =>

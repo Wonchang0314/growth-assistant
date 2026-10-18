@@ -3,6 +3,12 @@ export const QUESTION_TYPES = ['MULTIPLE_CHOICE', 'FILL_BLANK'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 /**
+ * 복습에서 만들고 내는 유형. 빈칸은 시험에서 대부분 검증에 걸리고(용어 이름만 묻기, 조건 부족) 사용자가 다시 넣을지
+ * 정하기로 해서 뺐다(사용자 결정 2026-10-18, ADR-0033). `npm run quiz -- --type FILL_BLANK`로는 계속 만들어 볼 수 있다.
+ */
+export const ENABLED_TYPES: readonly QuestionType[] = ['MULTIPLE_CHOICE'];
+
+/**
  * 출제 각도 (설계 문서 5.4). 개념 문제는 앞의 넷으로 낸다.
  * SCENARIO는 판단 사례로 내는 상황 판단형(ADR-0021), MY_PROJECT는 서술형과 함께 미룬다(ADR-0019).
  */

@@ -61,9 +61,17 @@ function blankProblems(prompt: string, answer: string): string[] {
   const problems: string[] = [];
   const blanks = prompt.split(BLANK).length - 1;
   if (blanks !== 1) problems.push(`문제 문장에 빈칸(${BLANK})이 정확히 하나 있어야 한다(지금 ${blanks}개)`);
-  if (normalizeAnswer(prompt).includes(normalizeAnswer(answer))) problems.push('문제 문장에 정답이 그대로 드러난다');
+  if (!NUMBER.test(answer) && normalizeAnswer(prompt).includes(normalizeAnswer(answer))) {
+    problems.push('문제 문장에 정답이 그대로 드러난다');
+  }
   return problems;
 }
+
+/**
+ * 숫자 답. 문장에 조건으로 나온 숫자("4코어", "60초")와 계산한 답이 같기 쉬워 글자 비교로는 드러났는지 알 수 없다.
+ * 이때는 풀이 검증에 맡긴다 (2026-10-18 시험에서 빈칸 2개가 이렇게 걸렸다).
+ */
+const NUMBER = /^\s*[\d.,]+\s*$/;
 
 /** 보기 순서를 섞는다. 생성 모델이 정답을 앞쪽에 두는 버릇을 지운다. [random]은 [0, 1) 난수다. */
 export function shuffled<T>(items: readonly T[], random: () => number): T[] {

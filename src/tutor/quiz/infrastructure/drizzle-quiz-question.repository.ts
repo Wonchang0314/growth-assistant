@@ -3,7 +3,7 @@ import { and, asc, count, eq, inArray, isNotNull, notExists, sql } from 'drizzle
 import { DB, type Db, type Tx } from '../../../core/db/db.module.js';
 import type { ConceptMergeParticipant } from '../../../core/knowledge/concept-merge.js';
 import { type NewQuestion, QuizQuestionRepository } from '../application/ports.js';
-import type { Question, QuestionType } from '../domain/quiz-question.js';
+import { ENABLED_TYPES, type Question, type QuestionType } from '../domain/quiz-question.js';
 import type { QuestionHistory } from '../domain/variant.js';
 import { quizAttempt } from './quiz-attempt.schema.js';
 import { quizQuestion } from './quiz-question.schema.js';
@@ -51,6 +51,7 @@ export class DrizzleQuizQuestionRepository extends QuizQuestionRepository implem
       .where(
         and(
           eq(quizQuestion.conceptId, conceptId),
+          inArray(quizQuestion.type, [...ENABLED_TYPES]),
           eq(quizQuestion.validationStatus, 'VALID'),
           eq(quizQuestion.reported, false),
           notExists(answered),
