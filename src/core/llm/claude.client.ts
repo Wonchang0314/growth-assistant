@@ -1,7 +1,14 @@
 import type { z } from 'zod';
 
 /** 용도마다 모델·타임아웃·웹 허용 여부를 따로 정한다 (`claude.settings.ts`). */
-export const LLM_PURPOSES = ['TUTOR_CHAT', 'SESSION_SUMMARY', 'EXTRACTION'] as const;
+export const LLM_PURPOSES = [
+  'TUTOR_CHAT',
+  'SESSION_SUMMARY',
+  'EXTRACTION',
+  'CASE_SCREENING',
+  'CASE_ABSTRACTION',
+  'CASE_VERIFICATION',
+] as const;
 export type LlmPurpose = (typeof LLM_PURPOSES)[number];
 
 export interface ClaudeRequest {
@@ -26,6 +33,10 @@ export class ClaudeException extends Error {
     this.resetsAt = options.resetsAt;
   }
 }
+
+/** 입력 탓이 아니라 다음 호출도 똑같이 실패하는 오류(사용량 한도, 로그인). 여러 건을 차례로 처리하다 만나면 멈춘다. */
+export const isStopError = (e: unknown): e is ClaudeException =>
+  e instanceof ClaudeException && (e.type === 'RATE_LIMIT' || e.type === 'AUTH');
 
 /** 모든 LLM 호출이 지나가는 유일한 경로 (ADR-0012). 추상 클래스라 Nest 주입 토큰으로도 쓴다. */
 export abstract class ClaudeClient {

@@ -6,6 +6,8 @@ import { ConceptRepository } from '../knowledge/concept.repository.js';
 import { concept, conceptEdge } from '../knowledge/concept.schema.js';
 import { ConceptService } from '../knowledge/concept.service.js';
 import type { NewConcept } from '../knowledge/concept-proposal.js';
+import { DecisionCaseRepository } from '../memory/decision-case.repository.js';
+import { decisionCaseConcept } from '../memory/decision-case.schema.js';
 import { type ExtractedCard, ExperienceRepository } from '../memory/experience.repository.js';
 import { experience, experienceConcept } from '../memory/experience.schema.js';
 import { SourceDocumentRepository } from '../memory/source-document.repository.js';
@@ -173,6 +175,36 @@ describe('ConceptReviewService', () => {
       'GiST와 btree 구분 → 인덱스',
       'CI 잡이 막힘 → CI 잡 직렬화',
     ]);
+  });
+
+  it('병합하면 판단 사례의 개념 연결도 대상 개념으로 옮긴다', async () => {
+    await new DecisionCaseRepository(testDb.db).save({
+      experienceId: 2,
+      body: {
+        situation: '상황',
+        constraints: [],
+        options: [
+          { text: 'GiST', chosen: true, reason: '범위 질의' },
+          { text: 'btree', chosen: false, reason: '공간 연산 불가' },
+        ],
+        decision: '결정',
+        rationale: '근거',
+        outcome: '결과',
+        invariants: ['불변'],
+      },
+      status: 'ACTIVE',
+      reviewNote: null,
+      now: clock.now(),
+    });
+
+    await service.review({ concept: '공간 인덱스와 PostGIS', decision: { kind: 'MERGE', into: '인덱스' } });
+
+    const linked = await testDb.db
+      .select({ concept: concept.name })
+      .from(decisionCaseConcept)
+      .innerJoin(concept, eq(concept.id, decisionCaseConcept.conceptId))
+      .orderBy(asc(concept.name));
+    expect(linked.map((r) => r.concept)).toEqual(['부분 인덱스', '인덱스']);
   });
 
   it('병합한 개념의 하위 개념은 대상 개념 아래로 옮긴다', async () => {

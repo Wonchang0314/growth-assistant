@@ -4,6 +4,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { DB, type Db } from '../db/db.module.js';
 import type { ConceptStatus } from '../knowledge/concept.js';
 import { concept, conceptEdge, track } from '../knowledge/concept.schema.js';
+import { decisionCaseConcept } from '../memory/decision-case.schema.js';
 import { experience, experienceConcept } from '../memory/experience.schema.js';
 
 /** 검토할 개념. 판단 근거로 연결된 카드 수와 앞쪽 카드 제목을 함께 싣는다. */
@@ -104,7 +105,7 @@ export class ConceptReviewRepository {
   }
 
   /**
-   * [sourceId]의 카드 연결과 하위 개념을 [targetId]로 옮기고, 대상의 별칭을 [targetAliases]로 바꾼 뒤 지운다.
+   * [sourceId]의 카드·판단 사례 연결과 하위 개념을 [targetId]로 옮기고, 대상의 별칭을 [targetAliases]로 바꾼 뒤 지운다.
    * 옮긴 카드 연결 수를 돌려준다. 학습 기록이 연결된 개념은 외래 키 때문에 지우지 못하고 전체가 취소된다.
    */
   async merge(input: {
@@ -123,6 +124,16 @@ export class ConceptReviewRepository {
         await tx
           .insert(experienceConcept)
           .values(links.map((l) => ({ experienceId: l.experienceId, conceptId: targetId })))
+          .onConflictDoNothing();
+      }
+      const caseLinks = await tx
+        .delete(decisionCaseConcept)
+        .where(eq(decisionCaseConcept.conceptId, sourceId))
+        .returning({ caseId: decisionCaseConcept.caseId });
+      if (caseLinks.length > 0) {
+        await tx
+          .insert(decisionCaseConcept)
+          .values(caseLinks.map((l) => ({ caseId: l.caseId, conceptId: targetId })))
           .onConflictDoNothing();
       }
       const children = await tx

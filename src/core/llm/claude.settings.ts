@@ -15,6 +15,10 @@ export const DEFAULT_PURPOSES: Record<LlmPurpose, PurposeSettings> = {
   SESSION_SUMMARY: { model: 'sonnet', timeoutMs: 120_000, webAccess: false },
   // 문서 하나(최대 2만 자)와 개념 목록을 읽고 카드 여러 장을 쓴다.
   EXTRACTION: { model: 'sonnet', timeoutMs: 300_000, webAccess: false },
+  // 판단 사례 (설계 문서 7.1). 선별은 카드 수십 장을 한 번에 읽고 고르기만 한다. 검증은 치환과 다른 모델로 따로 본다.
+  CASE_SCREENING: { model: 'sonnet', timeoutMs: 300_000, webAccess: false },
+  CASE_ABSTRACTION: { model: 'sonnet', timeoutMs: 180_000, webAccess: false },
+  CASE_VERIFICATION: { model: 'opus', timeoutMs: 240_000, webAccess: false },
 };
 
 /** `claude` CLI 실행 설정. 클래스라 Nest 주입 토큰으로 바로 쓴다. */

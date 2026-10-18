@@ -43,7 +43,8 @@
 - [x] 결정: 수집 경험의 프런트엔드·GIS 개념 포함 (ADR-0025), 시드에 CI/CD 파이프라인·배포 전략·리눅스 서버 운영 상위 개념
 - [x] 운영 수집 개념 10개에 상위 개념 지정 (배포 뒤 `review_concept`, 2026-10-18)
 - [x] 결정: 회사 용어 목록 없이 패턴 게이트와 독립 검증으로 거름 (ADR-0024)
-- [ ] 판단 사례 추상화: 치환, 패턴 게이트, 독립 검증(Opus), 검토 도구 (`list_pending_cases`, `review_case`, ADR-0021·0024)
+- [x] 판단 사례 추상화 파이프라인: 선별, 치환, 패턴 게이트, 독립 검증(Opus), `npm run abstract` (ADR-0021·0024, 10장 시험 2026-10-18)
+- [ ] 판단 사례 프롬프트 개선과 검토 도구 (`list_pending_cases`, `review_case`), 전체 실행
 - [x] 대화에 기억 연결 (`search_experience`, `get_learning_context`에 경험 카드)
 - [ ] 2단계 완료 확인: Desktop 대화에서 Claude가 경험 카드를 인용 (`docs/manual-check.md` 2단계)
 

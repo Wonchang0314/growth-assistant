@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../clock/clock.js';
 import { planConcepts } from '../knowledge/concept-proposal.js';
 import { ConceptService } from '../knowledge/concept.service.js';
-import { ClaudeClient, ClaudeException } from '../llm/claude.client.js';
+import { ClaudeClient, isStopError } from '../llm/claude.client.js';
 import { ExperienceRepository } from '../memory/experience.repository.js';
 import { SourceDocumentRepository } from '../memory/source-document.repository.js';
 import { EXTRACTION_SYSTEM_PROMPT, extractionPrompt, extractionSchema } from './extraction.js';
@@ -20,9 +20,6 @@ export interface ExtractionReport {
   /** 사용량 한도나 로그인 문제로 중간에 멈췄으면 그 이유. 남은 문서는 상태를 바꾸지 않는다. */
   readonly stopped: string | null;
 }
-
-/** 이 오류는 문서 탓이 아니고 다음 문서도 똑같이 실패하므로 멈춘다. */
-const STOP_ERRORS = new Set(['RATE_LIMIT', 'AUTH']);
 
 /**
  * 원문 문서에서 경험 카드를 뽑는다 (설계 문서 7.1의 4~7). 문서마다 `claude -p` 한 번이고, 실패는 문서마다 따로 처리한다.
@@ -74,7 +71,7 @@ export class ExtractionService {
         report.autoApproved += plan.newConcepts.filter((c) => c.autoApproved).length;
         report.proposed += plan.newConcepts.filter((c) => !c.autoApproved).length;
       } catch (e) {
-        if (e instanceof ClaudeException && STOP_ERRORS.has(e.type)) {
+        if (isStopError(e)) {
           return { ...report, failed, stopped: `${e.type}: ${e.message}` };
         }
         this.logger.warn(`경험 카드 추출 실패: ${document.title} (${document.id}) ${inspect(e)}`);
