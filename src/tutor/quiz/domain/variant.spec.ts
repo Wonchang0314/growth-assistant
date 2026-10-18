@@ -96,7 +96,15 @@ describe('nextQuestion: 상황 판단형', () => {
     expect(nextQuestion([], ['사례'])).toEqual({ kind: 'SCENARIO', case: '사례' });
   });
 
-  it('가장 최근 문제가 상황 판단형이면 개념 문제를 낸다(번갈아)', () => {
+  it('상황 판단형 다음에는 개념 문제를 두 개 낸 뒤에 다시 상황 판단형을 낸다(개념 2 : 상황 판단형 1)', () => {
+    const concept = (id: number) => history(id, answer(), { hasVariant: true });
+    expect(nextQuestion([scenario(1), concept(2)], ['사례']).kind).toBe('NEW');
+    expect(nextQuestion([scenario(1), concept(2), concept(3)], ['사례'])).toEqual({ kind: 'SCENARIO', case: '사례' });
+    // 개념 문제 차례에는 확인된 상황 판단형의 변형도 고르지 않는다(그것도 상황 판단형이라).
+    expect(nextQuestion([concept(1), scenario(2), concept(3)], ['사례']).kind).toBe('NEW');
+  });
+
+  it('가장 최근 문제가 상황 판단형이면 개념 문제를 낸다', () => {
     expect(nextQuestion([history(1, answer(), { hasVariant: true }), scenario(2)], ['사례']).kind).toBe('NEW');
     // 확인된 개념 문제의 변형은 개념 문제라 고를 수 있지만, 상황 판단형의 변형은 고르지 않는다.
     expect(nextQuestion([history(1, answer()), scenario(2)], ['사례'])).toMatchObject({

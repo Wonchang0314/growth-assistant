@@ -23,7 +23,8 @@ export const DEFAULT_PURPOSES: Record<LlmPurpose, PurposeSettings> = {
   CASE_HYPOTHETICAL: { model: 'sonnet', timeoutMs: 180_000, webAccess: false },
   CASE_HYPOTHETICAL_VERIFICATION: { model: 'opus', timeoutMs: 240_000, webAccess: false },
   // 객관식·빈칸 출제 (설계 문서 7.3, ADR-0029). 판단 사례처럼 다른 모델(Opus)이 정답을 모르고 풀어 검증한다.
-  QUIZ_GENERATION: { model: 'sonnet', timeoutMs: 180_000, webAccess: false },
+  // 출제는 엔진·버전마다 다른 동작을 확인하려고 웹 검색을 쓴다(ADR-0033). 검색하는 만큼 시간을 더 둔다.
+  QUIZ_GENERATION: { model: 'sonnet', timeoutMs: 300_000, webAccess: true },
   QUIZ_VERIFICATION: { model: 'opus', timeoutMs: 240_000, webAccess: false },
 };
 

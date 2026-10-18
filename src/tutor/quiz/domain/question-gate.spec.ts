@@ -43,6 +43,11 @@ describe('draftProblems', () => {
     expect(draftProblems(blank('인덱스가 효과 있으려면 ____가 높아야 한다'))).toEqual([]);
   });
 
+  it('숫자 답은 문장의 다른 숫자에 들어 있어도 드러났다고 보지 않는다', () => {
+    // "4코어"의 4와 계산한 답 4는 다른 값이다. 답이 드러났는지는 풀이 검증이 본다.
+    expect(draftProblems(blank('4코어 호스트에서 스레드 8개가 돌면 약 ____ 코어를 쓴다', '4'))).toEqual([]);
+  });
+
   it.each([
     [
       '보기가 3개',
