@@ -1,6 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
+import { MasteryRepository } from '../mastery/mastery.repository.js';
+import { newMastery } from '../mastery/mastery.js';
 import { StudyNoteRepository } from './study-note.repository.js';
 import { studyNoteConcept } from './study-note.schema.js';
 import type { NewStudyNote } from './study-note.js';
@@ -22,23 +24,38 @@ function note(overrides: Partial<NewStudyNote>): NewStudyNote {
   };
 }
 
+/** 개념 [names]를 시드로 넣는다. id는 1부터 순서대로다. */
+const seedConcepts = (...names: string[]) =>
+  new ConceptRepository(testDb.db).applySeed(
+    {
+      tracks: [{ key: 'cs', name: 'CS', weight: 1, description: 'cs' }],
+      concepts: names.map((name) => ({ name, track: 'cs', aliases: [], description: name, requires: [], related: [] })),
+    },
+    new Date('2026-10-15T00:00:00Z'),
+  );
+
 describe('StudyNoteRepository', () => {
+  it('헷갈렸다고 기록한 뒤로 퀴즈로 확인하지 않은 개념을 최근에 헷갈린 것부터 찾는다', async () => {
+    await seedConcepts('A', 'B', 'C');
+    await repository.add(note({ createdAt: new Date('2026-10-15T00:00:00Z') }), [
+      { conceptId: 1, signal: 'CONFUSED' },
+      { conceptId: 2, signal: 'CONFUSED' },
+    ]);
+    await repository.add(note({ createdAt: new Date('2026-10-16T00:00:00Z') }), [
+      { conceptId: 3, signal: 'CONFUSED' },
+      { conceptId: 1, signal: 'DISCUSSED' },
+    ]);
+    // B는 헷갈린 뒤에 퀴즈로 풀었다.
+    await new MasteryRepository(testDb.db).save({
+      ...newMastery(2, new Date('2026-10-15T00:00:00Z')),
+      lastReviewAt: new Date('2026-10-17T00:00:00Z'),
+    });
+
+    expect(await repository.findUnresolvedConfused(10)).toEqual([3, 1]);
+  });
+
   it('개념 병합: 기록 연결을 대상 개념으로 옮기고, 한 기록에 둘 다 있으면 CONFUSED를 남긴다', async () => {
-    const concepts = new ConceptRepository(testDb.db);
-    await concepts.applySeed(
-      {
-        tracks: [{ key: 'cs', name: 'CS', weight: 1, description: 'cs' }],
-        concepts: ['A', 'B'].map((name) => ({
-          name,
-          track: 'cs',
-          aliases: [],
-          description: name,
-          requires: [],
-          related: [],
-        })),
-      },
-      new Date('2026-10-15T00:00:00Z'),
-    );
+    await seedConcepts('A', 'B');
     await repository.add(note({}), [
       { conceptId: 1, signal: 'CONFUSED' },
       { conceptId: 2, signal: 'DISCUSSED' },

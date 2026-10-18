@@ -12,6 +12,7 @@ import { decisionCase } from '../src/core/memory/decision-case.schema.js';
 import { ExperienceRepository } from '../src/core/memory/experience.repository.js';
 import { SourceDocumentRepository } from '../src/core/memory/source-document.repository.js';
 import { conceptMastery } from '../src/tutor/mastery/mastery.schema.js';
+import { DrizzleQuizQuestionRepository } from '../src/tutor/quiz/infrastructure/drizzle-quiz-question.repository.js';
 import { studyNoteConcept } from '../src/tutor/study/study-note.schema.js';
 import { connectTestDb } from './db/test-db.js';
 import { FixedClock } from './fakes/fixed-clock.js';
@@ -98,17 +99,54 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
 
     expect(tools.map((t) => t.name).sort()).toEqual([
       'get_learning_context',
+      'get_review_set',
       'list_pending_cases',
       'list_pending_concepts',
       'record_study_note',
+      'report_question',
       'review_case',
       'review_concept',
       'search_experience',
+      'submit_answer',
       'sync_status',
       'update_quiz_guideline',
     ]);
     expect(tools.find((t) => t.name === 'get_learning_context')?.annotations?.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === 'record_study_note')?.annotations?.readOnlyHint).toBe(false);
+  });
+
+  it('get_review_set은 정답 없이 문제를 내고, submit_answer가 채점해 다음 복습일을 알려 준다', async () => {
+    const conceptId = (await testDb.db.select().from(concept).where(eq(concept.name, '인덱스 원리')))[0]?.id ?? -1;
+    await new DrizzleQuizQuestionRepository(testDb.db).add({
+      conceptId,
+      type: 'MULTIPLE_CHOICE',
+      angle: 'WHY',
+      keyPoint: '선택도',
+      difficulty: 1,
+      prompt: '성별 컬럼 인덱스가 느린 이유는?',
+      choices: [
+        { text: '컬럼이 짧아서', misconception: '짧으면 안 된다고 믿음' },
+        { text: '선택도가 낮아서', misconception: null },
+      ],
+      answer: '선택도가 낮아서',
+      explanation: '거의 모든 행을 읽는다',
+      referenceMaterial: '근거',
+      experienceId: null,
+      validationStatus: 'VALID',
+      validationNote: null,
+      createdAt: clock.now(),
+    });
+
+    const set = await client.callTool({ name: 'get_review_set', arguments: { concept: '인덱스', count: 1 } });
+    const graded = await client.callTool({
+      name: 'submit_answer',
+      arguments: { questionId: 1, answer: '2', confidence: 'SURE', hintUsed: false },
+    });
+
+    expect(JSON.stringify(set.content)).toContain('1. 컬럼이 짧아서\\n2. 선택도가 낮아서');
+    expect(JSON.stringify(set.content)).not.toContain('거의 모든 행');
+    expect(graded.structuredContent).toMatchObject({ correct: true, correctAnswer: '2. 선택도가 낮아서' });
+    expect(JSON.stringify(graded.content)).toContain('다음 복습 2026-10-');
   });
 
   it('update_quiz_guideline으로 출제 지침을 더하고 빼며, 인자 없이 부르면 지금 지침을 보여 준다', async () => {

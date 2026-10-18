@@ -100,6 +100,11 @@ export class StudyNoteService {
     return [...new Set(notes.flatMap((n) => n.confusedPoints))];
   }
 
+  /** 헷갈렸다고 기록한 뒤로 아직 퀴즈로 확인하지 않은 개념. 복습 개념 우선순위 ②에 쓴다 (설계 문서 7.3). */
+  unresolvedConfusedConcepts(limit: number): Promise<number[]> {
+    return this.repository.findUnresolvedConfused(limit);
+  }
+
   async learningContext(topic: string): Promise<LearningContext> {
     const concepts = await this.concepts.relatedConcepts(topic);
     const conceptIds = concepts.map((c) => c.id);

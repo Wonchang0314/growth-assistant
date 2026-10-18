@@ -7,6 +7,9 @@ export abstract class Clock {
   abstract readonly timeZone: string;
 }
 
+/** [timeZone]의 날짜 (`2026-10-15`). */
+export const localDate = (date: Date, timeZone: string): string => date.toLocaleDateString('sv-SE', { timeZone });
+
 @Injectable()
 export class SystemClock extends Clock {
   /** 서버를 실행하는 기기의 시간대. */

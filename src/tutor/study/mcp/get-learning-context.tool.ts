@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { Clock } from '../../../core/clock/clock.js';
+import { Clock, localDate } from '../../../core/clock/clock.js';
 import type { RelatedConcept } from '../../../core/knowledge/concept.js';
 import { McpTool, type McpToolHandler, type McpToolResult } from '../../../core/mcp/mcp-tool.js';
 import type { StudyNote } from '../study-note.js';
@@ -90,6 +90,6 @@ export class GetLearningContextTool implements McpToolHandler<typeof input> {
 
   /** 사용자 시간대의 날짜 (`2026-10-15`). */
   private localDate(date: Date): string {
-    return date.toLocaleDateString('sv-SE', { timeZone: this.clock.timeZone });
+    return localDate(date, this.clock.timeZone);
   }
 }

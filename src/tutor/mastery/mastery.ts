@@ -35,8 +35,8 @@ const RECENT_WEIGHT = 0.4;
 const CONFIDENT_ERROR_BONUS = 0.5;
 const REPEATED_MISCONCEPTION_BONUS = 0.5;
 /** 이 수보다 적게 채점된 개념은 약점과 구분해 "미측정"이다. */
-const MIN_GRADED_ATTEMPTS = 2;
-const WEAK_THRESHOLD = 0.5;
+export const MIN_GRADED_ATTEMPTS = 2;
+export const WEAK_THRESHOLD = 0.5;
 
 /** 대화에서 처음 다룬 개념. 점수 없이 [at]부터 복습할 수 있는 일정만 둔다. */
 export function newMastery(conceptId: number, at: Date): ConceptMastery {
@@ -75,6 +75,14 @@ export function applyAnswer(prev: ConceptMastery, answer: GradedAnswer): Concept
     gradedAttempts: prev.gradedAttempts + 1,
     updatedAt: answer.answeredAt,
   };
+}
+
+/**
+ * 응답 기록으로 처음부터 다시 계산한다. 신고된 문제의 풀이를 뺄 때 쓴다 (설계 문서 7.3).
+ * 응답이 없으면 [at]부터 복습할 새 일정이다.
+ */
+export function replay(conceptId: number, answers: readonly GradedAnswer[], at: Date): ConceptMastery {
+  return answers.reduce(applyAnswer, newMastery(conceptId, answers[0]?.answeredAt ?? at));
 }
 
 export type WeaknessLevel = 'UNMEASURED' | 'WEAK' | 'OK';
