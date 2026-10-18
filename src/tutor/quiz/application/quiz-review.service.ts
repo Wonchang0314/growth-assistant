@@ -13,6 +13,11 @@ import { QuizWeaknessService } from './quiz-weakness.service.js';
 
 /** 개념 하나를 골라 달라고 했을 때 기본으로 내는 문제 수. */
 const CONCEPT_DEFAULT_COUNT = 3;
+/**
+ * 뒤에서 만들기가 검증을 하나도 통과하지 못한 개념은 이만큼 다시 만들지 않는다. 부를 때마다 다시 만들면
+ * 사용량만 쓰고 계속 "만드는 중"으로 보인다(2026-10-18 Desktop 시험).
+ */
+export const RETRY_AFTER_MS = 30 * 60 * 1000;
 
 /** 사용자에게 보여 줄 문제. 정답·해설·오개념·기준 자료는 싣지 않는다 (설계 문서 7.3). */
 export interface ServedQuestion {
@@ -30,6 +35,8 @@ export type ReviewSet =
       readonly questions: readonly ServedQuestion[];
       /** 문제 풀에 없어 지금 만들고 있는 개념. 잠시 뒤 다시 부르면 나온다. */
       readonly preparing: readonly string[];
+      /** 최근에 만들어 봤지만 검증을 통과한 문제가 없어 지금은 다시 만들지 않는 개념. */
+      readonly failed: readonly string[];
       /** 오늘 더 풀 수 있는 수. 개념을 골라 달라고 했으면 null(하루 상한을 적용하지 않음). */
       readonly remainingToday: number | null;
     }
@@ -45,6 +52,8 @@ export class QuizReviewService {
   private readonly logger = new Logger(QuizReviewService.name);
   /** 개념별로 만들고 있는 작업. 같은 개념을 겹쳐 만들면 이미 낸 핵심을 서로 몰라 같은 문제가 나온다. */
   private readonly preparing = new Map<number, Promise<void>>();
+  /** 개념별로 마지막 만들기가 검증을 하나도 통과하지 못한 시각. 서버를 다시 띄우면 비워진다. */
+  private readonly failedAt = new Map<number, Date>();
 
   constructor(
     private readonly questions: QuizQuestionRepository,
@@ -94,29 +103,45 @@ export class QuizReviewService {
       Promise.all(wanted.map((w) => this.questions.findServable(w.conceptId, w.count))),
     ]);
     const names = new Map(summaries.map((c) => [c.id, c.name]));
+    const nameOf = (conceptId: number) => names.get(conceptId) ?? `개념 ${conceptId}`;
     const questions = found.flat();
-    const preparing = wanted.flatMap((w, i) => {
+    const preparing: string[] = [];
+    const failed: string[] = [];
+    wanted.forEach((w, i) => {
       const missing = w.count - (found[i]?.length ?? 0);
-      if (missing <= 0) return [];
+      if (missing <= 0) return;
+      if (this.recentlyFailed(w.conceptId)) {
+        failed.push(nameOf(w.conceptId));
+        return;
+      }
       this.prepare(w.conceptId, missing);
-      return [names.get(w.conceptId) ?? `개념 ${w.conceptId}`];
+      preparing.push(nameOf(w.conceptId));
     });
     await this.questions.markServed(questions.map((q) => q.id));
     return {
       kind: 'READY' as const,
-      questions: questions.map((q) => toServed(q, names.get(q.conceptId) ?? `개념 ${q.conceptId}`)),
+      questions: questions.map((q) => toServed(q, nameOf(q.conceptId))),
       preparing,
+      failed,
       remainingToday,
     };
   }
 
+  /** 만들고 있지 않고, 마지막 만들기가 [RETRY_AFTER_MS] 안에 실패했는지. */
+  private recentlyFailed(conceptId: number): boolean {
+    if (this.preparing.has(conceptId)) return false;
+    const at = this.failedAt.get(conceptId);
+    return at !== undefined && this.clock.now().getTime() - at.getTime() < RETRY_AFTER_MS;
+  }
+
   /**
    * [count]개를 뒤에서 차례로 만든다. 흔들린 문제의 변형이 먼저이고, 없으면 확인된 핵심의 변형과 새 핵심을 번갈아 만든다.
-   * 이미 만들고 있는 개념이면 그 작업에 맡긴다.
+   * 이미 만들고 있는 개념이면 그 작업에 맡긴다. 검증을 통과한 문제가 하나도 없으면 실패로 남긴다.
    */
   private prepare(conceptId: number, count: number): void {
     if (this.preparing.has(conceptId)) return;
     const task = (async () => {
+      let valid = 0;
       for (let i = 0; i < count; i++) {
         const [counts, history] = await Promise.all([
           this.questions.countValid(conceptId),
@@ -124,11 +149,22 @@ export class QuizReviewService {
         ]);
         const type = counts.FILL_BLANK < counts.MULTIPLE_CHOICE ? 'FILL_BLANK' : 'MULTIPLE_CHOICE';
         const next = nextQuestion(history);
-        await this.generation.generate({ conceptId, type, variantOf: next.kind === 'VARIANT' ? next.of : undefined });
+        const { status } = await this.generation.generate({
+          conceptId,
+          type,
+          variantOf: next.kind === 'VARIANT' ? next.of : undefined,
+        });
+        if (status === 'VALID') valid += 1;
       }
+      return valid;
     })()
       .catch((e: unknown) => {
         this.logger.warn(`문제 만들기 실패: 개념 ${conceptId} ${inspect(e)}`);
+        return 0;
+      })
+      .then((valid) => {
+        if (valid === 0) this.failedAt.set(conceptId, this.clock.now());
+        else this.failedAt.delete(conceptId);
       })
       .finally(() => this.preparing.delete(conceptId));
     this.preparing.set(conceptId, task);

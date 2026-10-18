@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { McpTool, type McpToolHandler, type McpToolResult } from '../../../../core/mcp/mcp-tool.js';
-import { QuizReviewService, type ServedQuestion } from '../../application/quiz-review.service.js';
+import { QuizReviewService, RETRY_AFTER_MS, type ServedQuestion } from '../../application/quiz-review.service.js';
 import { DAILY_LIMIT } from '../../domain/review-selection.js';
 
 const input = z.object({
@@ -41,6 +41,11 @@ export class GetReviewSetTool implements McpToolHandler<typeof input> {
           ...(set.preparing.length === 0
             ? []
             : [`문제를 만드는 중(1~2분 걸림, 다시 부르면 나옴): ${set.preparing.join(', ')}`]),
+          ...(set.failed.length === 0
+            ? []
+            : [
+                `문제를 만들지 못함(검증을 통과하지 못함, ${RETRY_AFTER_MS / 60_000}분 뒤 다시 만든다): ${set.failed.join(', ')}`,
+              ]),
           ...(set.remainingToday === null ? [] : [`오늘 더 풀 수 있는 문제: ${set.remainingToday}`]),
         ];
         return { text: lines.join('\n\n'), data: { ...set } };
