@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { DB, type Db } from '../db/db.module.js';
-import type { ConceptEdgeType, ConceptTerms } from './concept.js';
+import type { ConceptEdgeType, ConceptRef, ConceptTerms } from './concept.js';
 import { concept, conceptEdge, track } from './concept.schema.js';
 import type { Vocabulary } from './concept-proposal.js';
 import type { ConceptSeed } from './concept-seed.js';
@@ -78,12 +78,12 @@ export class ConceptRepository {
   }
 
   /**
-   * 개념마다 먼저 알아야 하는 개념(선수 관계를 [maxDepth]단계까지 따라감)의 이름을 가까운 것부터 돌려준다.
+   * 개념마다 먼저 알아야 하는 승인된 개념(선수 관계를 [maxDepth]단계까지 따라감)을 가까운 것부터 돌려준다.
    * 선수 개념이 없으면 키가 없다.
    */
-  async findPrerequisites(ids: readonly number[], maxDepth: number): Promise<Map<number, string[]>> {
+  async findPrerequisites(ids: readonly number[], maxDepth: number): Promise<Map<number, ConceptRef[]>> {
     if (ids.length === 0) return new Map();
-    const result = await this.db.execute<{ origin_id: string; name: string; depth: number }>(sql`
+    const result = await this.db.execute<{ origin_id: string; id: string; name: string; depth: number }>(sql`
       WITH RECURSIVE prereq(origin_id, concept_id, depth) AS (
         SELECT from_id, to_id, 1 FROM concept_edge
         WHERE type = 'PREREQUISITE' AND from_id IN (${sql.join(
@@ -95,16 +95,16 @@ export class ConceptRepository {
         FROM prereq p JOIN concept_edge e ON e.from_id = p.concept_id AND e.type = 'PREREQUISITE'
         WHERE p.depth < ${maxDepth}
       )
-      SELECT p.origin_id, c.name, min(p.depth)::int AS depth
+      SELECT p.origin_id, c.id, c.name, min(p.depth)::int AS depth
       FROM prereq p JOIN concept c ON c.id = p.concept_id
       WHERE c.status = 'ACTIVE'
       GROUP BY p.origin_id, c.id, c.name
       ORDER BY depth, c.id
     `);
-    const byOrigin = new Map<number, string[]>();
+    const byOrigin = new Map<number, ConceptRef[]>();
     for (const row of result.rows) {
       const origin = Number(row.origin_id);
-      byOrigin.set(origin, [...(byOrigin.get(origin) ?? []), row.name]);
+      byOrigin.set(origin, [...(byOrigin.get(origin) ?? []), { id: Number(row.id), name: row.name }]);
     }
     return byOrigin;
   }

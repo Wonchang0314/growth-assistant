@@ -50,3 +50,12 @@ export function toGradedAnswers(attempts: readonly AttemptRecord[]): GradedAnswe
     return { ...base, result: 'WRONG', repeatedMisconception };
   });
 }
+
+/** 두 번 이상 고른 오개념. 처음 나온 표기로, 먼저 나온 것부터. */
+export function repeatedMisconceptions(attempts: readonly AttemptRecord[]): string[] {
+  const byKey = Map.groupBy(
+    attempts.flatMap((a) => (a.misconception === null ? [] : [a.misconception])),
+    normalizeAnswer,
+  );
+  return [...byKey.values()].flatMap((same) => (same.length >= 2 && same[0] !== undefined ? [same[0]] : []));
+}

@@ -21,13 +21,26 @@ export class MasteryService {
     return this.repository.find(conceptId);
   }
 
+  findMany(conceptIds: readonly number[]): Promise<ConceptMastery[]> {
+    return this.repository.findMany(conceptIds);
+  }
+
+  /** 약점 개념(채점 2회 이상, 약점 점수 0.5 이상). 약점 점수가 높은 것부터. */
+  weakConcepts(limit: number): Promise<ConceptMastery[]> {
+    return this.repository.findWeak(limit);
+  }
+
+  countUnmeasured(): Promise<number> {
+    return this.repository.countUnmeasured();
+  }
+
   async reviewCandidates(now: Date, limit: number): Promise<ReviewCandidates> {
     const [due, weak, fresh] = await Promise.all([
       this.repository.findDue(now, limit),
       this.repository.findWeak(limit),
       this.repository.findUnscheduled(),
     ]);
-    return { due, weak, fresh };
+    return { due, weak: weak.map((m) => m.conceptId), fresh };
   }
 
   /**

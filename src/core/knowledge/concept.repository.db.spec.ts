@@ -130,8 +130,10 @@ describe('ConceptRepository', () => {
     await repository.applySeed(seed, now);
     const plan = await idOf('실행계획 읽기');
 
-    expect((await repository.findPrerequisites([plan], 2)).get(plan)).toEqual(['선택도와 스캔 방식', 'B-tree 인덱스']);
-    expect((await repository.findPrerequisites([plan], 1)).get(plan)).toEqual(['선택도와 스캔 방식']);
+    const names = async (depth: number) =>
+      (await repository.findPrerequisites([plan], depth)).get(plan)?.map((c) => c.name);
+    expect(await names(2)).toEqual(['선택도와 스캔 방식', 'B-tree 인덱스']);
+    expect(await names(1)).toEqual(['선택도와 스캔 방식']);
     expect((await repository.findPrerequisites([await idOf('인덱스 원리')], 2)).size).toBe(0);
   });
 });

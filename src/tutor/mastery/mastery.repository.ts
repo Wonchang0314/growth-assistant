@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gte, isNull, lte } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, lte } from 'drizzle-orm';
 import { DB, type Db, type Tx } from '../../core/db/db.module.js';
 import type { ConceptMergeParticipant } from '../../core/knowledge/concept-merge.js';
 import { concept, track } from '../../core/knowledge/concept.schema.js';
@@ -27,16 +27,32 @@ export class MasteryRepository implements ConceptMergeParticipant {
   }
 
   /** 약점 개념 (설계 문서 8장). 약점 점수가 높은 것부터. */
-  async findWeak(limit: number): Promise<number[]> {
-    const rows = await this.db
-      .select({ conceptId: conceptMastery.conceptId })
+  async findWeak(limit: number): Promise<ConceptMastery[]> {
+    return this.db
+      .select()
       .from(conceptMastery)
       .where(
         and(gte(conceptMastery.gradedAttempts, MIN_GRADED_ATTEMPTS), gte(conceptMastery.weaknessScore, WEAK_THRESHOLD)),
       )
       .orderBy(desc(conceptMastery.weaknessScore), asc(conceptMastery.conceptId))
       .limit(limit);
-    return rows.map((r) => r.conceptId);
+  }
+
+  async findMany(conceptIds: readonly number[]): Promise<ConceptMastery[]> {
+    if (conceptIds.length === 0) return [];
+    return this.db
+      .select()
+      .from(conceptMastery)
+      .where(inArray(conceptMastery.conceptId, [...conceptIds]));
+  }
+
+  /** 일정은 있지만 채점된 응답이 모자라 약점인지 모르는 개념 수. */
+  async countUnmeasured(): Promise<number> {
+    const [row] = await this.db
+      .select({ n: count() })
+      .from(conceptMastery)
+      .where(lt(conceptMastery.gradedAttempts, MIN_GRADED_ATTEMPTS));
+    return row?.n ?? 0;
   }
 
   /** 아직 일정이 없는 승인된 개념과 그 트랙 가중치. 새 개념을 고를 때 쓴다. */

@@ -100,6 +100,7 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'get_learning_context',
       'get_review_set',
+      'get_weakness',
       'list_pending_cases',
       'list_pending_concepts',
       'record_study_note',

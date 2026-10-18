@@ -34,3 +34,4 @@
 | [0028](0028-fsrs-days-only-and-mastery-formula.md) | FSRS 단기 학습 단계를 끄고 최대 간격을 180일로 줄이며, 대화에서 다룬 개념을 복습 일정에 넣고, 숙련도·약점 공식과 개념 병합 규칙을 정한다 | 채택 |
 | [0029](0029-quiz-generation-and-layer-ports.md) | 객관식·빈칸은 Sonnet이 쓰고 Opus가 정답을 모른 채 풀어 검증하며, quiz 레이어는 저장소·출제 어댑터를 포트로 둔다 | 채택 |
 | [0030](0030-review-set-background-generation.md) | 복습 문제는 풀에 있는 것만 바로 내고, 없는 개념의 문제는 뒤에서 만든다 | 채택 |
+| [0031](0031-weakness-report-and-root-causes.md) | 약점 보고는 퀴즈 모듈에 두고, 근본 원인은 약점 개념의 선수 개념 중 확인되지 않은 것으로 정하며, 지난주 대비는 4단계로 미룬다 | 채택 |
