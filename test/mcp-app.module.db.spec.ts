@@ -11,6 +11,8 @@ import { DecisionCaseRepository } from '../src/core/memory/decision-case.reposit
 import { decisionCase } from '../src/core/memory/decision-case.schema.js';
 import { ExperienceRepository } from '../src/core/memory/experience.repository.js';
 import { SourceDocumentRepository } from '../src/core/memory/source-document.repository.js';
+import { conceptMastery } from '../src/tutor/mastery/mastery.schema.js';
+import { studyNoteConcept } from '../src/tutor/study/study-note.schema.js';
 import { connectTestDb } from './db/test-db.js';
 import { FixedClock } from './fakes/fixed-clock.js';
 
@@ -167,6 +169,8 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       text: '학습 기록 #1 저장: PostgreSQL 인덱스 (헷갈린 점 1개, 연결한 개념 1개)\n개념 목록에 없어 연결하지 않음: 없는 개념',
     });
     expect(recorded.structuredContent).toMatchObject({ concepts: ['인덱스 원리'], unknownConcepts: ['없는 개념'] });
+    // 연결한 개념은 복습 일정에 들어간다.
+    expect(await testDb.count('concept_mastery')).toBe(1);
     expect(result.structuredContent).toEqual({
       topic: 'index',
       concepts: [expect.objectContaining({ name: '인덱스 원리' })],
@@ -378,6 +382,37 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
 
     expect(result.isError).toBe(true);
     expect(JSON.stringify(result.content)).toContain('removeParent');
+  });
+
+  it('학습 기록이 붙은 개념도 병합하면 기록 연결과 복습 일정을 대상 개념으로 옮긴다', async () => {
+    await testDb.db.insert(concept).values({
+      trackId: (await testDb.db.select({ id: track.id }).from(track).where(eq(track.key, 'cs')))[0]?.id ?? -1,
+      name: '인덱스 선택도',
+      description: '선택도',
+      status: 'ACTIVE',
+      origin: 'INGESTION',
+      autoApproved: true,
+      createdAt: clock.now(),
+      updatedAt: clock.now(),
+    });
+    await client.callTool({
+      name: 'record_study_note',
+      arguments: { topic: '선택도', summary: '요약', concepts: [{ name: '인덱스 선택도', signal: 'CONFUSED' }] },
+    });
+
+    const result = await client.callTool({
+      name: 'review_concept',
+      arguments: { concept: '인덱스 선택도', action: 'MERGE', into: '인덱스 원리' },
+    });
+
+    expect(JSON.stringify(result.content)).toContain('병합: 인덱스 선택도 → 인덱스 원리');
+    const indexId = (await testDb.db.select().from(concept).where(eq(concept.name, '인덱스 원리')))[0]?.id;
+    expect(await testDb.db.select().from(studyNoteConcept)).toEqual([
+      { noteId: 1, conceptId: indexId, signal: 'CONFUSED' },
+    ]);
+    expect(await testDb.db.select({ conceptId: conceptMastery.conceptId }).from(conceptMastery)).toEqual([
+      { conceptId: indexId },
+    ]);
   });
 
   it('MERGE에 합칠 개념을 주지 않으면 오류를 돌려준다', async () => {

@@ -115,7 +115,7 @@ export class ConceptRepository {
    *   (대화에서 거절한 개념을 시드 적재가 되살리지 않게).
    * - 시드 개념끼리의 관계는 시드대로 맞춘다(없으면 더하고, 시드에 없으면 지운다). 다른 개념과의 관계는 건드리지 않는다.
    * - 시드에서 빠진 시드 개념(관계 포함)과 트랙은 지운다. 수집·대화에서 생긴 개념은 남긴다.
-   *   학습 기록이 연결된 개념이나 다른 개념이 남은 트랙을 지우려 하면 외래 키 오류로 전체가 취소된다.
+   *   학습 기록·복습 일정이 연결된 개념이나 다른 개념이 남은 트랙을 지우려 하면 외래 키 오류로 전체가 취소된다.
    */
   async applySeed(seed: ConceptSeed, now: Date): Promise<SeedResult> {
     return this.db.transaction(async (tx) => {

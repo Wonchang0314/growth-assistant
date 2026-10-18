@@ -3,6 +3,7 @@ import { and, asc, count, desc, eq, inArray, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { DB, type Db } from '../db/db.module.js';
 import type { ConceptStatus } from '../knowledge/concept.js';
+import { ConceptMergeParticipants } from '../knowledge/concept-merge.js';
 import { concept, conceptEdge, track } from '../knowledge/concept.schema.js';
 import { decisionCaseConcept } from '../memory/decision-case.schema.js';
 import { experience, experienceConcept } from '../memory/experience.schema.js';
@@ -23,7 +24,10 @@ const CARD_TITLES = 3;
 
 @Injectable()
 export class ConceptReviewRepository {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(
+    @Inject(DB) private readonly db: Db,
+    private readonly mergeParticipants: ConceptMergeParticipants,
+  ) {}
 
   /** 승인 대기(PROPOSED)와 아직 사람이 보지 않은 자동 승인 개념. 카드가 많이 붙은 것부터. */
   async findPending(limit: number): Promise<PendingConcept[]> {
@@ -106,7 +110,8 @@ export class ConceptReviewRepository {
 
   /**
    * [sourceId]의 카드·판단 사례 연결과 하위 개념을 [targetId]로 옮기고, 대상의 별칭을 [targetAliases]로 바꾼 뒤 지운다.
-   * 옮긴 카드 연결 수를 돌려준다. 학습 기록이 연결된 개념은 외래 키 때문에 지우지 못하고 전체가 취소된다.
+   * 학습 기록·복습 일정 같은 다른 기능의 데이터는 등록된 병합 참여자가 같은 트랜잭션에서 옮긴다.
+   * 옮긴 카드 연결 수를 돌려준다. 참여자가 옮기지 않은 데이터가 남아 있으면 외래 키 때문에 전체가 취소된다.
    */
   async merge(input: {
     sourceId: number;
@@ -146,6 +151,7 @@ export class ConceptReviewRepository {
           .values(children.map((c) => ({ fromId: c.fromId, toId: targetId, type: 'PART_OF' as const })))
           .onConflictDoNothing();
       }
+      await this.mergeParticipants.moveConcept(tx, sourceId, targetId);
       await tx
         .update(concept)
         .set({ aliases: [...input.targetAliases], updatedAt: input.now })
