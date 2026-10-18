@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Clock } from '../../../core/clock/clock.js';
 import { ConceptService } from '../../../core/knowledge/concept.service.js';
+import { type ActiveCase, DecisionCaseRepository } from '../../../core/memory/decision-case.repository.js';
 import { ExperienceRepository } from '../../../core/memory/experience.repository.js';
 import { StudyNoteService } from '../../study/study-note.service.js';
 import { draftProblems, shuffled } from '../domain/question-gate.js';
@@ -38,19 +39,27 @@ export class QuizGenerationService {
     private readonly questions: QuizQuestionRepository,
     private readonly concepts: ConceptService,
     private readonly experiences: ExperienceRepository,
+    private readonly cases: DecisionCaseRepository,
     private readonly studyNotes: StudyNoteService,
     private readonly guideline: QuizGuidelineService,
     private readonly clock: Clock,
     @Inject(RANDOM) private readonly random: () => number,
   ) {}
 
-  /** [variantOf]를 주면 그 문제의 변형을 만든다(같은 핵심, 다른 상황). */
+  /**
+   * [variantOf]를 주면 그 문제의 변형을(같은 핵심, 다른 상황), [decisionCase]를 주면 그 판단 사례로 상황 판단형 객관식을 만든다.
+   * 상황 판단형 문제의 변형은 원래 문제의 판단 사례를 다시 쓴다.
+   */
   async generate(input: {
     conceptId: number;
     type: QuestionType;
     variantOf?: QuestionHistory | undefined;
+    decisionCase?: ActiveCase | undefined;
   }): Promise<GeneratedQuestion> {
-    const context = await this.context(input.conceptId, input.type, input.variantOf ?? null);
+    const variantOf = input.variantOf ?? null;
+    const caseId = variantOf?.question.caseId ?? null;
+    const decisionCase = input.decisionCase ?? (caseId === null ? undefined : await this.cases.findActive(caseId));
+    const context = await this.context(input.conceptId, input.type, variantOf, decisionCase ?? null);
     let problems: string[] = [];
     let question: QuestionDraft | undefined;
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
@@ -84,16 +93,28 @@ export class QuizGenerationService {
     conceptId: number,
     type: QuestionType,
     variantOf: QuestionHistory | null,
+    decisionCase: ActiveCase | null,
   ): Promise<GenerationContext> {
     const [[concept], knownKeyPoints, confusedPoints, experiences, guideline] = await Promise.all([
       this.concepts.summaries([conceptId]),
       this.questions.keyPoints(conceptId),
       this.studyNotes.confusedPoints(conceptId),
-      this.experiences.findByConcepts([conceptId], EXPERIENCE_LIMIT),
+      // 상황 판단형은 회사 맥락을 걷어낸 판단 사례만 쓴다. 원래 경험 카드를 넣으면 회사 맥락이 문제로 샐 수 있다.
+      decisionCase === null ? this.experiences.findByConcepts([conceptId], EXPERIENCE_LIMIT) : [],
       this.guideline.rules(),
     ]);
     if (!concept) throw new Error(`개념이 없다: ${conceptId}`);
-    return { concept, type, knownKeyPoints, confusedPoints, experiences, guideline, variantOf };
+    return {
+      concept,
+      // 상황 판단형은 객관식으로만 낸다 (ADR-0021).
+      type: decisionCase === null ? type : 'MULTIPLE_CHOICE',
+      knownKeyPoints,
+      confusedPoints,
+      experiences,
+      guideline,
+      variantOf,
+      decisionCase,
+    };
   }
 
   private shuffle(draft: QuestionDraft): QuestionDraft {

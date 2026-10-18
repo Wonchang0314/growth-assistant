@@ -26,6 +26,7 @@ const question = (id: number, overrides: Partial<Extract<Question, { type: 'MULT
   referenceMaterial: '근거',
   experienceId: null,
   variantOf: null,
+  caseId: null,
   reported: false,
   ...overrides,
 });
@@ -79,6 +80,30 @@ describe('nextQuestion', () => {
     );
     expect(nextQuestion([]).kind).toBe('NEW');
     expect(nextQuestion([history(1, null)]).kind).toBe('NEW');
+  });
+});
+
+describe('nextQuestion: 상황 판단형', () => {
+  const scenario = (id: number): QuestionHistory => ({
+    question: question(id, { angle: 'SCENARIO', caseId: 9 }),
+    lastAnswer: answer(),
+    hasVariant: false,
+  });
+
+  it('안 쓴 판단 사례가 있으면 흔들린 문제의 변형 다음으로 상황 판단형을 낸다', () => {
+    expect(nextQuestion([history(1, answer({ correct: false }))], ['사례']).kind).toBe('VARIANT');
+    expect(nextQuestion([history(1, answer())], ['사례'])).toEqual({ kind: 'SCENARIO', case: '사례' });
+    expect(nextQuestion([], ['사례'])).toEqual({ kind: 'SCENARIO', case: '사례' });
+  });
+
+  it('가장 최근 문제가 상황 판단형이면 개념 문제를 낸다(번갈아)', () => {
+    expect(nextQuestion([history(1, answer(), { hasVariant: true }), scenario(2)], ['사례']).kind).toBe('NEW');
+    // 확인된 개념 문제의 변형은 개념 문제라 고를 수 있지만, 상황 판단형의 변형은 고르지 않는다.
+    expect(nextQuestion([history(1, answer()), scenario(2)], ['사례'])).toMatchObject({
+      kind: 'VARIANT',
+      of: { question: { id: 1 } },
+    });
+    expect(nextQuestion([history(1, null), scenario(2)], ['사례']).kind).toBe('NEW');
   });
 });
 

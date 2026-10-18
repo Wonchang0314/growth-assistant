@@ -1,4 +1,5 @@
 import type { RelatedConcept } from '../../../core/knowledge/concept.js';
+import type { ActiveCase } from '../../../core/memory/decision-case.repository.js';
 import type { FoundExperience } from '../../../core/memory/experience.repository.js';
 import type { AttemptRecord } from '../domain/grading.js';
 import type { Solution } from '../domain/question-solution.js';
@@ -27,6 +28,8 @@ export abstract class QuizQuestionRepository {
   abstract findServable(conceptId: number, limit: number): Promise<Question[]>;
   /** 그 개념의 검증 통과·신고 안 된 문제와 마지막 풀이, 변형이 있는지. 오래된 것부터. 다음에 만들 문제를 정할 때 쓴다. */
   abstract findHistory(conceptId: number): Promise<QuestionHistory[]>;
+  /** 그 개념에서 문제로 만들어 본(검증 결과와 상관없이) 판단 사례. 검증에 걸린 사례를 매번 다시 쓰지 않게 한다. */
+  abstract usedCaseIds(conceptId: number): Promise<number[]>;
   /** 검증을 통과한 문제 수. 다음에 만들 유형을 고를 때 쓴다. */
   abstract countValid(conceptId: number): Promise<Record<QuestionType, number>>;
   abstract markServed(ids: readonly number[]): Promise<void>;
@@ -58,6 +61,8 @@ export interface GenerationContext {
   readonly guideline: readonly string[];
   /** 변형 문제를 만들 때 원래 문제와 그때의 답·오개념 (설계 문서 7.3 "변형 문제"). */
   readonly variantOf: QuestionHistory | null;
+  /** 상황 판단형 문제의 재료가 되는 판단 사례 (ADR-0021). 있으면 객관식으로만 낸다. */
+  readonly decisionCase: ActiveCase | null;
 }
 
 export abstract class QuestionGenerator {

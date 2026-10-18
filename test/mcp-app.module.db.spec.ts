@@ -134,6 +134,7 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       referenceMaterial: '근거',
       experienceId: null,
       variantOf: null,
+      caseId: null,
       validationStatus: 'VALID',
       validationNote: null,
       createdAt: clock.now(),

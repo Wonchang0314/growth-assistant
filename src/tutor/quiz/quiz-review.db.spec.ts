@@ -5,7 +5,9 @@ import { FixedClock } from '../../../test/fakes/fixed-clock.js';
 import { fillBlankReply, multipleChoiceReply, solvedReply, variantCheckReply } from '../../../test/fixtures/quiz.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
+import { DecisionCaseRepository } from '../../core/memory/decision-case.repository.js';
 import { ExperienceRepository } from '../../core/memory/experience.repository.js';
+import { SourceDocumentRepository } from '../../core/memory/source-document.repository.js';
 import { AppSettingRepository } from '../../core/setting/app-setting.repository.js';
 import { MasteryRepository } from '../mastery/mastery.repository.js';
 import { MasteryService } from '../mastery/mastery.service.js';
@@ -31,7 +33,8 @@ const mastery = new MasteryService(new MasteryRepository(testDb.db));
 const studyNotes = new StudyNoteService(new StudyNoteRepository(testDb.db), experiences, concepts, mastery, clock);
 const questions = new DrizzleQuizQuestionRepository(testDb.db);
 const attempts = new DrizzleQuizAttemptRepository(testDb.db);
-const grading = new QuizGradingService(questions, attempts, mastery, experiences, clock);
+const cases = new DecisionCaseRepository(testDb.db);
+const grading = new QuizGradingService(questions, attempts, mastery, experiences, cases, clock);
 let claude: FakeClaudeClient;
 let review: QuizReviewService;
 
@@ -54,6 +57,7 @@ const addQuestion = (conceptId: number, keyPoint = `핵심 ${conceptId}`, varian
     referenceMaterial: '근거',
     experienceId: null,
     variantOf,
+    caseId: null,
     validationStatus: 'VALID',
     validationNote: null,
     createdAt: clock.now(),
@@ -84,6 +88,7 @@ beforeEach(async () => {
     questions,
     concepts,
     experiences,
+    cases,
     studyNotes,
     new QuizGuidelineService(new AppSettingRepository(testDb.db)),
     clock,
@@ -94,6 +99,7 @@ beforeEach(async () => {
     attempts,
     generation,
     concepts,
+    cases,
     mastery,
     studyNotes,
     new QuizWeaknessService(mastery, concepts, attempts, clock),
@@ -259,6 +265,96 @@ describe('변형 문제', () => {
     const set = await review.reviewSet({ concept: '인덱스', count: 2 });
 
     expect(set.kind === 'READY' && set.questions.map((q) => q.questionId)).toEqual([variant, unanswered]);
+  });
+});
+
+describe('상황 판단형 문제', () => {
+  const body = {
+    situation: '배포 중 구버전 앱이 함께 떠 있는 서비스에서 컬럼 이름을 바꿔야 한다',
+    constraints: ['다운타임 불가'],
+    options: [
+      { text: '새 컬럼을 추가하고 양쪽에 쓴다', chosen: true, reason: '구버전이 깨지지 않는다' },
+      { text: '컬럼 이름을 바로 바꾼다', chosen: false, reason: '구버전이 깨진다' },
+    ],
+    decision: '확장 후 축소',
+    rationale: '호환 기간을 둔다',
+    outcome: '무중단',
+    invariants: ['구버전과 신버전이 동시에 돈다'],
+  };
+
+  /** 인덱스(1)에 이은 경험 카드 둘과 판단 사례: 사례 1은 경험 사례(카드 1), 사례 2는 가정 사례(카드 2). */
+  async function seedCases() {
+    const documents = new SourceDocumentRepository(testDb.db);
+    await documents.save(
+      'NOTION',
+      { externalId: 'a', title: '문서', url: 'https://notion.so/a', updatedAt: clock.now(), chunks: ['본문'] },
+      clock.now(),
+    );
+    const card = (title: string) => ({
+      projectName: null,
+      title,
+      situation: '상황',
+      task: '과제',
+      action: '행동',
+      result: '결과',
+      lesson: '교훈',
+      occurredAt: null,
+      concepts: [1],
+    });
+    await experiences.saveExtraction({
+      documentId: 1,
+      summary: '요약',
+      cards: [card('운영 중 컬럼 이름 변경'), card('구버전 호환 배포')],
+      newConcepts: [],
+      aliasAdds: [],
+      now: clock.now(),
+    });
+    for (const [experienceId, kind] of [
+      [1, 'EXPERIENCE'],
+      [2, 'HYPOTHETICAL'],
+    ] as const) {
+      await cases.save({ experienceId, kind, body, status: 'ACTIVE', reviewNote: null, now: clock.now() });
+    }
+  }
+
+  it('안 쓴 판단 사례로 상황 판단형 객관식을 만들고, 회사 맥락이 담길 수 있는 경험 카드는 출제에 넣지 않는다', async () => {
+    await seedCases();
+    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+
+    await review.reviewSet({ concept: '인덱스', count: 1 });
+    await review.idle();
+
+    const [question] = await testDb.db.select().from(quizQuestion);
+    expect(question).toMatchObject({ angle: 'SCENARIO', type: 'MULTIPLE_CHOICE', caseId: 1, experienceId: 1 });
+    const prompt = claude.requestsFor('QUIZ_GENERATION')[0]?.prompt ?? '';
+    expect(prompt).toContain('## 판단 사례 (경험 사례)');
+    expect(prompt).toContain('- (고름) 새 컬럼을 추가하고 양쪽에 쓴다: 구버전이 깨지지 않는다');
+    expect(prompt).not.toContain('## 관련 경험 카드');
+    expect(await questions.usedCaseIds(1)).toEqual([1]);
+  });
+
+  it('가정 사례로 만든 문제는 질문 앞에 머리말을 붙이고, 채점 결과에서는 "같은 개념을 다룬 경험"으로 잇는다', async () => {
+    await seedCases();
+    const generation = new QuizGenerationService(
+      new ClaudeQuestionGenerator(claude),
+      questions,
+      concepts,
+      experiences,
+      cases,
+      studyNotes,
+      new QuizGuidelineService(new AppSettingRepository(testDb.db)),
+      clock,
+      () => 0,
+    );
+    const [, hypothetical] = await cases.findActiveForConcept(1);
+    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+
+    const made = await generation.generate({ conceptId: 1, type: 'FILL_BLANK', decisionCase: hypothetical });
+    const graded = await submit(made.id, '1');
+
+    expect(made.question).toMatchObject({ type: 'MULTIPLE_CHOICE', caseId: 2, experienceId: 2 });
+    expect(made.question.prompt.startsWith('[가정한 상황] 성별 컬럼')).toBe(true);
+    expect(graded).toMatchObject({ experience: { title: '구버전 호환 배포', relation: 'SAME_CONCEPT' } });
   });
 });
 

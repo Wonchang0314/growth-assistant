@@ -39,7 +39,12 @@ interface QuestionBase {
   readonly experienceId: number | null;
   /** 변형 문제면 원래 문제. 같은 핵심을 다른 상황으로 묻는다 (설계 문서 7.3 "변형 문제"). */
   readonly variantOf: number | null;
+  /** 상황 판단형(SCENARIO)이면 재료가 된 판단 사례 (ADR-0021). */
+  readonly caseId: number | null;
 }
+
+/** 가정 사례로 만든 상황 판단형 문제의 머리말 (ADR-0026·0032). 실제로 겪은 일처럼 읽히지 않게 코드가 붙인다. */
+export const HYPOTHETICAL_PREFIX = '[가정한 상황] ';
 
 /** 검증 전 문제. 객관식 [answer]는 정답 보기의 글이다. */
 export type QuestionDraft = QuestionBase &

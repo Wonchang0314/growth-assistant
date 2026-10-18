@@ -2,6 +2,7 @@ import { inspect } from 'node:util';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Clock, localDate } from '../../../core/clock/clock.js';
 import { ConceptService } from '../../../core/knowledge/concept.service.js';
+import { DecisionCaseRepository } from '../../../core/memory/decision-case.repository.js';
 import { MasteryService } from '../../mastery/mastery.service.js';
 import { StudyNoteService } from '../../study/study-note.service.js';
 import { DAILY_LIMIT, pickConcepts } from '../domain/review-selection.js';
@@ -60,6 +61,7 @@ export class QuizReviewService {
     private readonly attempts: QuizAttemptRepository,
     private readonly generation: QuizGenerationService,
     private readonly concepts: ConceptService,
+    private readonly cases: DecisionCaseRepository,
     private readonly mastery: MasteryService,
     private readonly studyNotes: StudyNoteService,
     private readonly weakness: QuizWeaknessService,
@@ -135,7 +137,8 @@ export class QuizReviewService {
   }
 
   /**
-   * [count]개를 뒤에서 차례로 만든다. 흔들린 문제의 변형이 먼저이고, 없으면 확인된 핵심의 변형과 새 핵심을 번갈아 만든다.
+   * [count]개를 뒤에서 차례로 만든다. 흔들린 문제의 변형이 먼저이고, 다음은 안 쓴 판단 사례의 상황 판단형과 개념 문제를 번갈아,
+   * 개념 문제는 확인된 핵심의 변형과 새 핵심을 번갈아 만든다 (`nextQuestion`).
    * 이미 만들고 있는 개념이면 그 작업에 맡긴다. 검증을 통과한 문제가 하나도 없으면 실패로 남긴다.
    */
   private prepare(conceptId: number, count: number): void {
@@ -143,16 +146,23 @@ export class QuizReviewService {
     const task = (async () => {
       let valid = 0;
       for (let i = 0; i < count; i++) {
-        const [counts, history] = await Promise.all([
+        const [counts, history, cases, usedCases] = await Promise.all([
           this.questions.countValid(conceptId),
           this.questions.findHistory(conceptId),
+          this.cases.findActiveForConcept(conceptId),
+          this.questions.usedCaseIds(conceptId),
         ]);
         const type = counts.FILL_BLANK < counts.MULTIPLE_CHOICE ? 'FILL_BLANK' : 'MULTIPLE_CHOICE';
-        const next = nextQuestion(history);
+        const used = new Set(usedCases);
+        const next = nextQuestion(
+          history,
+          cases.filter((c) => !used.has(c.id)),
+        );
         const { status } = await this.generation.generate({
           conceptId,
           type,
           variantOf: next.kind === 'VARIANT' ? next.of : undefined,
+          decisionCase: next.kind === 'SCENARIO' ? next.case : undefined,
         });
         if (status === 'VALID') valid += 1;
       }

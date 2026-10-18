@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../core/clock/clock.js';
+import { DecisionCaseRepository } from '../../../core/memory/decision-case.repository.js';
 import { ExperienceRepository } from '../../../core/memory/experience.repository.js';
 import type { Confidence, ConceptMastery } from '../../mastery/mastery.js';
 import { MasteryService } from '../../mastery/mastery.service.js';
@@ -17,8 +18,11 @@ export type SubmitResult =
       readonly userAnswer: string;
       /** 고른 오답 보기의 오개념. */
       readonly misconception: string | null;
-      /** 이 원칙을 실제로 겪은 경험 카드 제목 (설계 문서 7.3). */
-      readonly experience: string | null;
+      /**
+       * 문제와 이어진 경험 카드 제목 (설계 문서 7.3). 가정 사례로 만든 문제는 상황을 지어낸 것이라
+       * "실제로 겪은 경험"이 아니라 "같은 개념을 다룬 경험"이다 (ADR-0032).
+       */
+      readonly experience: { readonly title: string; readonly relation: 'LIVED' | 'SAME_CONCEPT' } | null;
       /** 숙련도에 반영한 뒤의 상태. 신고된 문제면 반영하지 않아 null이다. */
       readonly mastery: ConceptMastery | null;
     }
@@ -34,6 +38,7 @@ export class QuizGradingService {
     private readonly attempts: QuizAttemptRepository,
     private readonly mastery: MasteryService,
     private readonly experiences: ExperienceRepository,
+    private readonly cases: DecisionCaseRepository,
     private readonly clock: Clock,
   ) {}
 
@@ -59,9 +64,10 @@ export class QuizGradingService {
     const prior = await this.attempts.findForConcept(question.conceptId);
     await this.attempts.add({ ...record, questionId: question.id, userAnswer: grading.userAnswer });
     const answer = toGradedAnswers([...prior, record]).at(-1);
-    const [mastery, experience] = await Promise.all([
+    const [mastery, experience, caseKind] = await Promise.all([
       question.reported || answer === undefined ? null : this.mastery.recordAnswer(answer),
       question.experienceId === null ? undefined : this.experiences.findById(question.experienceId),
+      question.caseId === null ? undefined : this.cases.findKind(question.caseId),
     ]);
     return {
       kind: 'GRADED',
@@ -70,7 +76,9 @@ export class QuizGradingService {
       correctAnswer: correctAnswer(question),
       userAnswer: grading.userAnswer,
       misconception: grading.misconception,
-      experience: experience?.title ?? null,
+      experience: experience
+        ? { title: experience.title, relation: caseKind === 'HYPOTHETICAL' ? 'SAME_CONCEPT' : 'LIVED' }
+        : null,
       mastery,
     };
   }

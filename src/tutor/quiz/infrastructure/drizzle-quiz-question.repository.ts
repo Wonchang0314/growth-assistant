@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, count, eq, inArray, notExists, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, notExists, sql } from 'drizzle-orm';
 import { DB, type Db, type Tx } from '../../../core/db/db.module.js';
 import type { ConceptMergeParticipant } from '../../../core/knowledge/concept-merge.js';
 import { type NewQuestion, QuizQuestionRepository } from '../application/ports.js';
@@ -94,6 +94,14 @@ export class DrizzleQuizQuestionRepository extends QuizQuestionRepository implem
     }));
   }
 
+  async usedCaseIds(conceptId: number): Promise<number[]> {
+    const rows = await this.db
+      .selectDistinct({ caseId: quizQuestion.caseId })
+      .from(quizQuestion)
+      .where(and(eq(quizQuestion.conceptId, conceptId), isNotNull(quizQuestion.caseId)));
+    return rows.flatMap((r) => (r.caseId === null ? [] : [r.caseId]));
+  }
+
   async countValid(conceptId: number): Promise<Record<QuestionType, number>> {
     const rows = await this.db
       .select({ type: quizQuestion.type, n: count() })
@@ -135,6 +143,7 @@ function toQuestion(row: Row): Question {
     referenceMaterial: row.referenceMaterial,
     experienceId: row.experienceId,
     variantOf: row.variantOf,
+    caseId: row.caseId,
     reported: row.reported,
   };
   if (row.type === 'FILL_BLANK') return { ...base, type: 'FILL_BLANK', acceptedAnswers: row.acceptedAnswers };
