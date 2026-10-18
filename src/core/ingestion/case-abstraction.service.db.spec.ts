@@ -196,6 +196,21 @@ describe('CaseAbstractionService', () => {
     ]);
   });
 
+  it('정답 보기만 길면 검증 전에 걸러 길이를 붙여 다시 쓴다', async () => {
+    const giveaway = body();
+    giveaway.options[0] = {
+      text: '부분 인덱스를 만들고 실행 계획과 쓰기 지연을 함께 확인한다',
+      chosen: true,
+      reason: '',
+    };
+    claude.reply(JSON.stringify(giveaway)).reply(JSON.stringify(body())).reply(verified());
+
+    await service.run({ ids: [2] });
+
+    expect(claude.requestsFor('CASE_VERIFICATION')).toHaveLength(1);
+    expect(claude.requestsFor('CASE_ABSTRACTION')[1]?.prompt).toContain('정답 보기만 길다(33자, 가장 긴 오답 6자)');
+  });
+
   it('검증이 남은 이름을 찾으면 다시 쓰게 하고, 다시 통과하면 ACTIVE로 바꿔 저장한다', async () => {
     claude
       .reply(JSON.stringify(body('사내 프로젝트의 주문 테이블')))

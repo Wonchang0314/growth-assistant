@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { findLeaks } from './case-gate.js';
+import { findLeaks, findLengthCue } from './case-gate.js';
+
+describe('findLengthCue', () => {
+  const options = (chosen: number, ...others: number[]) => [
+    { text: 'ㄱ'.repeat(chosen), chosen: true },
+    ...others.map((n) => ({ text: 'ㄴ'.repeat(n), chosen: false })),
+  ];
+
+  it.each([
+    ['가장 긴 오답의 1.3배를 넘으면 잡는다', options(66, 50, 30), { chosen: 66, longestOther: 50 }],
+    ['1.3배까지는 넘어간다', options(65, 50, 30), undefined],
+    ['정답이 짧으면 넘어간다', options(20, 50), undefined],
+  ])('%s', (_, input, cue) => {
+    expect(findLengthCue(input)).toEqual(cue);
+  });
+});
 
 describe('findLeaks', () => {
   it.each([

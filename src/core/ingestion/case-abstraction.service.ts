@@ -22,7 +22,7 @@ import {
   verificationPrompt,
   verificationSchema,
 } from './case-abstraction.js';
-import { findLeaks } from './case-gate.js';
+import { findLeaks, findLengthCue } from './case-gate.js';
 
 export interface CaseAbstractionReport {
   /** 이번에 선별한 카드 수와 그중 판단이 분명하다고 고른 수. */
@@ -203,8 +203,16 @@ export class CaseAbstractionService {
     for (let i = 1; ; i++) {
       const body = await write(problems);
       const leaks = findLeaks(caseText(body));
-      problems =
-        leaks.length > 0 ? [`모양 검사에 걸린 문자열(역할 설명으로 바꾼다): ${leaks.join(', ')}`] : await verify(body);
+      const cue = findLengthCue(body.options);
+      const gate = [
+        ...(leaks.length === 0 ? [] : [`모양 검사에 걸린 문자열(역할 설명으로 바꾼다): ${leaks.join(', ')}`]),
+        ...(cue === undefined
+          ? []
+          : [
+              `정답 보기만 길다(${cue.chosen}자, 가장 긴 오답 ${cue.longestOther}자): 보기를 비슷한 길이로, 세부는 결정·근거로 옮긴다`,
+            ]),
+      ];
+      problems = gate.length > 0 ? gate : await verify(body);
       if (problems.length === 0 || i === ATTEMPTS) return { body, problems };
     }
   }
