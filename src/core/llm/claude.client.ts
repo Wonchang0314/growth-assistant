@@ -42,6 +42,9 @@ export const isStopError = (e: unknown): e is ClaudeException =>
 
 /** 모든 LLM 호출이 지나가는 유일한 경로 (ADR-0012). 추상 클래스라 Nest 주입 토큰으로도 쓴다. */
 export abstract class ClaudeClient {
+  /** 동시에 실행하는 호출 수의 상한. 넘는 호출은 기다린다. 여러 건을 나눠 돌리는 쪽이 동시 처리 수로 쓴다. */
+  abstract readonly maxConcurrency: number;
+
   /** 자유 텍스트 응답. */
   abstract complete(request: ClaudeRequest): Promise<string>;
 

@@ -1,6 +1,6 @@
 # ADR-0012: `claude` CLI를 `stream-json` 출력으로 호출한다
 
-- 상태: 채택
+- 상태: 일부 대체됨 (동시 실행 수 → ADR-0027)
 - 날짜: 2026-10-13
 - 대체: [ADR-0002](0002-claude-cli-subscription.md)
 

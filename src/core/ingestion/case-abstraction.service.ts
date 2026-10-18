@@ -1,7 +1,8 @@
 import { inspect } from 'node:util';
 import { Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../clock/clock.js';
-import { ClaudeClient, isStopError } from '../llm/claude.client.js';
+import pLimit from 'p-limit';
+import { ClaudeClient, type ClaudeException, isStopError } from '../llm/claude.client.js';
 import { type DecisionCaseBody, decisionCaseBodySchema } from '../memory/decision-case.js';
 import { type CaseSourceCard, DecisionCaseRepository } from '../memory/decision-case.repository.js';
 import {
@@ -22,7 +23,7 @@ import {
   verificationPrompt,
   verificationSchema,
 } from './case-abstraction.js';
-import { findLeaks } from './case-gate.js';
+import { findLeaks, findLengthCue } from './case-gate.js';
 
 export interface CaseAbstractionReport {
   /** 이번에 선별한 카드 수와 그중 판단이 분명하다고 고른 수. */
@@ -77,25 +78,36 @@ export class CaseAbstractionService {
   }): Promise<CaseAbstractionReport> {
     const report = { screened: 0, decisions: 0, experience: 0, hypothetical: 0, pending: 0 };
     const failed: { title: string; error: string }[] = [];
+    let stop: ClaudeException | undefined;
     try {
       const cards =
         options.ids === undefined
           ? await this.screenUntil(options.limit ?? Number.MAX_SAFE_INTEGER, report)
           : await this.cases.findCards(options.ids);
-      for (const card of cards) {
-        try {
-          report[await this.abstract(card)] += 1;
-        } catch (e) {
-          if (isStopError(e)) throw e;
-          this.logger.warn(`판단 사례 추상화 실패: ${card.title} (${card.id}) ${inspect(e)}`);
-          failed.push({ title: card.title, error: e instanceof Error ? e.message : String(e) });
-        }
-      }
+      // 카드끼리는 서로 상관없어 클라이언트가 동시에 돌리는 수만큼 함께 처리한다. 멈출 오류가 나면 새 카드는 시작하지 않는다.
+      const limit = pLimit(this.claude.maxConcurrency);
+      await Promise.all(
+        cards.map((card) =>
+          limit(async () => {
+            if (stop !== undefined) return;
+            try {
+              report[await this.abstract(card)] += 1;
+            } catch (e) {
+              if (isStopError(e)) {
+                stop ??= e;
+                return;
+              }
+              this.logger.warn(`판단 사례 추상화 실패: ${card.title} (${card.id}) ${inspect(e)}`);
+              failed.push({ title: card.title, error: e instanceof Error ? e.message : String(e) });
+            }
+          }),
+        ),
+      );
     } catch (e) {
-      if (isStopError(e)) return { ...report, failed, stopped: `${e.type}: ${e.message}` };
-      throw e;
+      if (isStopError(e)) stop = e;
+      else throw e;
     }
-    return { ...report, failed, stopped: null };
+    return { ...report, failed, stopped: stop === undefined ? null : `${stop.type}: ${stop.message}` };
   }
 
   /** 아직 사례가 없는 후보가 [limit]개가 되거나 선별할 카드가 없을 때까지 선별한다. */
@@ -158,6 +170,8 @@ export class CaseAbstractionService {
       await save('EXPERIENCE', experience, null);
       return 'experience';
     }
+    // 가정 사례가 통과하면 경험 사례가 걸린 이유는 저장되지 않으므로 로그로 남긴다.
+    this.logger.log(`가정 사례로 폴백: ${card.title} (${card.id})\n${noteSection('경험 사례', experience.problems)}`);
 
     const hypothetical = await this.attempt(
       (problems) =>
@@ -203,8 +217,16 @@ export class CaseAbstractionService {
     for (let i = 1; ; i++) {
       const body = await write(problems);
       const leaks = findLeaks(caseText(body));
-      problems =
-        leaks.length > 0 ? [`모양 검사에 걸린 문자열(역할 설명으로 바꾼다): ${leaks.join(', ')}`] : await verify(body);
+      const cue = findLengthCue(body.options);
+      const gate = [
+        ...(leaks.length === 0 ? [] : [`모양 검사에 걸린 문자열(역할 설명으로 바꾼다): ${leaks.join(', ')}`]),
+        ...(cue === undefined
+          ? []
+          : [
+              `정답 보기만 길다(${cue.chosen}자, 가장 긴 오답 ${cue.longestOther}자): 보기를 비슷한 길이로, 세부는 결정·근거로 옮긴다`,
+            ]),
+      ];
+      problems = gate.length > 0 ? gate : await verify(body);
       if (problems.length === 0 || i === ATTEMPTS) return { body, problems };
     }
   }

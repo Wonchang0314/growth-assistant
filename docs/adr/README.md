@@ -15,7 +15,7 @@
 | [0009](0009-mastery-by-code.md) | 숙련도는 코드가 계산하고, 힌트 없는 응답만 인정한다 | 채택 |
 | [0010](0010-local-mac-hosting.md) | 사용자의 Mac에서 launchd로 상시 실행한다 | 채택 |
 | [0011](0011-documentation-approach.md) | 문서는 C4 + ADR, 작업 계획은 세션 안에서 관리한다 | 채택 |
-| [0012](0012-claude-cli-stream-json.md) | `claude` CLI를 `stream-json` 출력으로 호출한다 | 채택 |
+| [0012](0012-claude-cli-stream-json.md) | `claude` CLI를 `stream-json` 출력으로 호출한다 | 일부 대체됨(0027) |
 | [0013](0013-feature-packages-pragmatic-hexagonal.md) | 기능별 패키지에 외부 경계만 포트·어댑터로 분리한다 | 대체됨(0015) |
 | [0014](0014-nestjs-typescript.md) | NestJS + TypeScript로 전환한다 | 일부 대체됨(0017·0018) |
 | [0015](0015-nest-feature-modules.md) | 기능별 Nest 모듈에 외부 경계만 포트·어댑터로 분리하고, 도메인 규칙은 저장 형식과 떼어 둔다 | 일부 대체됨(0017·0018·0020) |
@@ -30,3 +30,4 @@
 | [0024](0024-abstraction-without-term-list.md) | 판단 사례 추상화에 회사 용어 목록을 쓰지 않고, 모양 패턴 검사와 독립 검증으로 회사 맥락을 걸러낸다 | 채택 |
 | [0025](0025-ingested-frontend-gis-and-ops-parents.md) | 수집한 경험의 프런트엔드·GIS 개념을 받고, 운영 경험을 묶을 상위 개념 3개를 시드에 둔다 | 채택 |
 | [0026](0026-experience-and-hypothetical-cases.md) | 판단 사례를 경험 사례와 가정 사례로 나누고, 경험 사례가 검증에 걸리면 가정 사례로 자동 폴백한다 | 채택 |
+| [0027](0027-claude-concurrency-five.md) | `claude -p` 동시 실행을 5개로 올리고, 판단 사례는 카드를 그만큼 함께 처리한다 | 채택 |

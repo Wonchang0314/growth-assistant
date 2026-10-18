@@ -52,7 +52,8 @@ export class ClaudeSettings {
     return new ClaudeSettings({
       executable,
       workDir: join(homedir(), '.growth-assistant', 'claude-work'),
-      maxConcurrency: 2,
+      // 2026-10-18 사용자 결정: 판단 사례 전체 실행을 빨리 끝내려고 2에서 올렸다. 한도에 자주 걸리면 낮춘다.
+      maxConcurrency: 5,
       purposes: DEFAULT_PURPOSES,
     });
   }
