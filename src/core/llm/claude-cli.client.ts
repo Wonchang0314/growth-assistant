@@ -18,6 +18,7 @@ const MAX_ERROR_CHARS = 2000;
 export class ClaudeCliClient extends ClaudeClient {
   private readonly logger = new Logger(ClaudeCliClient.name);
   private readonly limit: LimitFunction;
+  readonly maxConcurrency: number;
   /** 인증 오류를 이미 알렸는지. 다시 로그인해 호출이 성공하면 풀린다. */
   private authAlerted = false;
 
@@ -29,6 +30,7 @@ export class ClaudeCliClient extends ClaudeClient {
     private readonly adminNotifier: AdminNotifier,
   ) {
     super();
+    this.maxConcurrency = settings.maxConcurrency;
     this.limit = pLimit(settings.maxConcurrency);
   }
 

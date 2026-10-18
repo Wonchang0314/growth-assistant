@@ -12,6 +12,8 @@ import {
  * 구조화된 응답은 JSON 문자열로 준비하고, 실제 클라이언트처럼 스키마로 검증한다.
  */
 export class FakeClaudeClient extends ClaudeClient {
+  /** 응답을 준비한 순서대로 쓰도록 한 번에 하나씩만 처리하게 한다. */
+  readonly maxConcurrency = 1;
   readonly requests: ClaudeRequest[] = [];
   private readonly responses: (() => string)[] = [];
 
