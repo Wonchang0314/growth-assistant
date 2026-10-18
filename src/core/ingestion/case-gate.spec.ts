@@ -8,8 +8,8 @@ describe('findLengthCue', () => {
   ];
 
   it.each([
-    ['가장 긴 오답의 1.3배를 넘으면 잡는다', options(66, 50, 30), { chosen: 66, longestOther: 50 }],
-    ['1.3배까지는 넘어간다', options(65, 50, 30), undefined],
+    ['가장 긴 오답의 1.5배를 넘으면 잡는다', options(76, 50, 30), { chosen: 76, longestOther: 50 }],
+    ['1.5배까지는 넘어간다', options(75, 50, 30), undefined],
     ['정답이 짧으면 넘어간다', options(20, 50), undefined],
   ])('%s', (_, input, cue) => {
     expect(findLengthCue(input)).toEqual(cue);
