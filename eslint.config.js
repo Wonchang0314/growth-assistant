@@ -3,7 +3,8 @@ import prettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'coverage/', 'node_modules/'] },
+  // .claude/worktrees는 다른 세션이 쓰는 git 워크트리다(그 안에서 따로 검사한다).
+  { ignores: ['dist/', 'coverage/', 'node_modules/', '.claude/worktrees/'] },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {
