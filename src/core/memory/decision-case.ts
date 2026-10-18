@@ -4,6 +4,13 @@ import { z } from 'zod';
 export const DECISION_CASE_STATUSES = ['PENDING', 'ACTIVE', 'REJECTED'] as const;
 export type DecisionCaseStatus = (typeof DECISION_CASE_STATUSES)[number];
 
+/**
+ * 판단 사례 종류 (ADR-0026). 경험 사례는 카드에 있는 사실만 쓰고, 가정 사례는 카드의 개념을 살려 상황·조건을 새로 가정한다.
+ * 경험 사례가 끝내 검증에 걸리면 가정 사례로 자동 폴백한다.
+ */
+export const DECISION_CASE_KINDS = ['EXPERIENCE', 'HYPOTHETICAL'] as const;
+export type DecisionCaseKind = (typeof DECISION_CASE_KINDS)[number];
+
 /** 경험 카드를 판단 사례 후보로 골랐는지 (선별 결과). 아직 보지 않은 카드는 null이다. */
 export const CASE_SCREENS = ['DECISION', 'NO_DECISION'] as const;
 export type CaseScreen = (typeof CASE_SCREENS)[number];

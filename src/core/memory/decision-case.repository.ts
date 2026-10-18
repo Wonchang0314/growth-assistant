@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { DB, type Db } from '../db/db.module.js';
-import type { CaseScreen, DecisionCaseBody, DecisionCaseStatus } from './decision-case.js';
+import type { CaseScreen, DecisionCaseBody, DecisionCaseKind, DecisionCaseStatus } from './decision-case.js';
 import { decisionCase, decisionCaseConcept } from './decision-case.schema.js';
 import type { ExperienceCard } from './experience.js';
 import { experience, experienceConcept } from './experience.schema.js';
@@ -23,6 +23,7 @@ const cardColumns = {
 /** 검토할 판단 사례. 사람이 원래 카드와 비교할 수 있게 카드를 함께 싣는다. */
 export interface PendingCase {
   readonly id: number;
+  readonly kind: DecisionCaseKind;
   readonly body: DecisionCaseBody;
   readonly reviewNote: string | null;
   readonly card: CaseSourceCard;
@@ -46,7 +47,13 @@ export class DecisionCaseRepository {
   /** PENDING 사례. 오래된 것부터. */
   async findPending(limit: number): Promise<PendingCase[]> {
     const rows = await this.db
-      .select({ id: decisionCase.id, reviewNote: decisionCase.reviewNote, body: bodyColumns, card: cardColumns })
+      .select({
+        id: decisionCase.id,
+        kind: decisionCase.kind,
+        reviewNote: decisionCase.reviewNote,
+        body: bodyColumns,
+        card: cardColumns,
+      })
       .from(decisionCase)
       .innerJoin(experience, eq(experience.id, decisionCase.experienceId))
       .where(eq(decisionCase.status, 'PENDING'))
@@ -113,6 +120,7 @@ export class DecisionCaseRepository {
   /** 카드의 판단 사례를 저장한다. 이미 있으면 바꾸고, 개념은 카드의 개념을 그대로 잇는다. */
   async save(input: {
     experienceId: number;
+    kind: DecisionCaseKind;
     body: DecisionCaseBody;
     status: DecisionCaseStatus;
     reviewNote: string | null;
@@ -126,6 +134,7 @@ export class DecisionCaseRepository {
         .values({
           ...input.body,
           experienceId,
+          kind: input.kind,
           status: input.status,
           reviewNote: input.reviewNote,
           createdAt: now,

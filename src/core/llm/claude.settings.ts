@@ -19,6 +19,9 @@ export const DEFAULT_PURPOSES: Record<LlmPurpose, PurposeSettings> = {
   CASE_SCREENING: { model: 'sonnet', timeoutMs: 300_000, webAccess: false },
   CASE_ABSTRACTION: { model: 'sonnet', timeoutMs: 180_000, webAccess: false },
   CASE_VERIFICATION: { model: 'opus', timeoutMs: 240_000, webAccess: false },
+  // 경험 사례가 끝내 걸리면 만드는 가정 사례 (ADR-0026). 검증은 정답을 숨기고 Opus가 직접 푼다.
+  CASE_HYPOTHETICAL: { model: 'sonnet', timeoutMs: 180_000, webAccess: false },
+  CASE_HYPOTHETICAL_VERIFICATION: { model: 'opus', timeoutMs: 240_000, webAccess: false },
 };
 
 /** `claude` CLI 실행 설정. 클래스라 Nest 주입 토큰으로 바로 쓴다. */

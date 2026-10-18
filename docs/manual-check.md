@@ -67,11 +67,12 @@
 ### 판단 사례 검토
 
 - [ ] "판단 사례 검토하자"라고 하면 `list_pending_cases`를 부르고, 사례마다 걸린 이유와 원래 카드와 다른 곳을 보여 준 뒤 무엇을 할지 묻는다
+- [ ] 사례마다 종류(경험 사례·가정 사례)가 보이고, 가정 사례는 "가정한 상황"이라고 밝혀 소개한다. 경험 사례가 PENDING이면 걸린 이유가 "경험 사례:"와 "가정 사례:"로 나뉘어 보인다
 - [ ] Claude가 고칠 문장을 제안할 때 원래 카드에 없는 사실을 더하지 않는다. 사용자가 답하지 않은 사례는 바꾸지 않는다
 - [ ] "제약 2번 빼고 승인", "거절, 정답이 하나로 안 정해짐"이 각각 `review_case`의 `APPROVE`(바꾼 필드)·`REJECT`(`note`)로 반영된다
   ```bash
   docker compose exec postgres psql -U growth growth \
-    -c "SELECT id, experience_id, status, left(review_note, 60) FROM decision_case ORDER BY updated_at DESC LIMIT 10;"
+    -c "SELECT id, experience_id, kind, status, left(review_note, 60) FROM decision_case ORDER BY updated_at DESC LIMIT 10;"
   ```
 
 ### 경험 카드 (2단계 완료 기준)

@@ -2,17 +2,23 @@ import { inspect } from 'node:util';
 import { Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../clock/clock.js';
 import { ClaudeClient, isStopError } from '../llm/claude.client.js';
-import { type DecisionCaseBody, type DecisionCaseStatus, decisionCaseBodySchema } from '../memory/decision-case.js';
+import { type DecisionCaseBody, decisionCaseBodySchema } from '../memory/decision-case.js';
 import { type CaseSourceCard, DecisionCaseRepository } from '../memory/decision-case.repository.js';
 import {
   ABSTRACTION_SYSTEM_PROMPT,
   abstractionPrompt,
   caseText,
-  passed,
+  HYPOTHETICAL_SYSTEM_PROMPT,
+  HYPOTHETICAL_VERIFICATION_SYSTEM_PROMPT,
+  hypotheticalProblems,
+  hypotheticalPrompt,
+  hypotheticalVerificationPrompt,
+  hypotheticalVerificationSchema,
   SCREENING_SYSTEM_PROMPT,
   screeningPrompt,
   screeningSchema,
   VERIFICATION_SYSTEM_PROMPT,
+  verificationProblems,
   verificationPrompt,
   verificationSchema,
 } from './case-abstraction.js';
@@ -22,8 +28,9 @@ export interface CaseAbstractionReport {
   /** 이번에 선별한 카드 수와 그중 판단이 분명하다고 고른 수. */
   readonly screened: number;
   readonly decisions: number;
-  /** 게이트를 다 통과해 저장한 사례와, 끝내 걸려 검토 대기로 저장한 사례. */
-  readonly active: number;
+  /** 게이트를 다 통과해 ACTIVE로 저장한 경험 사례·가정 사례와, 끝내 걸려 검토 대기로 저장한 사례. */
+  readonly experience: number;
+  readonly hypothetical: number;
   readonly pending: number;
   /** 추상화하지 못한 카드. 사례가 없으니 다음 실행이 다시 고른다. */
   readonly failed: readonly { readonly title: string; readonly error: string }[];
@@ -31,15 +38,27 @@ export interface CaseAbstractionReport {
   readonly stopped: string | null;
 }
 
+type Outcome = 'experience' | 'hypothetical' | 'pending';
+
+/** 마지막으로 쓴 본문과 그것이 걸린 이유. 이유가 비어 있으면 통과다. */
+interface Attempt {
+  readonly body: DecisionCaseBody;
+  readonly problems: readonly string[];
+}
+
 /** 선별 호출 한 번에 넣는 카드 수. 카드 한 장이 1천 자 안팎이라 4만 자 정도다. */
 const SCREENING_BATCH = 40;
-/** 추상화를 다시 쓰는 횟수까지 합친 시도 수 (ADR-0021: 걸리면 1회 다시 생성). */
+/** 다시 쓰는 횟수까지 합친 시도 수 (ADR-0021·0026: 걸리면 1회 다시 생성). 경험 사례와 가정 사례에 따로 센다. */
 const ATTEMPTS = 2;
 
+const noteSection = (title: string, problems: readonly string[]) =>
+  `${title}:\n${problems.map((p) => `- ${p}`).join('\n')}`;
+
 /**
- * 경험 카드에서 판단 사례를 만든다 (ADR-0021·0024, 설계 문서 7.1 "판단 사례").
- * 선별(Sonnet, 카드 여러 장을 한 번에) → 치환(Sonnet) → 패턴 게이트(코드) → 독립 검증(Opus).
- * 게이트나 검증에 걸리면 이유를 붙여 한 번 다시 쓰고, 그래도 걸리면 마지막 결과를 PENDING으로 둔다.
+ * 경험 카드에서 판단 사례를 만든다 (ADR-0021·0024·0026, 설계 문서 7.1 "판단 사례").
+ * 선별(Sonnet, 카드 여러 장을 한 번에) → 경험 사례 치환(Sonnet) → 패턴 게이트(코드) → 원래 카드와 비교 검증(Opus).
+ * 경험 사례가 두 번 다 걸리면 가정 사례(Sonnet) → 패턴 게이트 → 정답을 숨긴 풀이 검증(Opus)으로 폴백한다.
+ * 그것도 두 번 다 걸리면 마지막 경험 사례를 PENDING으로 두고 두 쪽의 걸린 이유를 남긴다.
  */
 @Injectable()
 export class CaseAbstractionService {
@@ -56,7 +75,7 @@ export class CaseAbstractionService {
     ids?: readonly number[] | undefined;
     limit?: number | undefined;
   }): Promise<CaseAbstractionReport> {
-    const report = { screened: 0, decisions: 0, active: 0, pending: 0 };
+    const report = { screened: 0, decisions: 0, experience: 0, hypothetical: 0, pending: 0 };
     const failed: { title: string; error: string }[] = [];
     try {
       const cards =
@@ -65,8 +84,7 @@ export class CaseAbstractionService {
           : await this.cases.findCards(options.ids);
       for (const card of cards) {
         try {
-          const status = await this.abstract(card);
-          report[status === 'ACTIVE' ? 'active' : 'pending'] += 1;
+          report[await this.abstract(card)] += 1;
         } catch (e) {
           if (isStopError(e)) throw e;
           this.logger.warn(`판단 사례 추상화 실패: ${card.title} (${card.id}) ${inspect(e)}`);
@@ -103,48 +121,91 @@ export class CaseAbstractionService {
     }
   }
 
-  private async abstract(card: CaseSourceCard): Promise<DecisionCaseStatus> {
-    let problems: string[] = [];
-    let body: DecisionCaseBody | undefined;
-    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-      body = await this.claude.completeStructured(
-        {
-          purpose: 'CASE_ABSTRACTION',
-          systemPrompt: ABSTRACTION_SYSTEM_PROMPT,
-          prompt: abstractionPrompt(card, problems),
-        },
-        decisionCaseBodySchema,
-      );
-      const leaks = findLeaks(caseText(body));
-      if (leaks.length > 0) {
-        problems = [`모양 검사에 걸린 문자열(역할 설명으로 바꾼다): ${leaks.join(', ')}`];
-        continue;
-      }
-      const verification = await this.claude.completeStructured(
-        {
-          purpose: 'CASE_VERIFICATION',
-          systemPrompt: VERIFICATION_SYSTEM_PROMPT,
-          prompt: verificationPrompt(card, body),
-        },
-        verificationSchema,
-      );
-      if (passed(verification)) return this.save(card, body, 'ACTIVE', null);
-      problems = [
-        ...verification.problems,
-        ...(verification.leakedNames.length === 0 ? [] : [`남은 이름: ${verification.leakedNames.join(', ')}`]),
-      ];
+  private async abstract(card: CaseSourceCard): Promise<Outcome> {
+    const now = this.clock.now();
+    const experience = await this.attempt(
+      (problems) =>
+        this.claude.completeStructured(
+          {
+            purpose: 'CASE_ABSTRACTION',
+            systemPrompt: ABSTRACTION_SYSTEM_PROMPT,
+            prompt: abstractionPrompt(card, problems),
+          },
+          decisionCaseBodySchema,
+        ),
+      async (body) =>
+        verificationProblems(
+          await this.claude.completeStructured(
+            {
+              purpose: 'CASE_VERIFICATION',
+              systemPrompt: VERIFICATION_SYSTEM_PROMPT,
+              prompt: verificationPrompt(card, body),
+            },
+            verificationSchema,
+          ),
+        ),
+    );
+    const save = (kind: 'EXPERIENCE' | 'HYPOTHETICAL', { body }: Attempt, reviewNote: string | null) =>
+      this.cases.save({
+        experienceId: card.id,
+        kind,
+        body,
+        status: reviewNote === null ? 'ACTIVE' : 'PENDING',
+        reviewNote,
+        now,
+      });
+    if (experience.problems.length === 0) {
+      await save('EXPERIENCE', experience, null);
+      return 'experience';
     }
-    if (body === undefined) throw new Error('추상화를 한 번도 시도하지 않았다');
-    return this.save(card, body, 'PENDING', problems.join('\n'));
+
+    const hypothetical = await this.attempt(
+      (problems) =>
+        this.claude.completeStructured(
+          {
+            purpose: 'CASE_HYPOTHETICAL',
+            systemPrompt: HYPOTHETICAL_SYSTEM_PROMPT,
+            prompt: hypotheticalPrompt(card, experience.problems, problems),
+          },
+          decisionCaseBodySchema,
+        ),
+      async (body) =>
+        hypotheticalProblems(
+          await this.claude.completeStructured(
+            {
+              purpose: 'CASE_HYPOTHETICAL_VERIFICATION',
+              systemPrompt: HYPOTHETICAL_VERIFICATION_SYSTEM_PROMPT,
+              prompt: hypotheticalVerificationPrompt(body),
+            },
+            hypotheticalVerificationSchema,
+          ),
+          body,
+        ),
+    );
+    if (hypothetical.problems.length === 0) {
+      await save('HYPOTHETICAL', hypothetical, null);
+      return 'hypothetical';
+    }
+    await save(
+      'EXPERIENCE',
+      experience,
+      [noteSection('경험 사례', experience.problems), noteSection('가정 사례', hypothetical.problems)].join('\n'),
+    );
+    return 'pending';
   }
 
-  private async save(
-    card: CaseSourceCard,
-    body: DecisionCaseBody,
-    status: DecisionCaseStatus,
-    reviewNote: string | null,
-  ): Promise<DecisionCaseStatus> {
-    await this.cases.save({ experienceId: card.id, body, status, reviewNote, now: this.clock.now() });
-    return status;
+  /** 쓰기 → 패턴 게이트 → 검증을 [ATTEMPTS]번까지. 걸리면 이유를 붙여 다시 쓰고, 통과하거나 다 쓰면 마지막 결과를 준다. */
+  private async attempt(
+    write: (problems: readonly string[]) => Promise<DecisionCaseBody>,
+    verify: (body: DecisionCaseBody) => Promise<string[]>,
+  ): Promise<Attempt> {
+    let problems: readonly string[] = [];
+    for (let i = 1; ; i++) {
+      const body = await write(problems);
+      const leaks = findLeaks(caseText(body));
+      problems =
+        leaks.length > 0 ? [`모양 검사에 걸린 문자열(역할 설명으로 바꾼다): ${leaks.join(', ')}`] : await verify(body);
+      if (problems.length === 0 || i === ATTEMPTS) return { body, problems };
+    }
   }
 }

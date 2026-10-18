@@ -34,7 +34,7 @@ const app = await NestFactory.createApplicationContext(AbstractAppModule, { logg
 try {
   const r = await app.get(CaseAbstractionService).run(options);
   process.stderr.write(
-    `추상화 완료: 선별 ${r.screened}장(판단 있음 ${r.decisions}), 판단 사례 ACTIVE ${r.active}·PENDING ${r.pending}, 실패 ${r.failed.length}\n`,
+    `추상화 완료: 선별 ${r.screened}장(판단 있음 ${r.decisions}), 판단 사례 경험 ${r.experience}·가정 ${r.hypothetical}·PENDING ${r.pending}, 실패 ${r.failed.length}\n`,
   );
   for (const f of r.failed) process.stderr.write(`  실패: ${f.title}: ${f.error}\n`);
   if (r.stopped !== null) process.stderr.write(`중간에 멈춤: ${r.stopped}\n`);

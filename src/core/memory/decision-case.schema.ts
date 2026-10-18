@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { bigint, check, index, jsonb, pgTable, primaryKey, text, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { inList } from '../db/sql.js';
 import { concept } from '../knowledge/concept.schema.js';
-import { DECISION_CASE_STATUSES, type DecisionCaseBody } from './decision-case.js';
+import { DECISION_CASE_KINDS, DECISION_CASE_STATUSES, type DecisionCaseBody } from './decision-case.js';
 import { experience } from './experience.schema.js';
 
 /**
@@ -24,6 +24,7 @@ export const decisionCase = pgTable(
     rationale: text('rationale').notNull(),
     outcome: text('outcome').notNull(),
     invariants: text('invariants').array().notNull(),
+    kind: varchar('kind', { length: 16, enum: DECISION_CASE_KINDS }).notNull(),
     status: varchar('status', { length: 16, enum: DECISION_CASE_STATUSES }).notNull(),
     reviewNote: text('review_note'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
@@ -32,6 +33,7 @@ export const decisionCase = pgTable(
   (t) => [
     index('idx_decision_case_status').on(t.status),
     check('decision_case_status_check', sql`${t.status} IN (${inList(DECISION_CASE_STATUSES)})`),
+    check('decision_case_kind_check', sql`${t.kind} IN (${inList(DECISION_CASE_KINDS)})`),
   ],
 );
 
