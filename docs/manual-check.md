@@ -51,7 +51,7 @@
 
 ## 2단계: 개념 검토와 경험 카드
 
-**준비:** 배포(`ops/deploy.sh`) 뒤 Desktop 다시 시작. 도구 메뉴에 `list_pending_concepts`, `review_concept`, `search_experience`가 보인다.
+**준비:** 배포(`ops/deploy.sh`) 뒤 Desktop 다시 시작. 도구 메뉴에 `list_pending_concepts`, `review_concept`, `list_pending_cases`, `review_case`, `search_experience`가 보인다.
 
 ### 개념 검토
 
@@ -63,6 +63,16 @@
     -c "SELECT name, status, auto_approved, aliases FROM concept WHERE origin = 'INGESTION' ORDER BY updated_at DESC LIMIT 10;"
   ```
 - [ ] 승인한 개념을 주제로 꺼내면 `get_learning_context`의 관련 개념에 나온다
+
+### 판단 사례 검토
+
+- [ ] "판단 사례 검토하자"라고 하면 `list_pending_cases`를 부르고, 사례마다 걸린 이유와 원래 카드와 다른 곳을 보여 준 뒤 무엇을 할지 묻는다
+- [ ] Claude가 고칠 문장을 제안할 때 원래 카드에 없는 사실을 더하지 않는다. 사용자가 답하지 않은 사례는 바꾸지 않는다
+- [ ] "제약 2번 빼고 승인", "거절, 정답이 하나로 안 정해짐"이 각각 `review_case`의 `APPROVE`(바꾼 필드)·`REJECT`(`note`)로 반영된다
+  ```bash
+  docker compose exec postgres psql -U growth growth \
+    -c "SELECT id, experience_id, status, left(review_note, 60) FROM decision_case ORDER BY updated_at DESC LIMIT 10;"
+  ```
 
 ### 경험 카드 (2단계 완료 기준)
 
