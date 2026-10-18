@@ -19,7 +19,7 @@
 | [0013](0013-feature-packages-pragmatic-hexagonal.md) | 기능별 패키지에 외부 경계만 포트·어댑터로 분리한다 | 대체됨(0015) |
 | [0014](0014-nestjs-typescript.md) | NestJS + TypeScript로 전환한다 | 일부 대체됨(0017·0018) |
 | [0015](0015-nest-feature-modules.md) | 기능별 Nest 모듈에 외부 경계만 포트·어댑터로 분리하고, 도메인 규칙은 저장 형식과 떼어 둔다 | 일부 대체됨(0017·0018·0020) |
-| [0016](0016-fsrs-ts-fsrs.md) | FSRS는 ts-fsrs 라이브러리를 쓰고, 복습 단위는 개념으로 유지한다 | 채택 |
+| [0016](0016-fsrs-ts-fsrs.md) | FSRS는 ts-fsrs 라이브러리를 쓰고, 복습 단위는 개념으로 유지한다 | 일부 대체됨(0028) |
 | [0017](0017-pwa-http-api.md) | Discord 대신 PWA를 인터페이스로, 앱은 HTTP API 서버로 바꾼다 | 대체됨(0018) |
 | [0018](0018-claude-mcp-server.md) | PWA 대신 Claude 앱을 인터페이스로, 앱은 MCP 서버로 바꾸고 먼저 로컬에서 검증한다 | 일부 대체됨(0019) |
 | [0019](0019-core-learning-first.md) | 핵심 학습 기능을 먼저 만들고, 퀴즈는 객관식·빈칸부터, 먼저 말 걸기·알림·인증·보안은 뒤로 미룬다 | 채택 |
@@ -31,3 +31,4 @@
 | [0025](0025-ingested-frontend-gis-and-ops-parents.md) | 수집한 경험의 프런트엔드·GIS 개념을 받고, 운영 경험을 묶을 상위 개념 3개를 시드에 둔다 | 채택 |
 | [0026](0026-experience-and-hypothetical-cases.md) | 판단 사례를 경험 사례와 가정 사례로 나누고, 경험 사례가 검증에 걸리면 가정 사례로 자동 폴백한다 | 채택 |
 | [0027](0027-claude-concurrency-five.md) | `claude -p` 동시 실행을 5개로 올리고, 판단 사례는 카드를 그만큼 함께 처리한다 | 채택 |
+| [0028](0028-fsrs-days-only-and-mastery-formula.md) | FSRS 단기 학습 단계를 끄고, 대화에서 다룬 개념을 복습 일정에 넣으며, 숙련도·약점 공식을 정한다 | 채택 |

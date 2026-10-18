@@ -167,6 +167,8 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       text: '학습 기록 #1 저장: PostgreSQL 인덱스 (헷갈린 점 1개, 연결한 개념 1개)\n개념 목록에 없어 연결하지 않음: 없는 개념',
     });
     expect(recorded.structuredContent).toMatchObject({ concepts: ['인덱스 원리'], unknownConcepts: ['없는 개념'] });
+    // 연결한 개념은 복습 일정에 들어간다.
+    expect(await testDb.count('concept_mastery')).toBe(1);
     expect(result.structuredContent).toEqual({
       topic: 'index',
       concepts: [expect.objectContaining({ name: '인덱스 원리' })],

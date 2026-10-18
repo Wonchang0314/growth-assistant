@@ -3,6 +3,7 @@ import { Clock } from '../../core/clock/clock.js';
 import type { RelatedConcept } from '../../core/knowledge/concept.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { ExperienceRepository, type FoundExperience } from '../../core/memory/experience.repository.js';
+import { MasteryService } from '../mastery/mastery.service.js';
 import { StudyNoteRepository } from './study-note.repository.js';
 import { mergeConceptLinks, searchTermsOf, type StudyNote, type StudySignal } from './study-note.js';
 
@@ -31,13 +32,17 @@ export interface RecordedNote {
   readonly unknownConcepts: readonly string[];
 }
 
-/** 대화에서 쓰는 학습 맥락 조회, 경험 카드 검색, 학습 기록 (설계 문서 7.2). 숙련도는 3단계에서 맥락에 더한다. */
+/**
+ * 대화에서 쓰는 학습 맥락 조회, 경험 카드 검색, 학습 기록 (설계 문서 7.2). 학습 기록에서 다룬 개념은 복습 일정에 넣는다.
+ * 숙련도는 3단계에서 맥락에 더한다.
+ */
 @Injectable()
 export class StudyNoteService {
   constructor(
     private readonly repository: StudyNoteRepository,
     private readonly experiences: ExperienceRepository,
     private readonly concepts: ConceptService,
+    private readonly mastery: MasteryService,
     private readonly clock: Clock,
   ) {}
 
@@ -70,13 +75,19 @@ export class StudyNoteService {
     const links = mergeConceptLinks(
       signals.flatMap((s) => (s.id === undefined ? [] : [{ conceptId: s.id, signal: s.signal }])),
     );
+    const now = this.clock.now();
+    // 일정을 먼저 넣는다. 기록 저장이 실패해 다시 불려도 일정은 한 번만 생긴다.
+    await this.mastery.introduce(
+      links.map((l) => l.conceptId),
+      now,
+    );
     const note = await this.repository.add(
       {
         topic: input.topic.trim(),
         summary: input.summary.trim(),
         confusedPoints: input.confusedPoints.map((p) => p.trim()).filter((p) => p.length > 0),
         answerRevealed: input.answerRevealed,
-        createdAt: this.clock.now(),
+        createdAt: now,
       },
       links,
     );

@@ -8,6 +8,7 @@
 - PostgreSQL 16 (Docker), Drizzle ORM, drizzle-kit 마이그레이션
 - MCP: 공식 TypeScript SDK v2 (`@modelcontextprotocol/server`, 테스트용 `@modelcontextprotocol/client`)
 - LLM: `claude` CLI 서브프로세스
+- 간격 반복: `ts-fsrs` (버전 고정, ADR-0016·0028)
 - 설정·검증: `@nestjs/config` + zod, 시드 개념 YAML 파싱은 `yaml`
 - 테스트: Vitest, Testcontainers
 - 코드 스타일: ESLint(typescript-eslint) + Prettier (`npm run check`에 포함)
@@ -33,7 +34,7 @@ src/
 └── tutor                # 튜터 기능 모듈
     ├── study            # 학습 맥락 조회·경험 카드 검색·학습 기록 MCP 도구, 서버 instructions
     ├── quiz             # 출제·검증·채점 (레이어 폴더 시도, ADR-0020)
-    ├── mastery          # FSRS, 숙련도·약점
+    ├── mastery          # 개념별 FSRS 복습 일정(ts-fsrs 어댑터), 숙련도·약점
     └── outreach         # 아침 복습, 저녁 주제, 주간 리포트
 ```
 
