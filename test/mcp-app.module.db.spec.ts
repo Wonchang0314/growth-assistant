@@ -1,7 +1,5 @@
-import { Test } from '@nestjs/testing';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
-import { afterAll, beforeAll, beforeEach, describe, expect, inject, it, vi } from 'vitest';
-import { Clock } from '../src/core/clock/clock.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { ConceptRepository } from '../src/core/knowledge/concept.repository.js';
 import { concept, track } from '../src/core/knowledge/concept.schema.js';
@@ -16,6 +14,7 @@ import { DrizzleQuizQuestionRepository } from '../src/tutor/quiz/infrastructure/
 import { studyNoteConcept } from '../src/tutor/study/study-note.schema.js';
 import { connectTestDb } from './db/test-db.js';
 import { FixedClock } from './fakes/fixed-clock.js';
+import { startMcpApp } from './mcp-app.js';
 
 const testDb = connectTestDb();
 const clock = new FixedClock(new Date('2026-10-15T09:00:00+09:00'));
@@ -23,20 +22,7 @@ let client: Client;
 let close: () => Promise<void>;
 
 beforeAll(async () => {
-  const database = inject('database');
-  vi.stubEnv('POSTGRES_HOST', database.host);
-  vi.stubEnv('POSTGRES_PORT', String(database.port));
-  vi.stubEnv('POSTGRES_DB', database.database);
-  vi.stubEnv('POSTGRES_USER', database.user);
-  vi.stubEnv('POSTGRES_PASSWORD', database.password);
-  // ConfigModule.forRoot()는 모듈을 불러올 때 환경 변수를 읽으므로 값을 바꾼 뒤 불러온다.
-  const { McpAppModule } = await import('../src/mcp-app.module.js');
-
-  const app = await Test.createTestingModule({ imports: [McpAppModule] })
-    .overrideProvider(Clock)
-    .useValue(clock)
-    .compile();
-  await app.init();
+  const app = await startMcpApp(clock);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await app.get(McpServerHost).connect(serverTransport);
   client = new Client({ name: 'test-client', version: '0.0.0' });

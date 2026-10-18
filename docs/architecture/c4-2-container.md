@@ -9,6 +9,7 @@ flowchart TB
     subgraph mac["사용자 Mac"]
         desktop["Claude Desktop<br/>(대화, Claude 앱 모델)"]
         mcpProc["MCP 서버 프로세스<br/>node dist/mcp-stdio.js<br/>Claude Desktop이 띄우고 끔"]
+        mcpHttp["MCP HTTP 프로세스<br/>node dist/mcp-http.js<br/>127.0.0.1:3100/mcp, 사람이 띄움"]
         syncProc["수집 프로세스<br/>npm run sync · npm run extract<br/>사람이 돌리고 끝남"]
         app["상시 실행 앱 (4단계)<br/>원격 서버·서버 예약 작업, launchd"]
         db[("PostgreSQL 16<br/>Docker")]
@@ -18,6 +19,7 @@ flowchart TB
     desktop <-- "stdio: JSON-RPC 2.0 (MCP)" --> mcpProc
     desktop -- "HTTPS" --> anthropic
     mcpProc -- "Drizzle / node-postgres" --> db
+    mcpHttp -- "Drizzle / node-postgres" --> db
     syncProc -- "Drizzle / node-postgres" --> db
     app -- "Drizzle / node-postgres" --> db
     app -- "stdin 프롬프트 → JSON 출력" --> cli
@@ -30,6 +32,7 @@ flowchart TB
 | 컨테이너 | 기술 | 책임 |
 |---|---|---|
 | MCP 서버 프로세스 | 같은 NestJS 코드, 진입점 `mcp-stdio.ts`, MCP TypeScript SDK v2 | Claude Desktop의 도구 호출을 받아 유스케이스 실행. 시작할 때 마이그레이션하지 않는다 (ADR-0018) |
+| MCP HTTP 프로세스 | 같은 NestJS 코드·도구, 진입점 `mcp-http.ts`, Streamable HTTP | 원격 커스텀 커넥터(4단계)의 바탕. 요청마다 새 MCP 서버로 답한다(세션 상태 없음). 기본은 127.0.0.1에만 바인드하고 Host·Origin이 localhost인 요청만 받는다. 인증·공개 경로·launchd 상시 실행은 아직 없다 |
 | 수집 프로세스 | 같은 NestJS 코드, 진입점 `sync.ts`·`extract.ts` | Notion 문서를 한 번 동기화하고 끝낸다(처음은 백필). 동기화한 문서에서 경험 카드를 뽑는다(문서마다 `claude -p` 한 번). 매일 실행은 4단계에서 상시 실행 앱으로 옮긴다 |
 | 상시 실행 앱 (4단계) | 같은 NestJS 코드, launchd | 원격 MCP 서버(Streamable HTTP)와, 5단계부터 동기화·문제 풀 보충 같은 서버 예약 작업. 아직 없다(Discord 봇과 함께 1단계에서 지웠다) |
 | PostgreSQL | PostgreSQL 16, drizzle-kit 마이그레이션 | 유일한 상태 저장소 (개념 그래프, 경험, 숙련도, 퀴즈, 학습 기록, 로그). 마이그레이션과 시드 개념 적재(`dist/seed.js`)는 배포할 때 한다 |

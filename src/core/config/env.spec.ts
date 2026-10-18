@@ -8,6 +8,8 @@ describe('validateEnv', () => {
       POSTGRES_HOST: 'localhost',
       POSTGRES_PORT: 5432,
       POSTGRES_DB: 'growth',
+      MCP_HTTP_HOST: '127.0.0.1',
+      MCP_HTTP_PORT: 3100,
     });
   });
 
