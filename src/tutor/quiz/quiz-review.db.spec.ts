@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { FakeClaudeClient } from '../../../test/fakes/fake-claude.client.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
-import { fillBlankReply, solvedReply, variantCheckReply } from '../../../test/fixtures/quiz.js';
+import { fillBlankReply, multipleChoiceReply, solvedReply, variantCheckReply } from '../../../test/fixtures/quiz.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { ExperienceRepository } from '../../core/memory/experience.repository.js';
@@ -14,7 +14,7 @@ import { StudyNoteService } from '../study/study-note.service.js';
 import { QuizGenerationService } from './application/quiz-generation.service.js';
 import { QuizGradingService } from './application/quiz-grading.service.js';
 import { QuizGuidelineService } from './application/quiz-guideline.service.js';
-import { QuizReviewService } from './application/quiz-review.service.js';
+import { QuizReviewService, RETRY_AFTER_MS } from './application/quiz-review.service.js';
 import { QuizWeaknessService } from './application/quiz-weakness.service.js';
 import { ClaudeQuestionGenerator } from './infrastructure/claude-question.generator.js';
 import { DrizzleQuizAttemptRepository } from './infrastructure/drizzle-quiz-attempt.repository.js';
@@ -124,6 +124,7 @@ describe('get_review_set', () => {
         },
       ],
       preparing: ['인덱스'],
+      failed: [],
       remainingToday: null,
     });
     // 객관식이 이미 있어 빈칸을 만들었다.
@@ -291,6 +292,30 @@ describe('get_weakness', () => {
       rootCauses: [{ concept: { name: '인덱스' }, level: 'UNSTUDIED', dependents: [{ name: '트랜잭션' }] }],
       unmeasured: 0,
     });
+  });
+
+  it('뒤에서 만든 문제가 모두 검증에 걸리면 그 개념은 잠시 다시 만들지 않고 만들지 못했다고 알린다', async () => {
+    // 풀이 비어 있으면 객관식부터 만든다.
+    const rejected = solvedReply({ choice: 1, singleAnswer: false, problems: ['정답이 둘이다'] });
+    claude.reply(multipleChoiceReply()).reply(rejected).reply(multipleChoiceReply()).reply(rejected);
+
+    await review.reviewSet({ concept: '인덱스', count: 1 });
+    await review.idle();
+    const soon = await review.reviewSet({ concept: '인덱스', count: 1 });
+    await review.idle();
+    // 30분 안에는 다시 만들지 않아, 만들기 한 번(쓰기·검증 두 번씩)만 불렀다.
+    expect(claude.requests).toHaveLength(4);
+
+    clock.advance(RETRY_AFTER_MS);
+    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+    const later = await review.reviewSet({ concept: '인덱스', count: 1 });
+    await review.idle();
+    const ready = await review.reviewSet({ concept: '인덱스', count: 1 });
+
+    expect(soon).toMatchObject({ questions: [], preparing: [], failed: ['인덱스'] });
+    expect(later).toMatchObject({ preparing: ['인덱스'], failed: [] });
+    expect(ready).toMatchObject({ failed: [] });
+    expect(ready.kind === 'READY' && ready.questions).toHaveLength(1);
   });
 
   it('근본 원인 후보를 복습 맨 앞에 내고, 오늘 푼 뒤에는 다시 앞에 두지 않는다', async () => {
