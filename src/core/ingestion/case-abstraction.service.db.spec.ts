@@ -10,7 +10,7 @@ import { decisionCase, decisionCaseConcept } from '../memory/decision-case.schem
 import { ExperienceRepository } from '../memory/experience.repository.js';
 import { experience } from '../memory/experience.schema.js';
 import { SourceDocumentRepository } from '../memory/source-document.repository.js';
-import type { Verification } from './case-abstraction.js';
+import type { HypotheticalVerification, Verification } from './case-abstraction.js';
 import { CaseAbstractionService } from './case-abstraction.service.js';
 
 const testDb = connectTestDb();
@@ -84,6 +84,8 @@ const verified = (overrides: Partial<Verification> = {}): string =>
     problems: [],
     ...overrides,
   });
+const solved = (overrides: Partial<HypotheticalVerification> = {}): string =>
+  JSON.stringify({ answer: 1, singleAnswer: true, selfContained: true, leakedNames: [], problems: [], ...overrides });
 const cases = () => testDb.db.select().from(decisionCase).orderBy(asc(decisionCase.id));
 
 describe('CaseAbstractionService', () => {
@@ -103,13 +105,22 @@ describe('CaseAbstractionService', () => {
 
     const report = await service.run({ limit: 10 });
 
-    expect(report).toEqual({ screened: 3, decisions: 1, active: 1, pending: 0, failed: [], stopped: null });
+    expect(report).toEqual({
+      screened: 3,
+      decisions: 1,
+      experience: 1,
+      hypothetical: 0,
+      pending: 0,
+      failed: [],
+      stopped: null,
+    });
     expect(claude.requests.map((r) => r.purpose)).toEqual(['CASE_SCREENING', 'CASE_ABSTRACTION', 'CASE_VERIFICATION']);
     expect(claude.requestsFor('CASE_SCREENING')[0]?.prompt).toContain('## id 3');
     expect(claude.requestsFor('CASE_VERIFICATION')[0]?.prompt).toContain('사내 프로젝트');
     expect(await cases()).toEqual([
       expect.objectContaining({
         experienceId: 2,
+        kind: 'EXPERIENCE',
         status: 'ACTIVE',
         reviewNote: null,
         decision: '부분 인덱스를 만든다',
@@ -126,18 +137,62 @@ describe('CaseAbstractionService', () => {
     expect(again).toMatchObject({ screened: 0, decisions: 0 });
   });
 
-  it('게이트에 걸리면 걸린 문자열을, 검증에 걸리면 그 문제를 붙여 다시 쓰고, 끝내 걸리면 PENDING으로 둔다', async () => {
+  it('경험 사례가 게이트에 걸리면 걸린 문자열을, 검증에 걸리면 그 문제를 붙여 다시 쓰고, 끝내 걸리면 가정 사례로 넘어간다', async () => {
     claude
       .reply(JSON.stringify(body('CUSTOMER_EXT 테이블 조회가 느리다')))
       .reply(JSON.stringify(body()))
-      .reply(verified({ invariantsKept: false, problems: ['쓰기 비율 조건이 빠졌다'] }));
+      .reply(verified({ invariantsKept: false, problems: ['쓰기 비율 조건이 빠졌다'] }))
+      .reply(JSON.stringify(body('게시글 테이블 조회가 느리다')))
+      .reply(solved());
 
     const report = await service.run({ ids: [2] });
 
-    expect(report).toMatchObject({ screened: 0, active: 0, pending: 1 });
+    expect(report).toMatchObject({ screened: 0, experience: 0, hypothetical: 1, pending: 0 });
     expect(claude.requestsFor('CASE_ABSTRACTION')[1]?.prompt).toContain('CUSTOMER_EXT');
+    expect(claude.requestsFor('CASE_HYPOTHETICAL')[0]?.prompt).toContain('쓰기 비율 조건이 빠졌다');
+    // 정답을 숨긴다: 선택지 문장만 보내고 고른 표시·이유·결정·근거는 보내지 않는다.
+    const question = claude.requestsFor('CASE_HYPOTHETICAL_VERIFICATION')[0]?.prompt;
+    expect(question).toContain('1. 부분 인덱스');
+    expect(question).not.toMatch(/chosen|조회 조건이 고정|부분 인덱스를 만든다|쓰기 비용을 줄인다/);
     expect(await cases()).toEqual([
-      expect.objectContaining({ experienceId: 2, status: 'PENDING', reviewNote: '쓰기 비율 조건이 빠졌다' }),
+      expect.objectContaining({
+        experienceId: 2,
+        kind: 'HYPOTHETICAL',
+        status: 'ACTIVE',
+        reviewNote: null,
+        situation: '게시글 테이블 조회가 느리다',
+      }),
+    ]);
+  });
+
+  it('가정 사례 검증이 다른 번호를 고르면 그 이유를 붙여 다시 쓰고, 그것도 걸리면 마지막 경험 사례를 두 쪽 사유와 PENDING으로 둔다', async () => {
+    const rejected = verified({ sameConclusion: false, problems: ['버린 선택지의 근거가 카드에 없다'] });
+    claude
+      .reply(JSON.stringify(body('첫 경험 사례')))
+      .reply(rejected)
+      .reply(JSON.stringify(body('둘째 경험 사례')))
+      .reply(rejected)
+      .reply(JSON.stringify(body('첫 가정 사례')))
+      .reply(solved({ answer: 2 }))
+      .reply(JSON.stringify(body('둘째 가정 사례')))
+      .reply(solved({ singleAnswer: false, problems: ['2번도 맞다: 제약에 쓰기 비율이 없다'] }));
+
+    const report = await service.run({ ids: [2] });
+
+    expect(report).toMatchObject({ experience: 0, hypothetical: 0, pending: 1 });
+    expect(claude.requestsFor('CASE_HYPOTHETICAL')[1]?.prompt).toContain('검토자가 2번을 골랐다(사례의 정답은 1번)');
+    expect(await cases()).toEqual([
+      expect.objectContaining({
+        kind: 'EXPERIENCE',
+        status: 'PENDING',
+        situation: '둘째 경험 사례',
+        reviewNote: [
+          '경험 사례:',
+          '- 버린 선택지의 근거가 카드에 없다',
+          '가정 사례:',
+          '- 2번도 맞다: 제약에 쓰기 비율이 없다',
+        ].join('\n'),
+      }),
     ]);
   });
 
@@ -161,7 +216,7 @@ describe('CaseAbstractionService', () => {
 
     const report = await service.run({ ids: [1, 2, 3] });
 
-    expect(report).toMatchObject({ active: 0, pending: 0, stopped: 'RATE_LIMIT: 한도' });
+    expect(report).toMatchObject({ experience: 0, pending: 0, stopped: 'RATE_LIMIT: 한도' });
     expect(report.failed).toEqual([{ title: '설정만 바꿈', error: '형식 오류' }]);
     expect(await cases()).toEqual([]);
   });

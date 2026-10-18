@@ -50,6 +50,13 @@
       "when": 1792261917393,
       "tag": "0006_decision_case",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792318405473,
+      "tag": "0007_decision_case_kind",
+      "breakpoints": true
     }
   ]
 }

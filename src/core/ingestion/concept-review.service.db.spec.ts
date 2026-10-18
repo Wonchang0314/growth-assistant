@@ -180,6 +180,7 @@ describe('ConceptReviewService', () => {
   it('병합하면 판단 사례의 개념 연결도 대상 개념으로 옮긴다', async () => {
     await new DecisionCaseRepository(testDb.db).save({
       experienceId: 2,
+      kind: 'EXPERIENCE',
       body: {
         situation: '상황',
         constraints: [],

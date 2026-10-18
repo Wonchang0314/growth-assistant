@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { McpTool, type McpToolHandler, type McpToolResult } from '../../mcp/mcp-tool.js';
+import type { DecisionCaseKind } from '../../memory/decision-case.js';
 import type { PendingCase } from '../../memory/decision-case.repository.js';
 import { CaseReviewService } from '../case-review.service.js';
 
@@ -28,10 +29,12 @@ export class ListPendingCasesTool implements McpToolHandler<typeof input> {
   }
 }
 
-function caseText({ id, body, reviewNote, card }: PendingCase): string {
+const KIND_LABELS: Record<DecisionCaseKind, string> = { EXPERIENCE: '경험 사례', HYPOTHETICAL: '가정 사례' };
+
+function caseText({ id, kind, body, reviewNote, card }: PendingCase): string {
   const list = (items: readonly string[]) => items.map((i) => `  - ${i}`).join('\n');
   return [
-    `## 사례 ${id} (카드: ${card.title})`,
+    `## 사례 ${id} (${KIND_LABELS[kind]}, 카드: ${card.title})`,
     `걸린 이유: ${reviewNote ?? '없음'}`,
     `상황: ${body.situation}`,
     `제약:\n${list(body.constraints)}`,

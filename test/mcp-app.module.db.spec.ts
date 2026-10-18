@@ -267,6 +267,7 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       beforeEach(async () => {
         await new DecisionCaseRepository(testDb.db).save({
           experienceId: 1,
+          kind: 'EXPERIENCE',
           body: {
             situation: '고객 테이블 조회가 느리다',
             constraints: ['쓰기가 많다'],
@@ -288,7 +289,7 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       it('검토할 사례를 원래 카드와 검증 사유와 함께 보여 주고, 고쳐서 승인하면 목록에서 빠진다', async () => {
         const pending = await client.callTool({ name: 'list_pending_cases', arguments: {} });
         const text = JSON.stringify(pending.content);
-        expect(text).toContain('사례 1 (카드: 함수로 감싼 컬럼이 인덱스를 못 탐)');
+        expect(text).toContain('사례 1 (경험 사례, 카드: 함수로 감싼 컬럼이 인덱스를 못 탐)');
         expect(text).toContain('원래 카드에 없는');
         expect(text).toContain('고객 테이블 조회가 느리다');
         expect(text).toContain('처음에는 캐시를 의심했다');

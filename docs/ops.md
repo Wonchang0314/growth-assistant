@@ -61,7 +61,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 | 시드 개념만 적재 | `npm run db:seed` (작업 트리의 `.env` 기준). 시드 YAML을 고친 뒤. 개념은 이름으로 찾아 트랙·별칭·설명을 고치고, 승인 상태는 건드리지 않으며, 시드 개념끼리의 관계는 YAML대로 맞추고, YAML에서 빠진 시드 개념(관계 포함)과 트랙은 지운다. 학습 기록이 연결된 개념을 지우려 하면 적재 전체가 취소된다 |
 | Notion 동기화 | `npm run sync` (작업 트리의 `.env` 기준, `NOTION_TOKEN`과 `NOTION_ROOT_IDS`가 필요하다). 처음 실행은 백필이라 20분 남짓 걸리고, 그 뒤로는 Notion 수정 시각이 바뀐 문서만 읽는다. 실패한 문서는 다음 실행이 다시 읽는다. 상태는 Desktop에서 `sync_status` 도구로 본다 |
 | 경험 카드 추출 | `npm run extract` (작업 트리의 `.env` 기준). 동기화한 뒤 아직 뽑지 않았거나 실패한 문서마다 `claude -p`(Sonnet)를 한 번 부른다. 구독 사용량을 쓰므로 `-- --limit 5`로 나눠 돌릴 수 있고, 한도에 걸리면 남은 문서를 그대로 두고 멈춘다. 프롬프트를 고친 뒤 특정 문서를 다시 뽑으려면 `-- --ids 3,7`. 추출이 만든 승인 대기 개념은 Desktop에서 "승인 대기 개념 보여줘"로 검토한다(`list_pending_concepts`, `review_concept`) |
-| 판단 사례 추상화 | `npm run abstract` (작업 트리의 `.env` 기준). 경험 카드를 40장씩 선별(Sonnet)하고, 판단이 분명한 카드마다 치환(Sonnet)·패턴 게이트·독립 검증(Opus)을 거쳐 `decision_case`에 ACTIVE나 PENDING으로 저장한다. 사용량이 크므로 `-- --limit 10`으로 나눠 돌리고, 프롬프트를 고친 뒤 특정 카드를 다시 하려면 `-- --ids 3,7`(경험 카드 id). 한도에 걸리면 남은 카드를 두고 멈춘다 |
+| 판단 사례 추상화 | `npm run abstract` (작업 트리의 `.env` 기준). 경험 카드를 40장씩 선별(Sonnet)하고, 판단이 분명한 카드마다 치환(Sonnet)·패턴 게이트·독립 검증(Opus)을 거쳐 `decision_case`에 저장한다. 경험 사례가 두 번 다 걸리면 가정 사례(Sonnet)·정답을 숨긴 풀이 검증(Opus)으로 폴백하고, 그것도 걸리면 PENDING으로 둔다(ADR-0026). 사용량이 크므로 `-- --limit 10`으로 나눠 돌리고, 프롬프트를 고친 뒤 특정 카드를 다시 하려면 `-- --ids 3,7`(경험 카드 id). 한도에 걸리면 남은 카드를 두고 멈춘다 |
 | MCP 로그 보기 | `tail -F <LOG_DIR>/mcp/current.log` (`LOG_DIR`를 주지 않았으면 Claude Desktop의 MCP 로그에 남는다) |
 
 ## 로그
