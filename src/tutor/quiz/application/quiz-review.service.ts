@@ -8,6 +8,7 @@ import { DAILY_LIMIT, pickConcepts } from '../domain/review-selection.js';
 import type { Question, QuestionType } from '../domain/quiz-question.js';
 import { QuizAttemptRepository, QuizQuestionRepository } from './ports.js';
 import { QuizGenerationService, RANDOM } from './quiz-generation.service.js';
+import { QuizWeaknessService } from './quiz-weakness.service.js';
 
 /** 개념 하나를 골라 달라고 했을 때 기본으로 내는 문제 수. */
 const CONCEPT_DEFAULT_COUNT = 3;
@@ -51,6 +52,7 @@ export class QuizReviewService {
     private readonly concepts: ConceptService,
     private readonly mastery: MasteryService,
     private readonly studyNotes: StudyNoteService,
+    private readonly weakness: QuizWeaknessService,
     private readonly clock: Clock,
     @Inject(RANDOM) private readonly random: () => number,
   ) {}
@@ -68,11 +70,12 @@ export class QuizReviewService {
       DAILY_LIMIT - (await this.attempts.countOnDate(localDate(now, this.clock.timeZone), this.clock.timeZone));
     if (remaining <= 0) return { kind: 'DAILY_LIMIT_REACHED' };
     const limit = Math.min(input.count ?? remaining, remaining);
-    const [candidates, confused] = await Promise.all([
+    const [rootCauses, candidates, confused] = await Promise.all([
+      this.weakness.rootCauseIds(limit),
       this.mastery.reviewCandidates(now, limit),
       this.studyNotes.unresolvedConfusedConcepts(limit),
     ]);
-    const conceptIds = pickConcepts({ ...candidates, confused, limit, random: this.random });
+    const conceptIds = pickConcepts({ ...candidates, rootCauses, confused, limit, random: this.random });
     return this.serve(
       conceptIds.map((conceptId) => ({ conceptId, count: 1 })),
       remaining,

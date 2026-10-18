@@ -15,6 +15,7 @@ import { QuizGenerationService } from './application/quiz-generation.service.js'
 import { QuizGradingService } from './application/quiz-grading.service.js';
 import { QuizGuidelineService } from './application/quiz-guideline.service.js';
 import { QuizReviewService } from './application/quiz-review.service.js';
+import { QuizWeaknessService } from './application/quiz-weakness.service.js';
 import { ClaudeQuestionGenerator } from './infrastructure/claude-question.generator.js';
 import { DrizzleQuizAttemptRepository } from './infrastructure/drizzle-quiz-attempt.repository.js';
 import { DrizzleQuizQuestionRepository } from './infrastructure/drizzle-quiz-question.repository.js';
@@ -66,14 +67,11 @@ beforeEach(async () => {
   await new ConceptRepository(testDb.db).applySeed(
     {
       tracks: [{ key: 'database', name: '관계형 DB', weight: 1, description: 'DB' }],
-      concepts: ['인덱스', '트랜잭션'].map((name) => ({
-        name,
-        track: 'database',
-        aliases: [],
-        description: name,
-        requires: [],
-        related: [],
-      })),
+      // 트랜잭션(2)을 알려면 인덱스(1)를 먼저 알아야 한다.
+      concepts: [
+        { name: '인덱스', requires: [] },
+        { name: '트랜잭션', requires: ['인덱스'] },
+      ].map((c) => ({ ...c, track: 'database', aliases: [], description: c.name, related: [] })),
     },
     clock.now(),
   );
@@ -88,7 +86,17 @@ beforeEach(async () => {
     clock,
     () => 0,
   );
-  review = new QuizReviewService(questions, attempts, generation, concepts, mastery, studyNotes, clock, () => 0.5);
+  review = new QuizReviewService(
+    questions,
+    attempts,
+    generation,
+    concepts,
+    mastery,
+    studyNotes,
+    new QuizWeaknessService(mastery, concepts, attempts, clock),
+    clock,
+    () => 0.5,
+  );
 });
 afterAll(() => testDb.close());
 
@@ -201,6 +209,42 @@ describe('개념 병합', () => {
 
     expect(await questions.find(id)).toMatchObject({ conceptId: 2 });
     expect(await attempts.findForConcept(2)).toHaveLength(1);
+  });
+});
+
+describe('get_weakness', () => {
+  it('트랙별 약점 개념과 반복한 오개념, 선수 개념에서 찾은 근본 원인 후보, 미측정 수를 돌려준다', async () => {
+    const id = await addQuestion(2);
+    await submit(id, '2');
+    await submit(id, '2');
+
+    const report = await new QuizWeaknessService(mastery, concepts, attempts, clock).report();
+
+    expect(report).toMatchObject({
+      tracks: [
+        {
+          track: '관계형 DB',
+          concepts: [{ name: '트랜잭션', repeatedMisconceptions: ['짧으면 안 된다고 믿음'] }],
+        },
+      ],
+      rootCauses: [{ concept: { name: '인덱스' }, level: 'UNSTUDIED', dependents: [{ name: '트랜잭션' }] }],
+      unmeasured: 0,
+    });
+  });
+
+  it('근본 원인 후보를 복습 맨 앞에 내고, 오늘 푼 뒤에는 다시 앞에 두지 않는다', async () => {
+    const weak = await addQuestion(2);
+    await submit(weak, '2');
+    await submit(weak, '2');
+    const cause = await addQuestion(1);
+
+    const first = await review.reviewSet({ count: 1 });
+    await submit(cause, '1');
+    const second = await review.reviewSet({ count: 1 });
+    await review.idle();
+
+    expect(first.kind === 'READY' && first.questions.map((q) => q.concept)).toEqual(['인덱스']);
+    expect(second.kind === 'READY' && second.preparing).toEqual(['트랜잭션']);
   });
 });
 

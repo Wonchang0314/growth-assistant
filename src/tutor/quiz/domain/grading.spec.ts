@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type AttemptRecord, grade, toGradedAnswers } from './grading.js';
+import { type AttemptRecord, grade, repeatedMisconceptions, toGradedAnswers } from './grading.js';
 import type { Question } from './quiz-question.js';
 
 const base = {
@@ -57,6 +57,24 @@ describe('grade', () => {
   it('빈칸은 허용 답과 표기 차이를 무시하고 비교한다', () => {
     expect(grade(blank, ' Selectivity ')).toEqual({ correct: true, userAnswer: 'Selectivity', misconception: null });
     expect(grade(blank, '카디널리티')?.correct).toBe(false);
+  });
+});
+
+describe('repeatedMisconceptions', () => {
+  it('두 번 이상 고른 오개념만 처음 표기로 돌려준다', () => {
+    const at = new Date('2026-10-18T00:00:00Z');
+    const attempt = (misconception: string | null) => ({
+      conceptId: 1,
+      correct: misconception === null,
+      confidence: 'SURE' as const,
+      hintUsed: false,
+      misconception,
+      answeredAt: at,
+    });
+
+    expect(
+      repeatedMisconceptions([attempt('A라고 믿음'), attempt(null), attempt('B'), attempt('A 라고 믿음')]),
+    ).toEqual(['A라고 믿음']);
   });
 });
 

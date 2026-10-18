@@ -62,7 +62,7 @@
 - [ ] 상황 판단형 객관식 (`angle = SCENARIO`, 판단 사례에서 출제, ADR-0021)
 - [ ] 변형 문제 (`key_point`, `variant_of`)
 - [x] 복습·채점 도구 (`get_review_set`, `submit_answer`, `report_question`, 없는 문제는 뒤에서 생성, ADR-0030)
-- [ ] `get_weakness` (트랙별 약점, 근본 원인 후보, 미측정 수, 지난주 대비)
+- [x] `get_weakness` (트랙별 약점, 근본 원인 후보, 미측정 수, 근본 원인을 출제 맨 앞에, ADR-0031)
 - [ ] 퀴즈 품질 점검 (평가 세트, 실제 사용)
 
 ## 4. 먼저 말 걸기: 예약 작업 (ADR-0019로 미룸)
@@ -71,6 +71,7 @@
 - [ ] 03:00 동기화·문제 보충
 - [ ] 07:30 아침 복습, 18:30 오늘의 주제, 일 20:00 주간 리포트 (`get_daily_topic`, `get_weekly_report`)
 - [ ] 무시 누적 감지, 주간 리포트 조정 권고
+- [ ] 숙련도 이력과 `get_weakness`의 지난주 대비 변화 (ADR-0031)
 
 ## 5. 원격 전환: 모바일·아이패드 (새 ADR)
 - [ ] 결정: 공개 경로(Funnel·Cloudflare Tunnel), 인증(OAuth·고정 헤더), IP 제한, 알림(예약 작업 푸시·ntfy), MCP Apps

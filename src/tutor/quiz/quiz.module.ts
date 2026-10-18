@@ -11,10 +11,12 @@ import { QuizGenerationService, RANDOM } from './application/quiz-generation.ser
 import { QuizGradingService } from './application/quiz-grading.service.js';
 import { QuizGuidelineService } from './application/quiz-guideline.service.js';
 import { QuizReviewService } from './application/quiz-review.service.js';
+import { QuizWeaknessService } from './application/quiz-weakness.service.js';
 import { ClaudeQuestionGenerator } from './infrastructure/claude-question.generator.js';
 import { DrizzleQuizAttemptRepository } from './infrastructure/drizzle-quiz-attempt.repository.js';
 import { DrizzleQuizQuestionRepository } from './infrastructure/drizzle-quiz-question.repository.js';
 import { GetReviewSetTool } from './presentation/mcp/get-review-set.tool.js';
+import { GetWeaknessTool } from './presentation/mcp/get-weakness.tool.js';
 import { ReportQuestionTool } from './presentation/mcp/report-question.tool.js';
 import { SubmitAnswerTool } from './presentation/mcp/submit-answer.tool.js';
 import { UpdateQuizGuidelineTool } from './presentation/mcp/update-quiz-guideline.tool.js';
@@ -35,7 +37,9 @@ import { UpdateQuizGuidelineTool } from './presentation/mcp/update-quiz-guidelin
     QuizReviewService,
     QuizGradingService,
     QuizGuidelineService,
+    QuizWeaknessService,
     GetReviewSetTool,
+    GetWeaknessTool,
     SubmitAnswerTool,
     ReportQuestionTool,
     UpdateQuizGuidelineTool,

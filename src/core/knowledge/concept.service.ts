@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { matchConcepts, type RelatedConcept, resolveConcept } from './concept.js';
+import { type ConceptRef, matchConcepts, type RelatedConcept, resolveConcept } from './concept.js';
 import { ConceptRepository } from './concept.repository.js';
 import type { Vocabulary } from './concept-proposal.js';
 
@@ -29,7 +29,12 @@ export class ConceptService {
       this.repository.findSummaries(ids),
       this.repository.findPrerequisites(ids, PREREQUISITE_DEPTH),
     ]);
-    return summaries.map((s) => ({ ...s, prerequisites: prerequisites.get(s.id) ?? [] }));
+    return summaries.map((s) => ({ ...s, prerequisites: (prerequisites.get(s.id) ?? []).map((p) => p.name) }));
+  }
+
+  /** 개념마다 먼저 알아야 하는 개념을 [maxDepth]단계까지, 가까운 것부터. 근본 원인을 찾을 때 쓴다 (설계 문서 8장). */
+  prerequisites(ids: readonly number[], maxDepth: number): Promise<Map<number, ConceptRef[]>> {
+    return this.repository.findPrerequisites(ids, maxDepth);
   }
 
   /**

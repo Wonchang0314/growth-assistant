@@ -22,6 +22,8 @@ export interface ConceptTerms {
   readonly aliases: readonly string[];
 }
 
+export type ConceptRef = Pick<ConceptTerms, 'id' | 'name'>;
+
 /** 학습 맥락에 싣는 개념. */
 export interface RelatedConcept {
   readonly id: number;
