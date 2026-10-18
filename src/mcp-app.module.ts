@@ -6,6 +6,7 @@ import { AppConfigModule } from './core/config/app-config.module.js';
 import { DbModule } from './core/db/db.module.js';
 import { IngestionModule } from './core/ingestion/ingestion.module.js';
 import { McpModule } from './core/mcp/mcp.module.js';
+import { QuizModule } from './tutor/quiz/quiz.module.js';
 import { STUDY_INSTRUCTIONS } from './tutor/study/study-instructions.js';
 import { StudyModule } from './tutor/study/study.module.js';
 
@@ -22,6 +23,7 @@ const { version } = z
     DbModule.forRoot({ migrate: false }),
     McpModule.forRoot({ name: 'growth-assistant', version, instructions: STUDY_INSTRUCTIONS }),
     StudyModule,
+    QuizModule,
     IngestionModule,
   ],
 })

@@ -57,7 +57,8 @@
 - [x] FSRS, 숙련도·약점 계산 (`concept_mastery`, 단기 학습 단계 끔, 최대 간격 180일, 학습 기록 개념을 복습 일정에, ADR-0028)
 - [x] 개념 병합 때 학습 기록·숙련도 옮기기 (병합 참여 포트, ADR-0028)
 - [ ] 학습 맥락에 숙련도·약한 선수 개념, 근본 원인 추적
-- [ ] 객관식·빈칸 문제 생성·검증 (약점 반영 출제, 오답 보기 오개념), 출제 지침 (`update_quiz_guideline`)
+- [x] 객관식·빈칸 문제 생성·검증 (약점 반영 출제, 오답 보기 오개념), 출제 지침 (`update_quiz_guideline`), `npm run quiz` (ADR-0029)
+- [ ] 실제 출제 품질 확인 (`npm run quiz`로 개념 몇 개, 출제 지침 다듬기)
 - [ ] 상황 판단형 객관식 (`angle = SCENARIO`, 판단 사례에서 출제, ADR-0021)
 - [ ] 변형 문제 (`key_point`, `variant_of`)
 - [ ] 복습·채점 도구 (`get_review_set`, `submit_answer`, `report_question`, `get_weakness`)

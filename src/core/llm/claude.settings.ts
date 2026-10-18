@@ -22,6 +22,9 @@ export const DEFAULT_PURPOSES: Record<LlmPurpose, PurposeSettings> = {
   // 경험 사례가 끝내 걸리면 만드는 가정 사례 (ADR-0026). 검증은 정답을 숨기고 Opus가 직접 푼다.
   CASE_HYPOTHETICAL: { model: 'sonnet', timeoutMs: 180_000, webAccess: false },
   CASE_HYPOTHETICAL_VERIFICATION: { model: 'opus', timeoutMs: 240_000, webAccess: false },
+  // 객관식·빈칸 출제 (설계 문서 7.3, ADR-0029). 판단 사례처럼 다른 모델(Opus)이 정답을 모르고 풀어 검증한다.
+  QUIZ_GENERATION: { model: 'sonnet', timeoutMs: 180_000, webAccess: false },
+  QUIZ_VERIFICATION: { model: 'opus', timeoutMs: 240_000, webAccess: false },
 };
 
 /** `claude` CLI 실행 설정. 클래스라 Nest 주입 토큰으로 바로 쓴다. */

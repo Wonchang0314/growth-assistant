@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { z } from 'zod';
+import { loadPrompt } from '../llm/prompt.js';
 import { conceptProposalSchema, type Vocabulary } from '../knowledge/concept-proposal.js';
 import { experienceCardSchema } from '../memory/experience.js';
 
@@ -19,10 +18,7 @@ export const extractionSchema = z.object({
 export type Extraction = z.infer<typeof extractionSchema>;
 
 /** 추출 규칙. 매 호출 같은 내용이라 시스템 프롬프트로 넘긴다. */
-export const EXTRACTION_SYSTEM_PROMPT = readFileSync(
-  join(import.meta.dirname, 'prompts', 'extraction.md'),
-  'utf8',
-).trim();
+export const EXTRACTION_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'extraction');
 
 /** 추출 호출의 입력: 트랙, 개념 목록(거절된 개념은 뺀다), 문서 본문. */
 export function extractionPrompt(

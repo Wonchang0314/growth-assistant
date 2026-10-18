@@ -239,7 +239,7 @@ quiz_question   id, concept_id,
                 answer, accepted_answers text[],
                 explanation, reference_material,
                 experience_id NULL, case_id NULL,
-                validation_status (PENDING | VALID | INVALID),
+                validation_status (PENDING | VALID | INVALID), validation_note,
                 reported boolean, report_reason,
                 used_count, created_at
 quiz_attempt    id, question_id, user_answer, is_correct,
@@ -248,6 +248,7 @@ quiz_attempt    id, question_id, user_answer, is_correct,
                 response_time_ms NULL, answered_at
 ```
 
+- `validation_note`는 검증에 걸린 이유다(INVALID, ADR-0029). 객관식만 `choices`가 있고 `answer`는 정답 보기의 글이다. 보기는 4개다.
 - 유형은 객관식·빈칸만 둔다(ADR-0019). 둘 다 코드가 즉시 채점하므로 채점 대기 상태가 없다. 서술형을 만들 때 유형, 채점 기준표, 점수·피드백, 채점 대기 상태를 함께 추가한다(12장).
 - 객관식 오답 보기마다 그 보기가 나타내는 오개념을 붙인다. 오답을 고르면 그 오개념이 `quiz_attempt.misconception`에 남는다. 빈칸 오답은 사용자가 쓴 답(`user_answer`)을 그대로 남기고 다음 출제 때 참고한다.
 - `key_point`와 `variant_of`로 "같은 핵심을 다른 상황에서 다시 묻는" 변형 문제를 원래 문제와 연결한다(7.3).
@@ -475,6 +476,10 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 
 **검증 단계와 피드백**
 
+- 흐름(ADR-0029): 출제(Sonnet) → 모양 검사(코드: 보기 4개·정답 보기 하나·오답마다 오개념·정답만 긴 보기, 빈칸 `____` 하나·정답 노출, 패턴 게이트) → 보기 섞기(코드) → 정답을 숨긴 풀이 검증(Opus). 걸리면 이유를 붙여 1회 다시 쓰고, 그래도 걸리면 `INVALID`로 남긴다. 약점 재료는 지금 학습 기록의 헷갈린 점과 경험 카드이고, 오답 오개념·빈칸 오답은 `quiz_attempt`와 함께 더한다.
+- 출제 지침은 한 줄에 규칙 하나로 `app_setting`(`quiz.guideline`)에 둔다. `update_quiz_guideline(add, remove)`로 고치고, 인자 없이 부르면 지금 지침을 돌려준다.
+- 품질 확인은 `npm run quiz -- --concept <이름>`으로 문제를 만들어 본다.
+
 - 문제를 생성한 직후 별도 Claude 호출로 확인한다: 정답이 하나뿐인지, 정답이 보기 안에 있는지(객관식), 허용 답이 맞는 표기를 모두 담는지(빈칸), 기준 자료만으로 풀 수 있는지. 변형 문제는 원래 문제와 핵심이 같은지, 원래 문제의 답을 외워서는 풀 수 없을 만큼 다른지도 확인한다.
 - 통과한 문제만 `VALID`가 된다.
 - 대화에서 "이 문제 이상해"라고 하면 Claude가 `report_question(questionId, reason)`을 부른다. `reported = true`로 표시하고 출제에서 뺀다. 그 풀이는 숙련도 계산에서 제외한다. 이미 반영한 풀이도 빼야 하므로, 그 개념의 숙련도·약점과 FSRS 일정을 신고된 문제를 뺀 풀이 기록으로 처음부터 다시 계산한다(8장). 신고 이유는 출제 지침을 고칠 때 참고한다.
@@ -680,6 +685,6 @@ EMA(x) = 첫 응답이면 x, 그 뒤로 0.4·x + 0.6·이전 값  (최근 4~5번
 
 ## 13. 구현 전에 정할 것
 
-- 출제·채점용 Claude 모델 (추출 쪽은 7.0에서 정했다)
+- ~~출제·채점용 Claude 모델~~ → 출제 Sonnet, 검증 Opus(ADR-0029). 객관식·빈칸 채점은 코드가 한다
 - 맥미니 Claude Desktop에 MCP 서버 등록, 튜터용 Claude 프로젝트 지침 작성 (사용자가 직접 진행, 설정 예시는 운영 가이드에)
 - Notion 통합(Integration) 토큰 발급과 페이지 공유 (사용자가 직접 진행)

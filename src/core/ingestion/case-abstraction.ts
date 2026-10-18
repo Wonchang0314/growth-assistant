@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { z } from 'zod';
+import { listSection, loadPrompt } from '../llm/prompt.js';
 import type { DecisionCaseBody } from '../memory/decision-case.js';
 import type { CaseSourceCard } from '../memory/decision-case.repository.js';
 
@@ -67,7 +66,7 @@ export function hypotheticalProblems(v: HypotheticalVerification, body: Decision
   );
 }
 
-const prompt = (name: string) => readFileSync(join(import.meta.dirname, 'prompts', `${name}.md`), 'utf8').trim();
+const prompt = (name: string) => loadPrompt(import.meta.dirname, name);
 export const SCREENING_SYSTEM_PROMPT = prompt('case-screening');
 export const ABSTRACTION_SYSTEM_PROMPT = prompt('case-abstraction');
 export const VERIFICATION_SYSTEM_PROMPT = prompt('case-verification');
@@ -87,10 +86,6 @@ const cardText = (c: CaseSourceCard) =>
 
 export const screeningPrompt = (cards: readonly CaseSourceCard[]): string =>
   cards.map((c) => `## id ${c.id}\n${cardText(c)}`).join('\n\n');
-
-/** 비어 있으면 빼는 `## 제목` 아래 목록. */
-const listSection = (title: string, items: readonly string[]) =>
-  items.length === 0 ? [] : [`## ${title}\n${items.map((i) => `- ${i}`).join('\n')}`];
 
 /** [problems]는 지난 결과가 게이트나 검증에 걸린 이유다. 처음이면 비어 있다. */
 export const abstractionPrompt = (card: CaseSourceCard, problems: readonly string[]): string =>

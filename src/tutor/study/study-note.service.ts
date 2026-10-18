@@ -94,6 +94,12 @@ export class StudyNoteService {
     return { note, linkedConcepts: [...new Set(resolved.map((r) => r.conceptName))], unknownConcepts: unknown };
   }
 
+  /** 개념에 연결된 최근 학습 기록의 헷갈린 점. 출제할 때 오답 보기와 빈칸 자리가 겨냥한다 (설계 문서 7.3). */
+  async confusedPoints(conceptId: number): Promise<string[]> {
+    const notes = await this.repository.findByConcepts([conceptId], RELATED_LIMIT);
+    return [...new Set(notes.flatMap((n) => n.confusedPoints))];
+  }
+
   async learningContext(topic: string): Promise<LearningContext> {
     const concepts = await this.concepts.relatedConcepts(topic);
     const conceptIds = concepts.map((c) => c.id);

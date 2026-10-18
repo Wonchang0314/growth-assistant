@@ -105,9 +105,26 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       'review_concept',
       'search_experience',
       'sync_status',
+      'update_quiz_guideline',
     ]);
     expect(tools.find((t) => t.name === 'get_learning_context')?.annotations?.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === 'record_study_note')?.annotations?.readOnlyHint).toBe(false);
+  });
+
+  it('update_quiz_guideline으로 출제 지침을 더하고 빼며, 인자 없이 부르면 지금 지침을 보여 준다', async () => {
+    await client.callTool({
+      name: 'update_quiz_guideline',
+      arguments: { add: ['보기에 코드 조각을 넣지 않는다', '용어는 영문 그대로 쓴다'] },
+    });
+    await client.callTool({
+      name: 'update_quiz_guideline',
+      arguments: { remove: ['용어는 영문 그대로 쓴다', '없음'] },
+    });
+
+    const result = await client.callTool({ name: 'update_quiz_guideline', arguments: {} });
+
+    expect(result.structuredContent).toEqual({ rules: ['보기에 코드 조각을 넣지 않는다'], notFound: [] });
+    expect(JSON.stringify(result.content)).toContain('출제 지침 1개');
   });
 
   it('NOTION_TOKEN 없이도 뜨고, 동기화 전이면 아직 하지 않았다고 알려 준다', async () => {

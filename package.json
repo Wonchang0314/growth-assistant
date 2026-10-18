@@ -22,7 +22,8 @@
     "db:studio": "drizzle-kit studio",
     "sync": "nest build && node dist/sync.js",
     "extract": "nest build && node dist/extract.js",
-    "abstract": "nest build && node dist/abstract.js"
+    "abstract": "nest build && node dist/abstract.js",
+    "quiz": "nest build && node dist/quiz.js"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.3.1",

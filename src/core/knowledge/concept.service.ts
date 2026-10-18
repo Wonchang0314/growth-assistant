@@ -20,7 +20,11 @@ export class ConceptService {
   /** 주제와 관련 있는 개념과 그 상위·선수 개념. 맞는 개념이 없으면 빈 배열. */
   async relatedConcepts(topic: string): Promise<RelatedConcept[]> {
     const matched = matchConcepts(topic, await this.repository.findActiveTerms(), RELATED_LIMIT);
-    const ids = matched.map((c) => c.id);
+    return this.summaries(matched.map((c) => c.id));
+  }
+
+  /** [ids] 개념의 요약과 선수 개념. 없는 개념은 빠진다. */
+  async summaries(ids: readonly number[]): Promise<RelatedConcept[]> {
     const [summaries, prerequisites] = await Promise.all([
       this.repository.findSummaries(ids),
       this.repository.findPrerequisites(ids, PREREQUISITE_DEPTH),

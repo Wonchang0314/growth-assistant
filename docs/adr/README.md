@@ -23,7 +23,7 @@
 | [0017](0017-pwa-http-api.md) | Discord 대신 PWA를 인터페이스로, 앱은 HTTP API 서버로 바꾼다 | 대체됨(0018) |
 | [0018](0018-claude-mcp-server.md) | PWA 대신 Claude 앱을 인터페이스로, 앱은 MCP 서버로 바꾸고 먼저 로컬에서 검증한다 | 일부 대체됨(0019) |
 | [0019](0019-core-learning-first.md) | 핵심 학습 기능을 먼저 만들고, 퀴즈는 객관식·빈칸부터, 먼저 말 걸기·알림·인증·보안은 뒤로 미룬다 | 채택 |
-| [0020](0020-quiz-layered-folders.md) | quiz 모듈에서 레이어 폴더 구조를 먼저 시도한다 | 채택 |
+| [0020](0020-quiz-layered-folders.md) | quiz 모듈에서 레이어 폴더 구조를 먼저 시도한다 | 일부 대체됨(0029) |
 | [0021](0021-tracks-and-decision-cases.md) | 학습 트랙에 IT 인프라를 더하고 가중치를 다시 나누며, 업무 경험은 회사 맥락을 걷어낸 판단 사례로 바꿔 상황 판단형 객관식으로 낸다 | 일부 대체됨(0022·0024·0026) |
 | [0022](0022-seed-as-curriculum.md) | 시드 개념을 앞으로 배울 커리큘럼으로 바꾸고, 트랙을 JS/TS·관계형 DB·백엔드·IT 인프라·네트워크·MCP로 다시 짠다 | 일부 대체됨(0025) |
 | [0023](0023-notion-only-source.md) | 기억의 원천은 Notion 하나로 하고 velog 수집은 하지 않는다 | 채택 |
@@ -32,3 +32,4 @@
 | [0026](0026-experience-and-hypothetical-cases.md) | 판단 사례를 경험 사례와 가정 사례로 나누고, 경험 사례가 검증에 걸리면 가정 사례로 자동 폴백한다 | 채택 |
 | [0027](0027-claude-concurrency-five.md) | `claude -p` 동시 실행을 5개로 올리고, 판단 사례는 카드를 그만큼 함께 처리한다 | 채택 |
 | [0028](0028-fsrs-days-only-and-mastery-formula.md) | FSRS 단기 학습 단계를 끄고 최대 간격을 180일로 줄이며, 대화에서 다룬 개념을 복습 일정에 넣고, 숙련도·약점 공식과 개념 병합 규칙을 정한다 | 채택 |
+| [0029](0029-quiz-generation-and-layer-ports.md) | 객관식·빈칸은 Sonnet이 쓰고 Opus가 정답을 모른 채 풀어 검증하며, quiz 레이어는 저장소·출제 어댑터를 포트로 둔다 | 채택 |
