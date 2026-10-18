@@ -13,7 +13,7 @@
 - 테스트: Vitest, Testcontainers
 - 코드 스타일: ESLint(typescript-eslint) + Prettier (`npm run check`에 포함)
 
-**인터페이스 (ADR-0018):** Claude 앱 + MCP 서버. 먼저 맥미니(이 Mac)의 Claude Desktop에 로컬(stdio)로 붙여 기능과 퀴즈 품질을 검증하고, 원격 커스텀 커넥터(모바일·아이패드)는 5단계에서 새 ADR로 정한다. 튜터링 대화는 Claude 앱이 하고 서버는 도구를 제공한다. 이전 Discord 봇 구현은 1단계에서 지웠다(지우기 전 커밋 `fb866c4`). 이전 Kotlin 구현은 커밋 `a7bc8c5`에 있다(`git show a7bc8c5:<경로>`).
+**인터페이스 (ADR-0018):** Claude 앱 + MCP 서버. 먼저 맥미니(이 Mac)의 Claude Desktop에 로컬(stdio)로 붙여 기능을 검증했고, 원격 커스텀 커넥터(모바일·아이패드)는 4단계에서 새 ADR로 정한다. 퀴즈 품질은 원격 전환과 예약 작업으로 프로토타입을 만든 뒤 실제로 쓰며 올린다(ADR-0034). 튜터링 대화는 Claude 앱이 하고 서버는 도구를 제공한다. 이전 Discord 봇 구현은 1단계에서 지웠다(지우기 전 커밋 `fb866c4`). 이전 Kotlin 구현은 커밋 `a7bc8c5`에 있다(`git show a7bc8c5:<경로>`).
 
 ## 모듈 구조
 
@@ -38,7 +38,7 @@ src/
     └── outreach         # 아침 복습, 저녁 주제, 주간 리포트
 ```
 
-기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), 테이블 정의(`*.schema.ts`), Drizzle 저장소, 유스케이스(서비스)를 둔다. MCP 도구 처리기는 그 기능의 `mcp/` 폴더에 둔다. 예외로 `quiz` 모듈은 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나누고, application이 저장소·출제 어댑터를 포트로 둬 infrastructure가 구현한다(ADR-0020·0029, 방향은 `eslint.config.js`의 `quizLayer`가 검사). 여러 레이어를 함께 쓰는 테스트는 모듈 루트에 둔다. 진입점은 `mcp-stdio.ts`(Claude Desktop이 띄움, 루트 `McpAppModule`) 하나이고, 상시 실행 진입점은 서버 예약 작업이 생기는 4단계에서 만든다. 유스케이스는 MCP SDK·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, DB가 필요한 테스트는 `*.db.spec.ts`(Testcontainers 컨테이너 하나를 함께 쓰고 차례로 실행)로 둔다. 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
+기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), 테이블 정의(`*.schema.ts`), Drizzle 저장소, 유스케이스(서비스)를 둔다. MCP 도구 처리기는 그 기능의 `mcp/` 폴더에 둔다. 예외로 `quiz` 모듈은 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나누고, application이 저장소·출제 어댑터를 포트로 둬 infrastructure가 구현한다(ADR-0020·0029, 방향은 `eslint.config.js`의 `quizLayer`가 검사). 여러 레이어를 함께 쓰는 테스트는 모듈 루트에 둔다. 진입점은 `mcp-stdio.ts`(Claude Desktop이 띄움, 루트 `McpAppModule`) 하나이고, 상시 실행 진입점은 원격 서버를 띄우는 4단계에서 만든다(5단계 예약 작업도 쓴다). 유스케이스는 MCP SDK·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, DB가 필요한 테스트는 `*.db.spec.ts`(Testcontainers 컨테이너 하나를 함께 쓰고 차례로 실행)로 둔다. 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
 
 ## 명령
 
