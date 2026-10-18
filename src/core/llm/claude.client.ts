@@ -10,6 +10,8 @@ export const LLM_PURPOSES = [
   'CASE_VERIFICATION',
   'CASE_HYPOTHETICAL',
   'CASE_HYPOTHETICAL_VERIFICATION',
+  'QUIZ_GENERATION',
+  'QUIZ_VERIFICATION',
 ] as const;
 export type LlmPurpose = (typeof LLM_PURPOSES)[number];
 

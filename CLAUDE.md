@@ -33,12 +33,12 @@ src/
 │   └── setting          # 실행 중 정해지는 키-값 설정 (app_setting)
 └── tutor                # 튜터 기능 모듈
     ├── study            # 학습 맥락 조회·경험 카드 검색·학습 기록 MCP 도구, 서버 instructions
-    ├── quiz             # 출제·검증·채점 (레이어 폴더 시도, ADR-0020)
+    ├── quiz             # 출제·검증·채점, 출제 지침 MCP 도구 (레이어 폴더와 출력 포트, ADR-0020·0029)
     ├── mastery          # 개념별 FSRS 복습 일정(ts-fsrs 어댑터), 숙련도·약점
     └── outreach         # 아침 복습, 저녁 주제, 주간 리포트
 ```
 
-기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), 테이블 정의(`*.schema.ts`), Drizzle 저장소, 유스케이스(서비스)를 둔다. MCP 도구 처리기는 그 기능의 `mcp/` 폴더에 둔다. 예외로 `quiz` 모듈은 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나눈다(ADR-0020). 진입점은 `mcp-stdio.ts`(Claude Desktop이 띄움, 루트 `McpAppModule`) 하나이고, 상시 실행 진입점은 서버 예약 작업이 생기는 4단계에서 만든다. 유스케이스는 MCP SDK·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, DB가 필요한 테스트는 `*.db.spec.ts`(Testcontainers 컨테이너 하나를 함께 쓰고 차례로 실행)로 둔다. 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
+기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), 테이블 정의(`*.schema.ts`), Drizzle 저장소, 유스케이스(서비스)를 둔다. MCP 도구 처리기는 그 기능의 `mcp/` 폴더에 둔다. 예외로 `quiz` 모듈은 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나누고, application이 저장소·출제 어댑터를 포트로 둬 infrastructure가 구현한다(ADR-0020·0029, 방향은 `eslint.config.js`의 `quizLayer`가 검사). 여러 레이어를 함께 쓰는 테스트는 모듈 루트에 둔다. 진입점은 `mcp-stdio.ts`(Claude Desktop이 띄움, 루트 `McpAppModule`) 하나이고, 상시 실행 진입점은 서버 예약 작업이 생기는 4단계에서 만든다. 유스케이스는 MCP SDK·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, DB가 필요한 테스트는 `*.db.spec.ts`(Testcontainers 컨테이너 하나를 함께 쓰고 차례로 실행)로 둔다. 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
 
 ## 명령
 
@@ -52,6 +52,7 @@ src/
 - Notion 동기화: `npm run sync` (`.env`의 `NOTION_TOKEN`, `NOTION_ROOT_IDS`. 처음이 백필이고 그 뒤로는 바뀐 문서만 읽는다)
 - 경험 카드 추출(구독 사용량 소모): `npm run extract` (아직 뽑지 않았거나 실패한 문서 전체), `-- --limit 5`(앞에서 5개), `-- --ids 3,7`(상태와 상관없이 그 문서를 다시)
 - 판단 사례 추상화(구독 사용량 소모, 검증은 Opus): `npm run abstract` (선별하지 않은 카드를 모두 선별하고 판단이 분명한 카드 전부), `-- --limit 10`(판단이 분명한 카드 10장만), `-- --ids 3,7`(선별 없이 그 경험 카드를 다시)
+- 문제 만들어 보기(구독 사용량 소모, 검증은 Opus): `npm run quiz -- --concept "인덱스 원리"` (객관식·빈칸 번갈아 2문제를 문제 풀에 저장하고 출력), `-- --type FILL_BLANK --count 3`
 - 시드 개념 적재: `npm run db:seed` (`src/core/knowledge/seed/*.yaml`을 검증한 뒤 반영, 여러 번 돌려도 같고 YAML에서 빠진 시드 개념·트랙은 지운다. 배포 스크립트도 마이그레이션 뒤에 돌린다)
 - 스타일 자동 수정: `npm run format`, `npx eslint --fix .`
 - MCP 서버: `npm run build && npm run mcp` (stdio. 표준출력은 MCP 메시지 통로라 로그는 표준에러나 `LOG_DIR/mcp`에 쓴다. `.env` 위치는 `GROWTH_ENV_FILE`)
