@@ -28,7 +28,7 @@ export type ReviewSet =
       readonly questions: readonly ServedQuestion[];
       /** 문제 풀에 없어 지금 만들고 있는 개념. 잠시 뒤 다시 부르면 나온다. */
       readonly preparing: readonly string[];
-      /** 오늘 더 풀 수 있는 수. 개념을 골라 달라고 했으면 null(하루 상한을 세지 않음). */
+      /** 오늘 더 풀 수 있는 수. 개념을 골라 달라고 했으면 null(하루 상한을 적용하지 않음). */
       readonly remainingToday: number | null;
     }
   | { readonly kind: 'DAILY_LIMIT_REACHED' }
@@ -79,7 +79,7 @@ export class QuizReviewService {
     );
   }
 
-  /** 뒤에서 만들고 있는 문제가 모두 끝날 때까지 기다린다. 테스트와 종료할 때 쓴다. */
+  /** 뒤에서 만들고 있는 문제가 모두 끝날 때까지 기다린다. 테스트에서 쓴다. MCP 서버가 끝나면 만들던 문제는 버려진다. */
   async idle(): Promise<void> {
     await Promise.all(this.preparing.values());
   }
