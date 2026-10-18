@@ -1,6 +1,8 @@
 dist/
 coverage/
 node_modules/
+# 다른 세션이 쓰는 git 워크트리다(그 안에서 따로 검사한다).
+.claude/worktrees/
 package-lock.json
 # drizzle-kit이 만든 마이그레이션과 스냅샷은 손대지 않는다.
 src/core/db/migrations/
