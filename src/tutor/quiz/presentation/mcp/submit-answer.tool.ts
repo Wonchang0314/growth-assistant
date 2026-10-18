@@ -23,6 +23,7 @@ const input = z.object({
     .describe('답하기 전에 힌트나 설명을 줬으면 true. 비우면 힌트를 쓴 것으로 보고 숙련도에 반영하지 않는다'),
 });
 
+const EXPERIENCE_TEXT = { LIVED: '이 원칙을 실제로 겪은 경험', SAME_CONCEPT: '같은 개념을 다룬 내 경험' } as const;
 const LEVEL_TEXT = { UNMEASURED: '미측정', WEAK: '약점', OK: '양호' } as const;
 
 @McpTool()
@@ -55,7 +56,7 @@ export class SubmitAnswerTool implements McpToolHandler<typeof input> {
           ...(r.misconception === null ? [] : [`고른 보기의 오개념: ${r.misconception}`]),
           `해설: ${r.question.explanation}`,
           `근거: ${r.question.referenceMaterial}`,
-          ...(r.experience === null ? [] : [`이 원칙을 겪은 경험: ${r.experience}`]),
+          ...(r.experience === null ? [] : [`${EXPERIENCE_TEXT[r.experience.relation]}: ${r.experience.title}`]),
           r.mastery === null
             ? '신고된 문제라 숙련도에 반영하지 않았다'
             : `숙련도 ${r.mastery.masteryScore.toFixed(2)} (${LEVEL_TEXT[weaknessLevel(r.mastery)]}), 다음 복습 ${localDate(r.mastery.dueAt, this.clock.timeZone)}${args.hintUsed ? ' (힌트를 써서 점수에는 반영하지 않음)' : ''}`,

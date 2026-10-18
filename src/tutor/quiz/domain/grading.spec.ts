@@ -12,6 +12,7 @@ const base = {
   referenceMaterial: '근거',
   experienceId: null,
   variantOf: null,
+  caseId: null,
   reported: false,
 } as const;
 

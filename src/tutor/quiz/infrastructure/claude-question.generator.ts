@@ -2,9 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { ClaudeClient } from '../../../core/llm/claude.client.js';
 import { listSection, loadPrompt } from '../../../core/llm/prompt.js';
+import type { ActiveCase } from '../../../core/memory/decision-case.repository.js';
 import { type GenerationContext, QuestionGenerator } from '../application/ports.js';
 import type { Solution } from '../domain/question-solution.js';
-import { BLANK, CHOICE_COUNT, CONCEPT_ANGLES, type Question, type QuestionDraft } from '../domain/quiz-question.js';
+import {
+  BLANK,
+  CHOICE_COUNT,
+  CONCEPT_ANGLES,
+  HYPOTHETICAL_PREFIX,
+  type Question,
+  type QuestionDraft,
+} from '../domain/quiz-question.js';
 import type { QuestionHistory, VariantCheck } from '../domain/variant.js';
 
 const common = {
@@ -53,9 +61,19 @@ const variantCheckSchema = z.object({
   problems: z.array(z.string()).describe('고칠 점. 한 항목에 하나씩. 없으면 빈 배열'),
 });
 
+/** 상황 판단형: 각도(SCENARIO)와 근거 카드(사례의 원래 카드)는 코드가 정한다. */
+const scenarioSchema = multipleChoiceSchema.omit({ angle: true, experienceId: true });
+
 const GENERATION_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'quiz-generation');
+const SCENARIO_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'quiz-scenario');
 const VERIFICATION_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'quiz-verification');
 const VARIANT_CHECK_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'quiz-variant-check');
+
+/** 변형이면 원래 문제를 잇고 핵심을 그대로 쓴다. */
+function variantFields(context: GenerationContext) {
+  const original = context.variantOf?.question;
+  return original ? { variantOf: original.id, keyPoint: original.keyPoint } : { variantOf: null };
+}
 
 /** 정답까지 담은 문제 글. 변형을 만들거나 원래 문제와 비교할 때 쓴다. */
 function questionText(q: QuestionDraft): string {
@@ -74,6 +92,7 @@ export class ClaudeQuestionGenerator extends QuestionGenerator {
   }
 
   async write(context: GenerationContext, problems: readonly string[]): Promise<QuestionDraft> {
+    if (context.decisionCase !== null) return this.writeScenario(context, context.decisionCase, problems);
     const request = {
       purpose: 'QUIZ_GENERATION' as const,
       systemPrompt: GENERATION_SYSTEM_PROMPT,
@@ -81,9 +100,7 @@ export class ClaudeQuestionGenerator extends QuestionGenerator {
     };
     // 주지 않은 카드 id를 쓰면 근거 카드가 없는 것으로 본다.
     const experienceId = (id: number | null) => (context.experiences.some((e) => e.id === id) ? id : null);
-    const original = context.variantOf?.question;
-    // 변형은 원래 문제의 핵심을 그대로 쓴다.
-    const fixed = original ? { variantOf: original.id, keyPoint: original.keyPoint } : { variantOf: null };
+    const fixed = { ...variantFields(context), caseId: null };
     const base = { conceptId: context.concept.id };
     if (context.type === 'MULTIPLE_CHOICE') {
       const r = await this.claude.completeStructured(request, multipleChoiceSchema);
@@ -91,6 +108,36 @@ export class ClaudeQuestionGenerator extends QuestionGenerator {
     }
     const r = await this.claude.completeStructured(request, fillBlankSchema);
     return { ...base, ...r, ...fixed, type: 'FILL_BLANK', experienceId: experienceId(r.experienceId) };
+  }
+
+  /**
+   * 판단 사례로 상황 판단형 객관식을 쓴다 (ADR-0021). 각도는 SCENARIO, 근거 카드는 사례를 뽑은 경험 카드다.
+   * 가정 사례면 질문 앞에 머리말을 코드가 붙인다 (ADR-0032).
+   */
+  private async writeScenario(
+    context: GenerationContext,
+    decisionCase: ActiveCase,
+    problems: readonly string[],
+  ): Promise<QuestionDraft> {
+    const r = await this.claude.completeStructured(
+      {
+        purpose: 'QUIZ_GENERATION',
+        systemPrompt: SCENARIO_SYSTEM_PROMPT,
+        prompt: scenarioPrompt(context, decisionCase, problems),
+      },
+      scenarioSchema,
+    );
+    const prompt = r.prompt.replace(HYPOTHETICAL_PREFIX.trim(), '').trim();
+    return {
+      ...r,
+      ...variantFields(context),
+      conceptId: context.concept.id,
+      type: 'MULTIPLE_CHOICE',
+      angle: 'SCENARIO',
+      prompt: decisionCase.kind === 'HYPOTHETICAL' ? `${HYPOTHETICAL_PREFIX}${prompt}` : prompt,
+      caseId: decisionCase.id,
+      experienceId: decisionCase.experienceId,
+    };
   }
 
   compareVariant(original: Question, variant: QuestionDraft): Promise<VariantCheck> {
@@ -121,20 +168,52 @@ export class ClaudeQuestionGenerator extends QuestionGenerator {
   }
 }
 
-export function generationPrompt(context: GenerationContext, problems: readonly string[]): string {
-  const { concept } = context;
+function conceptSection({ concept }: GenerationContext): string {
   return [
+    `## 개념: ${concept.name}`,
+    `트랙: ${concept.track}`,
+    `설명: ${concept.description}`,
+    ...(concept.parent === null ? [] : [`상위 개념: ${concept.parent}`]),
+    ...(concept.prerequisites.length === 0 ? [] : [`선수 개념: ${concept.prerequisites.join(', ')}`]),
+  ].join('\n');
+}
+
+/** 새 문제면 이미 낸 핵심(겹치지 않게), 변형이면 원래 문제. */
+const focusSection = (context: GenerationContext): string[] =>
+  context.variantOf === null
+    ? listSection('이미 낸 핵심 (이것과 다른 핵심을 묻는다)', context.knownKeyPoints)
+    : [variantSection(context.variantOf)];
+
+export function scenarioPrompt(
+  context: GenerationContext,
+  { kind, body }: ActiveCase,
+  problems: readonly string[],
+): string {
+  const options = body.options.map((o) => `- ${o.chosen ? '(고름) ' : ''}${o.text}: ${o.reason}`).join('\n');
+  return [
+    conceptSection(context),
     [
-      `## 개념: ${concept.name}`,
-      `트랙: ${concept.track}`,
-      `설명: ${concept.description}`,
-      ...(concept.parent === null ? [] : [`상위 개념: ${concept.parent}`]),
-      ...(concept.prerequisites.length === 0 ? [] : [`선수 개념: ${concept.prerequisites.join(', ')}`]),
+      `## 판단 사례 (${kind === 'EXPERIENCE' ? '경험 사례' : '가정 사례'})`,
+      `상황: ${body.situation}`,
+      ...listSection('제약', body.constraints),
+      `## 선택지와 이유\n${options}`,
+      `결정: ${body.decision}`,
+      `근거: ${body.rationale}`,
+      `결과: ${body.outcome}`,
+      ...listSection('불변 조건', body.invariants),
     ].join('\n'),
+    ...focusSection(context),
+    ...listSection('사용자가 헷갈린 점', context.confusedPoints),
+    ...listSection('출제 지침 (사용자 요청)', context.guideline),
+    ...listSection('지난 문제의 문제', problems),
+  ].join('\n\n');
+}
+
+export function generationPrompt(context: GenerationContext, problems: readonly string[]): string {
+  return [
+    conceptSection(context),
     `## 문제 유형\n${context.type === 'MULTIPLE_CHOICE' ? `객관식 (보기 ${CHOICE_COUNT}개)` : '빈칸'}`,
-    ...(context.variantOf === null
-      ? listSection('이미 낸 핵심 (이것과 다른 핵심을 묻는다)', context.knownKeyPoints)
-      : [variantSection(context.variantOf)]),
+    ...focusSection(context),
     ...listSection('사용자가 헷갈린 점', context.confusedPoints),
     ...(context.experiences.length === 0
       ? []

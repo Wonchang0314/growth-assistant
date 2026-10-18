@@ -5,6 +5,7 @@ import { FixedClock } from '../../../test/fakes/fixed-clock.js';
 import { fillBlankReply, multipleChoiceReply, solvedReply } from '../../../test/fixtures/quiz.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
+import { DecisionCaseRepository } from '../../core/memory/decision-case.repository.js';
 import { ExperienceRepository } from '../../core/memory/experience.repository.js';
 import { SourceDocumentRepository } from '../../core/memory/source-document.repository.js';
 import { AppSettingRepository } from '../../core/setting/app-setting.repository.js';
@@ -83,6 +84,7 @@ beforeEach(async () => {
     repository,
     concepts,
     experiences,
+    new DecisionCaseRepository(testDb.db),
     studyNotes,
     guideline,
     clock,
