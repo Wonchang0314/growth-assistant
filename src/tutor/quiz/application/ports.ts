@@ -3,6 +3,7 @@ import type { FoundExperience } from '../../../core/memory/experience.repository
 import type { AttemptRecord } from '../domain/grading.js';
 import type { Solution } from '../domain/question-solution.js';
 import type { Question, QuestionDraft, QuestionType, ValidationStatus } from '../domain/quiz-question.js';
+import type { QuestionHistory, VariantCheck } from '../domain/variant.js';
 
 /*
  * application이 infrastructure 구현을 부르는 출력 포트 (ADR-0029). 레이어 방향(infrastructure → application)을 지키려면
@@ -22,8 +23,10 @@ export abstract class QuizQuestionRepository {
   /** 그 개념에서 이미 낸(검증을 통과한) 문제의 핵심. 새 문제는 다른 핵심을 고른다. */
   abstract keyPoints(conceptId: number): Promise<string[]>;
   abstract find(id: number): Promise<Question | undefined>;
-  /** 낼 수 있는 문제: 검증을 통과했고, 신고되지 않았고, 아직 풀지 않은 문제. 오래된 것부터. */
+  /** 낼 수 있는 문제: 검증을 통과했고, 신고되지 않았고, 아직 풀지 않은 문제. 변형 문제 먼저, 오래된 것부터. */
   abstract findServable(conceptId: number, limit: number): Promise<Question[]>;
+  /** 그 개념의 검증 통과·신고 안 된 문제와 마지막 풀이, 변형이 있는지. 오래된 것부터. 다음에 만들 문제를 정할 때 쓴다. */
+  abstract findHistory(conceptId: number): Promise<QuestionHistory[]>;
   /** 검증을 통과한 문제 수. 다음에 만들 유형을 고를 때 쓴다. */
   abstract countValid(conceptId: number): Promise<Record<QuestionType, number>>;
   abstract markServed(ids: readonly number[]): Promise<void>;
@@ -53,6 +56,8 @@ export interface GenerationContext {
   readonly confusedPoints: readonly string[];
   readonly experiences: readonly FoundExperience[];
   readonly guideline: readonly string[];
+  /** 변형 문제를 만들 때 원래 문제와 그때의 답·오개념 (설계 문서 7.3 "변형 문제"). */
+  readonly variantOf: QuestionHistory | null;
 }
 
 export abstract class QuestionGenerator {
@@ -60,4 +65,5 @@ export abstract class QuestionGenerator {
   abstract write(context: GenerationContext, problems: readonly string[]): Promise<QuestionDraft>;
   /** 정답을 숨기고 문제만 보여 줘서 풀게 한다. */
   abstract solve(draft: QuestionDraft): Promise<Solution>;
+  abstract compareVariant(original: Question, variant: QuestionDraft): Promise<VariantCheck>;
 }

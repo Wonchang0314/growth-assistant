@@ -6,6 +6,7 @@ import { MasteryService } from '../../mastery/mastery.service.js';
 import { StudyNoteService } from '../../study/study-note.service.js';
 import { DAILY_LIMIT, pickConcepts } from '../domain/review-selection.js';
 import type { Question, QuestionType } from '../domain/quiz-question.js';
+import { nextQuestion } from '../domain/variant.js';
 import { QuizAttemptRepository, QuizQuestionRepository } from './ports.js';
 import { QuizGenerationService, RANDOM } from './quiz-generation.service.js';
 import { QuizWeaknessService } from './quiz-weakness.service.js';
@@ -109,14 +110,21 @@ export class QuizReviewService {
     };
   }
 
-  /** [count]개를 뒤에서 차례로 만든다. 이미 만들고 있는 개념이면 그 작업에 맡긴다. */
+  /**
+   * [count]개를 뒤에서 차례로 만든다. 흔들린 문제의 변형이 먼저이고, 없으면 확인된 핵심의 변형과 새 핵심을 번갈아 만든다.
+   * 이미 만들고 있는 개념이면 그 작업에 맡긴다.
+   */
   private prepare(conceptId: number, count: number): void {
     if (this.preparing.has(conceptId)) return;
     const task = (async () => {
       for (let i = 0; i < count; i++) {
-        const counts = await this.questions.countValid(conceptId);
+        const [counts, history] = await Promise.all([
+          this.questions.countValid(conceptId),
+          this.questions.findHistory(conceptId),
+        ]);
         const type = counts.FILL_BLANK < counts.MULTIPLE_CHOICE ? 'FILL_BLANK' : 'MULTIPLE_CHOICE';
-        await this.generation.generate({ conceptId, type });
+        const next = nextQuestion(history);
+        await this.generation.generate({ conceptId, type, variantOf: next.kind === 'VARIANT' ? next.of : undefined });
       }
     })()
       .catch((e: unknown) => {

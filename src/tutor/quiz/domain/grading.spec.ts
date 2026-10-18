@@ -11,6 +11,7 @@ const base = {
   explanation: '해설',
   referenceMaterial: '근거',
   experienceId: null,
+  variantOf: null,
   reported: false,
 } as const;
 

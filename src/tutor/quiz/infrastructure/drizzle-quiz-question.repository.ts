@@ -4,6 +4,7 @@ import { DB, type Db, type Tx } from '../../../core/db/db.module.js';
 import type { ConceptMergeParticipant } from '../../../core/knowledge/concept-merge.js';
 import { type NewQuestion, QuizQuestionRepository } from '../application/ports.js';
 import type { Question, QuestionType } from '../domain/quiz-question.js';
+import type { QuestionHistory } from '../domain/variant.js';
 import { quizAttempt } from './quiz-attempt.schema.js';
 import { quizQuestion } from './quiz-question.schema.js';
 
@@ -55,9 +56,42 @@ export class DrizzleQuizQuestionRepository extends QuizQuestionRepository implem
           notExists(answered),
         ),
       )
-      .orderBy(asc(quizQuestion.createdAt), asc(quizQuestion.id))
+      // 흔들린 문제의 변형을 먼저 낸다(설계 문서 7.3 "변형 문제").
+      .orderBy(sql`${quizQuestion.variantOf} IS NULL`, asc(quizQuestion.createdAt), asc(quizQuestion.id))
       .limit(limit);
     return rows.map(toQuestion);
+  }
+
+  async findHistory(conceptId: number): Promise<QuestionHistory[]> {
+    const usable = and(
+      eq(quizQuestion.conceptId, conceptId),
+      eq(quizQuestion.validationStatus, 'VALID'),
+      eq(quizQuestion.reported, false),
+    );
+    const [rows, attempts] = await Promise.all([
+      this.db.select().from(quizQuestion).where(usable).orderBy(asc(quizQuestion.createdAt), asc(quizQuestion.id)),
+      this.db
+        .select({
+          questionId: quizAttempt.questionId,
+          correct: quizAttempt.isCorrect,
+          confidence: quizAttempt.confidence,
+          hintUsed: quizAttempt.hintUsed,
+          userAnswer: quizAttempt.userAnswer,
+          misconception: quizAttempt.misconception,
+        })
+        .from(quizAttempt)
+        .innerJoin(quizQuestion, eq(quizQuestion.id, quizAttempt.questionId))
+        .where(usable)
+        .orderBy(asc(quizAttempt.answeredAt), asc(quizAttempt.id)),
+    ]);
+    // 시간순이라 나중 풀이가 덮어쓴다.
+    const last = new Map(attempts.map(({ questionId, ...a }) => [questionId, a]));
+    const varied = new Set(rows.flatMap((r) => (r.variantOf === null ? [] : [r.variantOf])));
+    return rows.map((r) => ({
+      question: toQuestion(r),
+      lastAnswer: last.get(r.id) ?? null,
+      hasVariant: varied.has(r.id),
+    }));
   }
 
   async countValid(conceptId: number): Promise<Record<QuestionType, number>> {
@@ -100,6 +134,7 @@ function toQuestion(row: Row): Question {
     explanation: row.explanation,
     referenceMaterial: row.referenceMaterial,
     experienceId: row.experienceId,
+    variantOf: row.variantOf,
     reported: row.reported,
   };
   if (row.type === 'FILL_BLANK') return { ...base, type: 'FILL_BLANK', acceptedAnswers: row.acceptedAnswers };

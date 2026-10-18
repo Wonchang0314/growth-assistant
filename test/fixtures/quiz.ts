@@ -33,3 +33,7 @@ export const fillBlankReply = JSON.stringify({
 
 export const solvedReply = (answer: Record<string, unknown>) =>
   JSON.stringify({ singleAnswer: true, problems: [], ...answer });
+
+/** 변형 비교 검증 응답. 기본은 통과다. */
+export const variantCheckReply = (overrides: Record<string, unknown> = {}) =>
+  JSON.stringify({ sameKeyPoint: true, solvableByMemory: false, problems: [], ...overrides });

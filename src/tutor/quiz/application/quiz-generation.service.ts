@@ -6,6 +6,7 @@ import { StudyNoteService } from '../../study/study-note.service.js';
 import { draftProblems, shuffled } from '../domain/question-gate.js';
 import { solutionProblems } from '../domain/question-solution.js';
 import type { QuestionDraft, QuestionType, ValidationStatus } from '../domain/quiz-question.js';
+import { type QuestionHistory, variantCheckProblems, variantProblems } from '../domain/variant.js';
 import { type GenerationContext, QuestionGenerator, QuizQuestionRepository } from './ports.js';
 import { QuizGuidelineService } from './quiz-guideline.service.js';
 
@@ -27,8 +28,8 @@ export interface GeneratedQuestion {
 
 /**
  * 개념 하나로 객관식·빈칸 문제를 만든다 (설계 문서 7.3).
- * 출제(Sonnet) → 모양 검사(코드) → 보기 섞기 → 정답을 숨긴 풀이 검증(Opus). 걸리면 이유를 붙여 한 번 다시 쓰고,
- * 그래도 걸리면 INVALID로 남긴다. 통과한 문제만 VALID가 되어 출제에 쓰인다.
+ * 출제(Sonnet) → 모양 검사(코드) → 보기 섞기 → 정답을 숨긴 풀이 검증(Opus) → 변형이면 원래 문제와 비교(Opus).
+ * 걸리면 이유를 붙여 한 번 다시 쓰고, 그래도 걸리면 INVALID로 남긴다. 통과한 문제만 VALID가 되어 출제에 쓰인다.
  */
 @Injectable()
 export class QuizGenerationService {
@@ -43,14 +44,18 @@ export class QuizGenerationService {
     @Inject(RANDOM) private readonly random: () => number,
   ) {}
 
-  async generate(input: { conceptId: number; type: QuestionType }): Promise<GeneratedQuestion> {
-    const context = await this.context(input.conceptId, input.type);
+  /** [variantOf]를 주면 그 문제의 변형을 만든다(같은 핵심, 다른 상황). */
+  async generate(input: {
+    conceptId: number;
+    type: QuestionType;
+    variantOf?: QuestionHistory | undefined;
+  }): Promise<GeneratedQuestion> {
+    const context = await this.context(input.conceptId, input.type, input.variantOf ?? null);
     let problems: string[] = [];
     let question: QuestionDraft | undefined;
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
       question = this.shuffle(await this.generator.write(context, problems));
-      problems = draftProblems(question);
-      if (problems.length === 0) problems = solutionProblems(question, await this.generator.solve(question));
+      problems = await this.problemsOf(question, context.variantOf);
       if (problems.length === 0) break;
     }
     if (question === undefined) throw new Error('문제를 만들지 못했다');
@@ -64,7 +69,22 @@ export class QuizGenerationService {
     return { id, status, question, problems };
   }
 
-  private async context(conceptId: number, type: QuestionType): Promise<GenerationContext> {
+  /**
+   * 모양 검사(코드) → 정답을 숨긴 풀이 → 변형이면 원래 문제와 비교. 앞 단계에서 걸리면 뒤 단계(LLM 호출)는 건너뛴다.
+   */
+  private async problemsOf(question: QuestionDraft, variantOf: QuestionHistory | null): Promise<string[]> {
+    const shape = [...draftProblems(question), ...(variantOf ? variantProblems(variantOf.question, question) : [])];
+    if (shape.length > 0) return shape;
+    const solved = solutionProblems(question, await this.generator.solve(question));
+    if (solved.length > 0 || !variantOf) return solved;
+    return variantCheckProblems(await this.generator.compareVariant(variantOf.question, question));
+  }
+
+  private async context(
+    conceptId: number,
+    type: QuestionType,
+    variantOf: QuestionHistory | null,
+  ): Promise<GenerationContext> {
     const [[concept], knownKeyPoints, confusedPoints, experiences, guideline] = await Promise.all([
       this.concepts.summaries([conceptId]),
       this.questions.keyPoints(conceptId),
@@ -73,7 +93,7 @@ export class QuizGenerationService {
       this.guideline.rules(),
     ]);
     if (!concept) throw new Error(`개념이 없다: ${conceptId}`);
-    return { concept, type, knownKeyPoints, confusedPoints, experiences, guideline };
+    return { concept, type, knownKeyPoints, confusedPoints, experiences, guideline, variantOf };
   }
 
   private shuffle(draft: QuestionDraft): QuestionDraft {

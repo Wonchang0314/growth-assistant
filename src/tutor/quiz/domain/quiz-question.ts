@@ -37,6 +37,8 @@ interface QuestionBase {
   readonly referenceMaterial: string;
   /** 문제의 근거가 된 경험 카드. */
   readonly experienceId: number | null;
+  /** 변형 문제면 원래 문제. 같은 핵심을 다른 상황으로 묻는다 (설계 문서 7.3 "변형 문제"). */
+  readonly variantOf: number | null;
 }
 
 /** 검증 전 문제. 객관식 [answer]는 정답 보기의 글이다. */

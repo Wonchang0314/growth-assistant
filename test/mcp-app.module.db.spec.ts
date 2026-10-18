@@ -133,6 +133,7 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       explanation: '거의 모든 행을 읽는다',
       referenceMaterial: '근거',
       experienceId: null,
+      variantOf: null,
       validationStatus: 'VALID',
       validationNote: null,
       createdAt: clock.now(),
