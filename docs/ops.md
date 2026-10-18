@@ -84,7 +84,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 
 ### 잠자기와 전원
 
-Claude Desktop과 (4단계부터) 예약 작업이 멈추지 않도록 잠자기를 끈다. 모니터는 꺼져도 된다.
+Claude Desktop과 (4단계부터) 원격 서버, (5단계부터) 예약 작업이 멈추지 않도록 잠자기를 끈다. 모니터는 꺼져도 된다.
 
 ```bash
 sudo pmset -a sleep 0 displaysleep 10 autorestart 1 womp 1

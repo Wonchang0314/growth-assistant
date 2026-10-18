@@ -27,7 +27,7 @@ export interface WeaknessReport {
   readonly unmeasured: number;
 }
 
-/** 약점 보고 (설계 문서 8장 `get_weakness`). 지난주 대비 변화는 숙련도 이력이 생기는 4단계에서 더한다 (ADR-0031). */
+/** 약점 보고 (설계 문서 8장 `get_weakness`). 지난주 대비 변화는 숙련도 이력이 생기는 6단계에서 더한다 (ADR-0031·0034). */
 @Injectable()
 export class QuizWeaknessService {
   constructor(

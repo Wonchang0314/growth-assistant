@@ -10,7 +10,7 @@ import { StderrLogger } from './core/logging/stderr-logger.js';
 
 /*
  * Notion 문서를 한 번 동기화하고 끝낸다 (`npm run sync`). 처음 실행이 백필이고, 그 뒤로는 바뀐 문서만 다시 읽는다.
- * MCP 서버는 Claude Desktop이 띄우고 끄므로 몇 분 걸리는 수집을 맡기지 않는다. 매일 실행은 4단계 예약 작업에서 붙인다.
+ * MCP 서버는 Claude Desktop이 띄우고 끄므로 몇 분 걸리는 수집을 맡기지 않는다. 매일 실행은 5단계 예약 작업에서 붙인다(ADR-0034).
  */
 @Module({ imports: [AppConfigModule, ClockModule, DbModule.forRoot({ migrate: false }), IngestionModule] })
 class SyncAppModule {}
