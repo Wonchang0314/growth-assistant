@@ -62,8 +62,13 @@ export type Question = QuestionDraft & { readonly id: number; readonly reported:
  */
 export const normalizeAnswer = (answer: string): string => answer.normalize('NFKC').toLowerCase().replace(/\s+/g, '');
 
-/** 빈칸 답이 정답이나 허용 답 중 하나와 같은가. */
+/** "팬아웃(fan-out)"처럼 한 용어를 두 표기로 함께 쓴 답. 괄호 앞과 안을 따로 본다. */
+const WITH_ALIAS = /^(.+?)\s*\((.+)\)\s*$/;
+
+/** 빈칸 답이 정답이나 허용 답 중 하나와 같은가. "A(B)"로 답하면 A나 B 중 하나만 같아도 된다. */
 export function isAcceptedAnswer(draft: Extract<QuestionDraft, { type: 'FILL_BLANK' }>, answer: string): boolean {
-  const given = normalizeAnswer(answer);
-  return [draft.answer, ...draft.acceptedAnswers].some((a) => normalizeAnswer(a) === given);
+  const accepted = new Set([draft.answer, ...draft.acceptedAnswers].map(normalizeAnswer));
+  const alias = WITH_ALIAS.exec(answer);
+  const given = alias ? [answer, alias[1] ?? '', alias[2] ?? ''] : [answer];
+  return given.some((g) => accepted.has(normalizeAnswer(g)));
 }

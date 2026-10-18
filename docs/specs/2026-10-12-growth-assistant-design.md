@@ -447,7 +447,7 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 4. Claude가 한 문제씩 묻고, 답을 들은 뒤 확신도(확실·애매·찍음)를 묻는다
 5. Claude가 submit_answer(questionId, answer, confidence, hintUsed)를 부른다 → 서버가 즉시 채점
    - 객관식: 정답과 비교. 오답이면 고른 보기의 오개념을 기록
-   - 빈칸: answer와 accepted_answers로 비교 (공백·대소문자·전각/반각 정규화)
+   - 빈칸: answer와 accepted_answers로 비교 (공백·대소문자·전각/반각 정규화). "팬아웃(fan-out)"처럼 두 표기를 괄호로 함께 쓰면 괄호 앞이나 안 중 하나만 맞아도 정답
 6. 결과(정오, 해설, 기록된 오개념, 관련 경험 카드)를 돌려주고 Claude가 설명을 이어간다
 7. 갱신: FSRS 상태, 숙련도·약점 점수 (8장 규칙)
 ```

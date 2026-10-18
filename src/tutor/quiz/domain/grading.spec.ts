@@ -60,6 +60,15 @@ describe('grade', () => {
     expect(grade(blank, ' Selectivity ')).toEqual({ correct: true, userAnswer: 'Selectivity', misconception: null });
     expect(grade(blank, '카디널리티')?.correct).toBe(false);
   });
+
+  it.each([
+    ['한글(영문)', '선택도(selectivity)', true],
+    ['영문(한글)', 'Selectivity (선택도)', true],
+    ['괄호 안만 맞음', '카디널리티(selectivity)', true],
+    ['둘 다 틀림', '카디널리티(cardinality)', false],
+  ])('빈칸에 "A(B)"로 답하면 A나 B 중 하나가 맞으면 정답이다: %s', (_, answer, correct) => {
+    expect(grade(blank, answer)?.correct).toBe(correct);
+  });
 });
 
 describe('repeatedMisconceptions', () => {
