@@ -46,7 +46,8 @@
 - [x] 판단 사례 추상화 파이프라인: 선별, 치환, 패턴 게이트, 독립 검증(Opus), `npm run abstract` (ADR-0021·0024, 10장 시험 2026-10-18)
 - [x] 판단 사례 프롬프트 개선(10장 ACTIVE 2→5)과 검토 도구 (`list_pending_cases`, `review_case`)
 - [x] 결정: 판단 사례를 경험 사례와 가정 사례로 나누고 자동 폴백 (ADR-0026)
-- [ ] 가정 사례 자동 폴백 구현, PENDING 7장 다시 시험
+- [x] 가정 사례 자동 폴백 구현, PENDING 7장 다시 시험 (7장 모두 ACTIVE, 2026-10-18)
+- [x] 보기 길이 게이트, `claude -p` 동시 실행 5개 (ADR-0027)
 - [ ] 판단 사례 전체 실행 (나눠서)
 - [x] 대화에 기억 연결 (`search_experience`, `get_learning_context`에 경험 카드)
 - [ ] 2단계 완료 확인: Desktop 대화에서 Claude가 경험 카드를 인용 (`docs/manual-check.md` 2단계)

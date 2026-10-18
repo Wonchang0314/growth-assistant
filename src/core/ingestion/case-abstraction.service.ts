@@ -170,6 +170,8 @@ export class CaseAbstractionService {
       await save('EXPERIENCE', experience, null);
       return 'experience';
     }
+    // 가정 사례가 통과하면 경험 사례가 걸린 이유는 저장되지 않으므로 로그로 남긴다.
+    this.logger.log(`가정 사례로 폴백: ${card.title} (${card.id})\n${noteSection('경험 사례', experience.problems)}`);
 
     const hypothetical = await this.attempt(
       (problems) =>

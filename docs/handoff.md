@@ -2,28 +2,20 @@
 
 세션을 이어 갈 때 읽는 메모다. 진행 상태의 기준은 [로드맵](roadmap.md)이고, 이 파일에는 로드맵에 남기지 않는 맥락(다음에 할 일의 순서, 학습 진도, 조사 결론)만 둔다. 다 처리한 항목은 지운다.
 
-**마지막 갱신:** 2026-10-18 15:00, `main` (맥미니에서). 판단 사례 파이프라인·프롬프트 개선·검토 도구(PR #29~#31) 머지, 릴리스 `20261018-143127` 배포, Desktop 재시작해 `list_pending_cases`·`review_case` 연결 확인. 판단 사례를 경험 사례와 가정 사례로 나누고 자동 폴백하기로 정했다(ADR-0026). 다음 세션은 아래 1번(구현)부터
+**마지막 갱신:** 2026-10-18 20:00, `main` (맥미니에서). 가정 사례 자동 폴백(PR #33, ADR-0026), 보기 길이 게이트, `claude -p` 동시 실행 5개와 판단 사례 카드 동시 처리(ADR-0027) 머지·배포. 판단 사례 전체 실행 첫 `--limit 50`을 돌렸다. 다음 세션은 아래 1번부터
 
 ## 작업
 
 다음 세션은 1번부터 한다. 따로 적지 않았으면 각 항목은 PR 하나다.
 
-1. **가정 사례 자동 폴백 구현 (ADR-0026, PR 하나):** 판단 사례에 종류(`EXPERIENCE`/`HYPOTHETICAL`)를 두고, 경험 사례가 두 번 모두 검증에 걸리면 가정 사례를 한 번 만든다. 순서:
-   1. **데이터:** `src/core/memory/decision-case.ts`에 `DECISION_CASE_KINDS`, `decision-case.schema.ts`에 `kind` 컬럼(not null, 기존 12행은 `EXPERIENCE`, CHECK 제약). `npm run db:generate -- --name decision_case_kind`. `DecisionCaseRepository.save`가 `kind`를 받고 `PendingCase`에 `kind`를 싣는다
-   2. **경험 사례 프롬프트(`prompts/case-abstraction.md`):** "카드에 이유가 없으면 카드에 적힌 만큼만 쓴다"를 "고르거나 버린 이유가 카드에 없는 선택지는 뺀다(남는 선택지가 둘 미만이면 그대로 쓰고 검증에 맡긴다)"로 바꾼다. 일반 원칙으로 설명하는 것은 되지만 내 경험의 사실(한 일, 결과, 시도한 것)은 더하거나 바꾸지 않는다
-   3. **가정 사례 프롬프트 두 개(새 파일):** `prompts/case-hypothetical.md`(입력: 경험 카드와 경험 사례가 걸린 이유. 카드의 핵심 개념·키워드는 살리고 상황·조건은 새로 가정. 정답의 근거는 일반 원칙, 버린 선택지마다 틀리게 되는 조건을 제약에. "내가 했다"는 쓰지 않는다. 응답 스키마는 `decisionCaseBodySchema` 그대로), `prompts/case-hypothetical-verification.md`(정답을 주지 않고 풀게 한다. 입력은 상황·제약·선택지 문장만, `chosen`·`reason`·결정·근거는 빼고 보낸다. 응답: 고른 선택지 번호, 정답이 하나로 정해지는지, 회사 밖 사람이 이해하는지, 남은 이름, 문제점 목록)
-      - **안전 장치 주의:** 응답 스키마 설명에 "고른 이유·버린 이유를 써라" 같은 말을 넣으면 Sonnet이 `reasoning_extraction`으로 거부한다(노션 복습 › MCP 문서). 규칙은 시스템 프롬프트에 두고, 새 스키마는 카드 몇 장으로 먼저 시험한다. 지난번 진단은 변형마다 `claude -p`를 한 번씩 부르는 스크립트(옵션: `--output-format json --model sonnet --setting-sources "" --strict-mcp-config --no-session-persistence --tools "" --system-prompt … --json-schema …`, 입력은 표준입력, 작업 디렉터리 `~/.growth-assistant/claude-work`)로 했다
-   4. **용도:** `src/core/llm/claude.client.ts`의 `LLM_PURPOSES`에 `CASE_HYPOTHETICAL`(Sonnet), `CASE_HYPOTHETICAL_VERIFICATION`(Opus), `claude.settings.ts`에 설정, `claude-cli.live.spec.ts`의 용도 목록에도 더한다
-   5. **서비스(`src/core/ingestion/case-abstraction.service.ts`):** `abstract()`에서 경험 사례 두 번이 다 걸리면 `hypothetical()`로 넘어간다. 가정 사례도 최대 두 번(생성 → 패턴 게이트 → 정답 숨긴 검증). 통과 조건: 검증이 고른 번호 = `chosen`인 선택지, 정답이 하나, 이해 가능, 남은 이름 없음. 통과하면 `HYPOTHETICAL`·ACTIVE로 저장, 아니면 마지막 경험 사례를 `EXPERIENCE`·PENDING으로 두고 `review_note`에 "경험 사례: …"와 "가정 사례: …"를 함께. 보고서(`CaseAbstractionReport`)와 `src/abstract.ts` 출력에 가정 사례 수
-   6. **테스트(`case-abstraction.service.db.spec.ts`):** 폴백 성공(HYPOTHETICAL ACTIVE, 검증 요청에 `chosen`·`reason`이 없음), 검증이 다른 번호를 고르면 이유를 붙여 다시, 폴백도 실패하면 PENDING과 두 쪽 사유. 기존 "끝내 걸리면 PENDING" 테스트는 폴백 응답을 더해 고친다
-   7. **검토 도구:** `list_pending_cases` 출력에 종류를 보인다. 서버 지침(`src/tutor/study/prompts/mcp-instructions.md`)에 가정 사례는 "가정한 상황"으로 소개한다고 적는다
-   8. **문서:** 설계 문서 5.2(`kind`)·7.1(폴백 흐름, 용도별 모델), ADR-0021 상태에 0026, ADR 목록, `docs/manual-check.md` 판단 사례 검토 항목, 로드맵
-   9. **시험:** `npm run db:migrate` 뒤 지금 PENDING 7장을 다시: `npm run abstract -- --ids 19,21,23,25,26,27,30`(이미 있는 사례를 바꾼다. 사례 1번(카드 26)의 고쳐서 승인 논의는 이 결과로 대신한다). 경험·가정·PENDING이 몇 장씩인지, 가정 사례가 원래 카드의 개념을 묻는지 직접 읽어 본다. 결과를 노션 복습 › MCP › "판단 사례 추상화 현재 상황 (2026-10-18)"에 덧붙이고, PR 머지 뒤 `ops/deploy.sh`
+1. **판단 사례 전체 실행 이어 가기:** `npm run abstract -- --limit 50`씩 (작업 트리의 `.env` 기준, 카드 5장씩 함께 처리). 첫 50장 결과를 보고 경험·가정 비율을 판단한다. 실행 중에는 `ops/deploy.sh`를 돌리지 않는다(작업 트리의 `node_modules`를 다시 깐다)
+   - **지금 DB (2026-10-18 19:55, 전체 실행 전):** 판단 사례 12개 모두 ACTIVE(경험 8, 가정 4). PENDING이던 7장(19, 21, 23, 25, 26, 27, 30)은 폴백 구현 뒤 모두 ACTIVE가 됐다
+   - **시험에서 본 것:** 폴백 첫 시험은 경험 4·가정 3. 가정 사례는 원래 카드의 개념을 묻고, 조건을 바꿔 실제로 한 조치가 오답이 되는 문제(카드 27)도 나왔다. 다만 7장 모두 정답 보기가 가장 길어(1.2~3.6배) 보기 길이 규칙과 게이트(1.3배)를 넣었다. 그 뒤 재시험은 7장 모두 가정 사례였다(경험 사례 14번 중 길이 게이트 5번, 검증 9번 걸림). 같은 카드를 다시 돌리면 경험 사례로 통과하기도 해서(26, 19, 23) 실행마다 달라진다. 길이 게이트가 경험 사례를 가정 사례로 많이 보내면(실제 검토한 선택지는 정답이 더 자세하기 쉽다) 배수를 늦추거나 게이트 실패는 시도 횟수에서 빼는 것을 검토한다. 폴백할 때 경험 사례가 걸린 이유를 로그(`가정 사례로 폴백:`)로 남기므로 50장 실행 출력에서 센다
+   - **보기 위치:** 정답이 첫 보기인 경우가 많다(재시험 7장 중 5장). 3단계 출제에서 보기를 섞는다
+   - **남은 품질 문제:** 사실 지어내기(실행마다 달라짐), 소문자 컬럼 이름(`amt`)은 패턴 게이트가 못 잡고 검증이 잡는다
+   - **노션 정리 (아직):** 복습 › MCP › "판단 사례 추상화 현재 상황 (2026-10-18)"에 폴백·보기 길이·동시 실행 결과를 덧붙인다
 2. **2단계 완료 확인 (사용자, Desktop):** `docs/manual-check.md` 2단계 "경험 카드". 새 대화에서 "서버 캐시 공부하자"·"운영 중 스키마 변경 공부하자"로 Claude가 경험을 한두 문장으로 인용하는지, "내가 겪은 인덱스 사고 사례 보여줘"·"keepPreviousData 겪었던 거"로 `search_experience`가 원하는 카드를 주는지. 2026-10-18 01:25~01:26에 `get_learning_context`·`search_experience`가 한 번씩 불렸지만 인용 여부는 사용자 답을 아직 못 받았다. 확인되면 체크리스트 기록 표를 채우고 로드맵의 "2단계 완료 확인"을 체크한다. 튜터 프로젝트 지침을 `docs/claude-project-instructions.md` 새 본문(경험 카드 한 줄 추가)으로 바꿨는지도 확인한다
-3. **판단 사례 검토와 전체 실행 (1번 다음):** 남은 PENDING을 Desktop에서 검토(`docs/manual-check.md` 2단계 "판단 사례 검토") → 전체 실행을 나눠서(예: `--limit 50`씩)
-   - **지금 DB (1번 전):** 판단 사례 12개(모두 경험 사례. ACTIVE 5: 카드 18, 22, 24, 28, 29 / PENDING 7: 19, 21, 23, 25, 26, 27, 30, 검증 사유는 `review_note`). 처음 40장은 새 기준으로 다시 선별해 19장이 "판단 있음"이다(카드 19·26·27은 새 기준이면 빠지지만 사례는 남아 있다)
-   - **남은 품질 문제:** 사실 지어내기(실행마다 달라짐), 소문자 컬럼 이름(`amt`)은 패턴 게이트가 못 잡고 검증이 잡는다. 전체 실행 비용은 260장 안팎, 6~7시간에 폴백으로 20~30% 더 든다고 본다
-   - **노션 정리:** 복습 › MCP 아래 "판단 사례 추상화가 Sonnet 안전 장치(reasoning_extraction)에 걸린 문제", "판단 사례 추상화 현재 상황 (2026-10-18)"
+3. **판단 사례 검토 (전체 실행 뒤):** 남은 PENDING을 Desktop에서 검토(`docs/manual-check.md` 2단계 "판단 사례 검토"). 가정 사례가 "가정한 상황"으로 소개되는지도 본다. 배포한 뒤에는 Desktop을 완전히 종료했다 다시 연다
 4. **프로젝트를 iCloud 동기화 밖으로 옮기기 (사용자와 정하기):** `~/Desktop` 아래라 동기화 복사본(" 2", " 3" 붙은 파일)이 두 번 생겼다(2026-10-18 00:17 13개, 01:3x 18개. 모두 이번 작업 파일의 옛 버전이라 scratchpad로 옮겼다). `git status`에 untracked로 보이거나 `npm run check`·배포 타입 검사가 `* 2.ts`에서 깨지면 이것이다. 옮기면 `.env` 경로(Desktop 설정의 `GROWTH_ENV_FILE`)와 `ops/desktop-config.sh` 출력으로 Desktop 설정을 함께 바꾼다
 5. **퀴즈 형식 (3단계):** 문제 내는 UI가 마음에 들지 않는다는 의견이 있었다. 퀴즈 UI는 3단계에서 MCP Apps로 만들기로 했다. 그 전에는 프로젝트 지침의 형식 규칙(보기는 줄바꿈 목록, 한 번에 한 문제)으로 다듬는다
 
