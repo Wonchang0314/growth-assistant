@@ -7,7 +7,7 @@ export type Confidence = (typeof CONFIDENCES)[number];
 /** 개념 하나의 복습 일정과 숙련도·약점 (설계 문서 5.3). 점수는 힌트 없이 낸 응답만 반영한다. */
 export interface ConceptMastery extends Schedule {
   readonly conceptId: number;
-  /** 힌트 없는 응답의 최근 가중 정답률. 찍어서 맞힌 답은 정답으로 세지 않는다. */
+  /** 힌트 없는 응답의 최근 가중 정답률. 애매하게 맞힌 답은 0.5, 찍어서 맞힌 답은 0이다. */
   readonly masteryScore: number;
   readonly weaknessScore: number;
   /** 숙련도에 반영한(힌트 없는) 응답 수. */
@@ -27,6 +27,8 @@ export type GradedAnswer = {
   | { readonly result: 'WRONG'; readonly repeatedMisconception: boolean }
 );
 
+/** 맞힌 답의 점수. 애매하게 맞히면 반만, 찍어서 맞히면 정답으로 세지 않는다. */
+const CREDIT: Record<Confidence, number> = { SURE: 1, UNSURE: 0.5, GUESS: 0 };
 /** 최근 응답의 가중치(지수이동평균). 최근 4~5번이 점수 대부분을 정한다. */
 const RECENT_WEIGHT = 0.4;
 /** 확신했는데 틀림, 같은 오개념 반복에 각각 더하는 약점 가산점. */
@@ -56,7 +58,7 @@ export function applyAnswer(prev: ConceptMastery, answer: GradedAnswer): Concept
   const schedule = nextSchedule(prev, gradeOf(answer), answer.answeredAt);
   if (answer.hintUsed) return { ...prev, ...schedule, updatedAt: answer.answeredAt };
 
-  const credit = answer.result === 'CORRECT' && answer.confidence !== 'GUESS' ? 1 : 0;
+  const credit = answer.result === 'CORRECT' ? CREDIT[answer.confidence] : 0;
   const penalty =
     answer.result === 'WRONG'
       ? (answer.confidence === 'SURE' ? CONFIDENT_ERROR_BONUS : 0) +

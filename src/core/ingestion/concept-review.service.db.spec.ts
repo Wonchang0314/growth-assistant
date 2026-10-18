@@ -2,6 +2,7 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
+import { ConceptMergeParticipants } from '../knowledge/concept-merge.js';
 import { ConceptRepository } from '../knowledge/concept.repository.js';
 import { concept, conceptEdge } from '../knowledge/concept.schema.js';
 import { ConceptService } from '../knowledge/concept.service.js';
@@ -17,7 +18,7 @@ import { ConceptReviewService } from './concept-review.service.js';
 const testDb = connectTestDb();
 const clock = new FixedClock(new Date('2026-10-17T09:00:00Z'));
 const service = new ConceptReviewService(
-  new ConceptReviewRepository(testDb.db),
+  new ConceptReviewRepository(testDb.db, new ConceptMergeParticipants()),
   new ConceptService(new ConceptRepository(testDb.db)),
   clock,
 );

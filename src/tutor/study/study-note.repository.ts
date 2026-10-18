@@ -1,13 +1,29 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { desc, inArray, notInArray, sql } from 'drizzle-orm';
-import { DB, type Db } from '../../core/db/db.module.js';
+import { desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { DB, type Db, type Tx } from '../../core/db/db.module.js';
+import type { ConceptMergeParticipant } from '../../core/knowledge/concept-merge.js';
 import { containsAnyTerm } from '../../core/db/sql.js';
 import { studyNote, studyNoteConcept } from './study-note.schema.js';
 import type { NewStudyNote, StudyNote, StudyNoteConceptLink } from './study-note.js';
 
 @Injectable()
-export class StudyNoteRepository {
+export class StudyNoteRepository implements ConceptMergeParticipant {
   constructor(@Inject(DB) private readonly db: Db) {}
+
+  /** 개념 병합: 기록 연결을 [targetId]로 옮긴다. 한 기록에 둘 다 있으면 한 번이라도 CONFUSED면 CONFUSED다. */
+  async moveConcept(tx: Tx, sourceId: number, targetId: number): Promise<void> {
+    const links = await tx.delete(studyNoteConcept).where(eq(studyNoteConcept.conceptId, sourceId)).returning();
+    if (links.length === 0) return;
+    await tx
+      .insert(studyNoteConcept)
+      .values(links.map((l) => ({ ...l, conceptId: targetId })))
+      .onConflictDoUpdate({
+        target: [studyNoteConcept.noteId, studyNoteConcept.conceptId],
+        set: {
+          signal: sql`CASE WHEN excluded.signal = 'CONFUSED' THEN 'CONFUSED' ELSE ${studyNoteConcept.signal} END`,
+        },
+      });
+  }
 
   /** 기록과 개념 연결을 한 트랜잭션으로 저장한다. [links]의 개념은 서로 달라야 한다. */
   async add(note: NewStudyNote, links: readonly StudyNoteConceptLink[] = []): Promise<StudyNote> {

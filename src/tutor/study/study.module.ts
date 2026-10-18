@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, type OnModuleInit } from '@nestjs/common';
+import { ConceptMergeParticipants } from '../../core/knowledge/concept-merge.js';
 import { KnowledgeModule } from '../../core/knowledge/knowledge.module.js';
 import { MemoryModule } from '../../core/memory/memory.module.js';
 import { MasteryModule } from '../mastery/mastery.module.js';
@@ -9,11 +10,20 @@ import { StudyNoteRepository } from './study-note.repository.js';
 import { StudyNoteService } from './study-note.service.js';
 
 /**
- * 학습 맥락 조회, 경험 카드 검색, 학습 기록 (MCP 도구). MCP 진입점이 import한다.
+ * 학습 맥락 조회, 경험 카드 검색, 학습 기록 (MCP 도구). MCP 진입점이 import한다. 개념 병합 때 학습 기록 연결을 옮긴다.
  */
 @Module({
   imports: [KnowledgeModule, MemoryModule, MasteryModule],
   providers: [StudyNoteRepository, StudyNoteService, GetLearningContextTool, RecordStudyNoteTool, SearchExperienceTool],
   exports: [StudyNoteService],
 })
-export class StudyModule {}
+export class StudyModule implements OnModuleInit {
+  constructor(
+    private readonly mergeParticipants: ConceptMergeParticipants,
+    private readonly repository: StudyNoteRepository,
+  ) {}
+
+  onModuleInit() {
+    this.mergeParticipants.register(this.repository);
+  }
+}

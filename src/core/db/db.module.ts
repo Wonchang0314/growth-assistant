@@ -7,6 +7,8 @@ import { Pool } from 'pg';
 import type { Env } from '../config/env.js';
 
 export type Db = NodePgDatabase;
+/** `db.transaction` 콜백이 받는 트랜잭션. 여러 모듈의 저장소가 한 트랜잭션에 참여할 때 넘긴다. */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 /** 저장소가 `@Inject(DB)`로 받는 Drizzle 인스턴스. */
 export const DB = Symbol('DB');

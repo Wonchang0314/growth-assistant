@@ -31,4 +31,4 @@
 | [0025](0025-ingested-frontend-gis-and-ops-parents.md) | 수집한 경험의 프런트엔드·GIS 개념을 받고, 운영 경험을 묶을 상위 개념 3개를 시드에 둔다 | 채택 |
 | [0026](0026-experience-and-hypothetical-cases.md) | 판단 사례를 경험 사례와 가정 사례로 나누고, 경험 사례가 검증에 걸리면 가정 사례로 자동 폴백한다 | 채택 |
 | [0027](0027-claude-concurrency-five.md) | `claude -p` 동시 실행을 5개로 올리고, 판단 사례는 카드를 그만큼 함께 처리한다 | 채택 |
-| [0028](0028-fsrs-days-only-and-mastery-formula.md) | FSRS 단기 학습 단계를 끄고, 대화에서 다룬 개념을 복습 일정에 넣으며, 숙련도·약점 공식을 정한다 | 채택 |
+| [0028](0028-fsrs-days-only-and-mastery-formula.md) | FSRS 단기 학습 단계를 끄고 최대 간격을 180일로 줄이며, 대화에서 다룬 개념을 복습 일정에 넣고, 숙련도·약점 공식과 개념 병합 규칙을 정한다 | 채택 |

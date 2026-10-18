@@ -19,11 +19,12 @@ export interface Schedule {
 }
 
 /**
- * `ts-fsrs` 5.4.2(FSRS-6) 기본 파라미터에서 단기 학습 단계(1분·10분)만 끈다 (ADR-0028).
- * 기본값: 목표 기억률 0.9, 최대 간격 36500일, 간격 흔들기(fuzz) 끔.
+ * `ts-fsrs` 5.4.2(FSRS-6) 기본 파라미터에서 단기 학습 단계(1분·10분)를 끄고, 최대 간격을 36500일에서 180일로 줄인다 (ADR-0028).
+ * 180일로 자른 뒤 등급 사이 간격을 하루씩 벌리므로 실제 최대는 181~182일이다.
+ * 나머지는 기본값: 목표 기억률 0.9, 간격 흔들기(fuzz) 끔.
  * 출처: https://github.com/open-spaced-repetition/ts-fsrs (`default_request_retention` 등, 2026-10-18 확인)
  */
-const scheduler = fsrs(generatorParameters({ enable_short_term: false }));
+const scheduler = fsrs(generatorParameters({ enable_short_term: false, maximum_interval: 180 }));
 
 const toState: Record<State, FsrsState> = {
   [State.New]: 'NEW',

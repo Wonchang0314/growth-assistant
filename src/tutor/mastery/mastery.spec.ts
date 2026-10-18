@@ -46,8 +46,12 @@ describe('applyAnswer', () => {
     expect(m).toMatchObject({ masteryScore: 1, weaknessScore: 0, gradedAttempts: 1, reps: 2 });
   });
 
-  it('찍어서 맞힌 답은 정답으로 세지 않는다', () => {
-    expect(answerAll([correct('GUESS')])).toMatchObject({ masteryScore: 0, weaknessScore: 1 });
+  it.each([
+    ['확실하게', correct('SURE'), 1],
+    ['애매하게', correct('UNSURE'), 0.5],
+    ['찍어서', correct('GUESS'), 0],
+  ] as const)('%s 맞힌 답은 %d점이다', (_, answer, credit) => {
+    expect(answerAll([answer])).toMatchObject({ masteryScore: credit, weaknessScore: 1 - credit });
   });
 
   it('최근 응답에 0.4 가중치를 둔 이동평균이다', () => {

@@ -74,6 +74,22 @@ describe('MasteryService', () => {
     expect(saved?.weaknessScore).toBeCloseTo(0.6);
   });
 
+  it.each([
+    ['대상에 일정이 없으면 원래 일정을 옮긴다', 1, 0, 1],
+    ['원래 개념의 채점이 더 많으면 원래 일정을 남긴다', 2, 1, 2],
+    ['채점 수가 같으면 대상 일정을 남긴다', 1, 1, 1],
+  ] as const)('개념 병합: %s', async (_, sourceAnswers, targetAnswers, keptAttempts) => {
+    const answer = (conceptId: number) =>
+      service.recordAnswer({ conceptId, confidence: 'SURE', hintUsed: false, answeredAt: t0, result: 'CORRECT' });
+    for (let i = 0; i < sourceAnswers; i++) await answer(1);
+    for (let i = 0; i < targetAnswers; i++) await answer(2);
+
+    await testDb.db.transaction((tx) => repository.moveConcept(tx, 1, 2));
+
+    expect(await repository.find(1)).toBeUndefined();
+    expect(await repository.find(2)).toMatchObject({ gradedAttempts: keptAttempts });
+  });
+
   it('없는 개념에는 일정을 만들지 못한다', async () => {
     await expect(service.introduce([99], t0)).rejects.toThrow();
   });

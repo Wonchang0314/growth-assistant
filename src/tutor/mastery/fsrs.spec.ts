@@ -5,7 +5,7 @@ const t0 = new Date('2026-10-18T00:00:00Z');
 const DAY = 24 * 60 * 60 * 1000;
 const daysAfter = (from: Date, to: Date) => (to.getTime() - from.getTime()) / DAY;
 
-// 기대 값은 ts-fsrs 5.4.2(FSRS-6 기본 가중치, 단기 학습 단계 끔)로 계산했다. 버전을 올려 값이 바뀌면 여기서 드러난다.
+// 기대 값은 ts-fsrs 5.4.2(FSRS-6 기본 가중치, 단기 학습 단계 끔, 최대 간격 180일)로 계산했다. 버전을 올려 값이 바뀌면 여기서 드러난다.
 describe('FSRS 일정', () => {
   it('새 개념은 지금부터 복습할 수 있다', () => {
     expect(newSchedule(t0)).toEqual({
@@ -47,5 +47,16 @@ describe('FSRS 일정', () => {
     expect(s).toMatchObject({ state: 'REVIEW', reps: 4, lapses: 1 });
     expect(s.stability).toBeCloseTo(8.0894, 4);
     expect(s.difficulty).toBeCloseTo(6.5061, 4);
+  });
+
+  // ts-fsrs는 180일로 자른 뒤 Hard < Good < Easy 간격을 하루씩 벌려서 Easy는 182일까지 간다.
+  it.each([
+    ['GOOD', 181],
+    ['EASY', 182],
+  ] as const)('계속 %s로 답해도 간격은 %i일에서 멈춘다', (grade, days) => {
+    let s: Schedule = newSchedule(t0);
+    for (let i = 0; i < 8; i++) s = nextSchedule(s, grade, s.dueAt);
+
+    expect(daysAfter(s.lastReviewAt ?? t0, s.dueAt)).toBe(days);
   });
 });

@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { StudyNoteRepository } from './study-note.repository.js';
+import { studyNoteConcept } from './study-note.schema.js';
 import type { NewStudyNote } from './study-note.js';
 
 const testDb = connectTestDb();
@@ -22,6 +23,37 @@ function note(overrides: Partial<NewStudyNote>): NewStudyNote {
 }
 
 describe('StudyNoteRepository', () => {
+  it('개념 병합: 기록 연결을 대상 개념으로 옮기고, 한 기록에 둘 다 있으면 CONFUSED를 남긴다', async () => {
+    const concepts = new ConceptRepository(testDb.db);
+    await concepts.applySeed(
+      {
+        tracks: [{ key: 'cs', name: 'CS', weight: 1, description: 'cs' }],
+        concepts: ['A', 'B'].map((name) => ({
+          name,
+          track: 'cs',
+          aliases: [],
+          description: name,
+          requires: [],
+          related: [],
+        })),
+      },
+      new Date('2026-10-15T00:00:00Z'),
+    );
+    await repository.add(note({}), [
+      { conceptId: 1, signal: 'CONFUSED' },
+      { conceptId: 2, signal: 'DISCUSSED' },
+    ]);
+    await repository.add(note({}), [{ conceptId: 1, signal: 'DISCUSSED' }]);
+
+    await testDb.db.transaction((tx) => repository.moveConcept(tx, 1, 2));
+
+    expect(await repository.findByConcepts([1], 10)).toEqual([]);
+    expect((await testDb.db.select().from(studyNoteConcept)).sort((a, b) => a.noteId - b.noteId)).toEqual([
+      { noteId: 1, conceptId: 2, signal: 'CONFUSED' },
+      { noteId: 2, conceptId: 2, signal: 'DISCUSSED' },
+    ]);
+  });
+
   it('저장한 기록을 그대로 돌려준다', async () => {
     const saved = await repository.add(
       note({ topic: '인덱스', confusedPoints: ['선택도가 낮아도 빨라진다고 생각함'], answerRevealed: true }),
