@@ -60,7 +60,7 @@
 - [x] 객관식·빈칸 문제 생성·검증 (약점 반영 출제, 오답 보기 오개념), 출제 지침 (`update_quiz_guideline`), `npm run quiz` (ADR-0029)
 - [ ] 실제 출제 품질 확인 (`npm run quiz`로 개념 몇 개, 출제 지침 다듬기)
 - [ ] 상황 판단형 객관식 (`angle = SCENARIO`, 판단 사례에서 출제, ADR-0021)
-- [ ] 변형 문제 (`key_point`, `variant_of`)
+- [x] 변형 문제 (`key_point`, `variant_of`, 흔들린 문제 우선, 원래 문제와 비교 검증)
 - [x] 복습·채점 도구 (`get_review_set`, `submit_answer`, `report_question`, 없는 문제는 뒤에서 생성, ADR-0030)
 - [x] `get_weakness` (트랙별 약점, 근본 원인 후보, 미측정 수, 근본 원인을 출제 맨 앞에, ADR-0031)
 - [ ] 퀴즈 품질 점검 (평가 세트, 실제 사용)

@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { FakeClaudeClient } from '../../../test/fakes/fake-claude.client.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
-import { fillBlankReply, solvedReply } from '../../../test/fixtures/quiz.js';
+import { fillBlankReply, solvedReply, variantCheckReply } from '../../../test/fixtures/quiz.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { ExperienceRepository } from '../../core/memory/experience.repository.js';
@@ -36,8 +36,9 @@ let claude: FakeClaudeClient;
 let review: QuizReviewService;
 
 /** 검증을 통과한 객관식 문제. 정답은 1번 "선택도가 낮아서"다. */
-const addQuestion = (conceptId: number, keyPoint = `핵심 ${conceptId}`) =>
-  questions.add({
+const addQuestion = (conceptId: number, keyPoint = `핵심 ${conceptId}`, variantOf: number | null = null) => {
+  clock.advance(1000);
+  return questions.add({
     conceptId,
     type: 'MULTIPLE_CHOICE',
     angle: 'WHY',
@@ -52,10 +53,12 @@ const addQuestion = (conceptId: number, keyPoint = `핵심 ${conceptId}`) =>
     explanation: '해설',
     referenceMaterial: '근거',
     experienceId: null,
+    variantOf,
     validationStatus: 'VALID',
     validationNote: null,
     createdAt: clock.now(),
   });
+};
 
 const submit = (questionId: number, answer: string, confidence: 'SURE' | 'UNSURE' | 'GUESS' = 'SURE') => {
   clock.advance(60_000);
@@ -197,6 +200,64 @@ describe('submit_answer', () => {
 
     expect(await submit(id, '5')).toMatchObject({ kind: 'UNREADABLE_ANSWER' });
     expect(await testDb.count('quiz_attempt')).toBe(0);
+  });
+});
+
+describe('변형 문제', () => {
+  it('틀린 문제는 뒤에서 그 변형(같은 핵심, 원래 문제 연결)을 만들고, 그때의 오답과 오개념을 출제에 넣는다', async () => {
+    const original = await addQuestion(1);
+    await submit(original, '2');
+    claude
+      .reply(fillBlankReply)
+      .reply(solvedReply({ answer: '선택도' }))
+      .reply(variantCheckReply());
+
+    await review.reviewSet({ concept: '인덱스', count: 1 });
+    await review.idle();
+
+    const variant = (await questions.findHistory(1)).at(-1)?.question;
+    expect(variant).toMatchObject({ type: 'FILL_BLANK', variantOf: original, keyPoint: '핵심 1' });
+    const prompt = claude.requestsFor('QUIZ_GENERATION')[0]?.prompt ?? '';
+    expect(prompt).toContain('## 변형할 원래 문제');
+    expect(prompt).toContain('그때 고른 오개념: 짧으면 안 된다고 믿음');
+    expect(prompt).not.toContain('이미 낸 핵심');
+    expect(claude.requestsFor('QUIZ_VERIFICATION')).toHaveLength(2);
+  });
+
+  it('원래 답을 외워서 풀 수 있다고 두 번 걸리면 INVALID로 남기고 다음에 다시 만든다', async () => {
+    const original = await addQuestion(1);
+    await submit(original, '2');
+    const memorizable = variantCheckReply({ solvableByMemory: true });
+    claude
+      .reply(fillBlankReply)
+      .reply(solvedReply({ answer: '선택도' }))
+      .reply(memorizable)
+      .reply(fillBlankReply)
+      .reply(solvedReply({ answer: '선택도' }))
+      .reply(memorizable);
+
+    await review.reviewSet({ concept: '인덱스', count: 1 });
+    await review.idle();
+
+    expect(await testDb.db.select().from(quizQuestion)).toContainEqual(
+      expect.objectContaining({
+        variantOf: original,
+        validationStatus: 'INVALID',
+        validationNote: '원래 문제의 답을 기억하면 그대로 풀 수 있다',
+      }),
+    );
+    expect((await questions.findHistory(1)).map((h) => h.hasVariant)).toEqual([false]);
+  });
+
+  it('낼 문제 중 변형을 먼저 낸다', async () => {
+    const original = await addQuestion(1);
+    const unanswered = await addQuestion(1, '다른 핵심');
+    await submit(original, '2');
+    const variant = await addQuestion(1, '핵심 1', original);
+
+    const set = await review.reviewSet({ concept: '인덱스', count: 2 });
+
+    expect(set.kind === 'READY' && set.questions.map((q) => q.questionId)).toEqual([variant, unanswered]);
   });
 });
 

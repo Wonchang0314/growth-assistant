@@ -11,6 +11,7 @@ const base = {
   explanation: '해설',
   referenceMaterial: '근거',
   experienceId: null,
+  variantOf: null,
 } as const;
 
 const choice = (text: string, misconception: string | null = `${text}라고 믿음`) => ({ text, misconception });
