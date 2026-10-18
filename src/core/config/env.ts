@@ -10,6 +10,10 @@ const envSchema = z.object({
   POSTGRES_USER: z.string().min(1).default('growth'),
   POSTGRES_PASSWORD: z.string().min(1).default('growth'),
 
+  // MCP Streamable HTTP 진입점(mcp-http.ts). 기본은 이 Mac 안에서만 받는다.
+  MCP_HTTP_HOST: z.string().min(1).default('127.0.0.1'),
+  MCP_HTTP_PORT: z.coerce.number().int().positive().default(3100),
+
   // Notion 수집 (설계 문서 7.1). MCP 서버는 쓰지 않으므로 없어도 시작한다. 수집할 때 없으면 그때 실패한다.
   NOTION_TOKEN: z.string().min(1).optional(),
   /** 수집 루트 페이지·DB ID (쉼표 구분). 루트와 그 하위 전체를 모은다. 하이픈은 있어도 없어도 된다. */

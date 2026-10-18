@@ -14,65 +14,66 @@ export interface McpServerOptions {
 
 export const MCP_SERVER_OPTIONS = Symbol('MCP_SERVER_OPTIONS');
 
-/** 기능 모듈의 `@McpTool()` 처리기를 모아 MCP 서버에 등록하고, 진입점이 준 전송에 연결한다. */
+/** 기능 모듈의 `@McpTool()` 처리기를 모아 MCP 서버를 만들고, 진입점이 준 전송(stdio·HTTP)에 붙인다. */
 @Injectable()
 export class McpServerHost implements OnModuleInit {
   private readonly logger = new Logger(McpServerHost.name);
   private readonly tools = new Map<string, McpToolHandler>();
-  private readonly server: McpServer;
 
   constructor(
-    @Inject(MCP_SERVER_OPTIONS) options: McpServerOptions,
+    @Inject(MCP_SERVER_OPTIONS) private readonly options: McpServerOptions,
     private readonly discovery: DiscoveryService,
-  ) {
-    this.server = new McpServer(
-      { name: options.name, version: options.version },
-      options.instructions ? { instructions: options.instructions } : {},
-    );
-  }
+  ) {}
 
   get toolNames(): string[] {
     return [...this.tools.keys()];
   }
 
-  /** 처리기를 모아 등록한다. 전송에 연결하기 전이라 이름이 겹치는 실수를 테스트에서 잡는다. */
+  /** 처리기를 모은다. 전송에 연결하기 전이라 이름이 겹치는 실수를 테스트에서 잡는다. */
   onModuleInit(): void {
     for (const wrapper of this.discovery.getProviders({ metadataKey: McpTool.KEY })) {
       const instance: unknown = wrapper.instance;
       if (!isMcpToolHandler(instance)) throw new Error(`McpToolHandler가 아니다: ${String(instance)}`);
       if (this.tools.has(instance.name)) throw new Error(`MCP 도구 이름이 겹친다: ${instance.name}`);
       this.tools.set(instance.name, instance);
-      this.register(instance);
     }
   }
 
   /**
-   * 전송(stdio, 테스트의 메모리 전송)에 연결한다. 연결은 하나만 받는다.
+   * 도구를 모두 등록한 새 MCP 서버. SDK 서버 하나는 연결 하나만 받으므로 연결마다 만든다.
+   * HTTP 진입점(`listenMcpHttp`)은 요청마다 만든다.
+   */
+  buildServer(): McpServer {
+    const server = new McpServer(
+      { name: this.options.name, version: this.options.version },
+      this.options.instructions ? { instructions: this.options.instructions } : {},
+    );
+    for (const tool of this.tools.values()) {
+      server.registerTool(
+        tool.name,
+        {
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+          annotations: { readOnlyHint: tool.readOnly, destructiveHint: false, openWorldHint: false },
+        },
+        (input) => this.call(tool, input),
+      );
+    }
+    return server;
+  }
+
+  /**
+   * 오래 이어지는 전송(stdio, 테스트의 메모리 전송)에 새 서버를 연결한다.
    * 돌려준 Promise는 연결이 끊기면(stdio: Claude Desktop이 표준입력을 닫으면) 끝난다.
    */
   async connect(transport: Transport): Promise<{ closed: Promise<void> }> {
+    const server = this.buildServer();
     const closed = new Promise<void>((resolve) => {
-      this.server.server.onclose = resolve;
+      server.server.onclose = resolve;
     });
-    await this.server.connect(transport);
+    await server.connect(transport);
     this.logger.log(`MCP 연결: 도구 ${this.toolNames.join(', ')}`);
     return { closed };
-  }
-
-  async close(): Promise<void> {
-    await this.server.close();
-  }
-
-  private register(tool: McpToolHandler): void {
-    this.server.registerTool(
-      tool.name,
-      {
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        annotations: { readOnlyHint: tool.readOnly, destructiveHint: false, openWorldHint: false },
-      },
-      (input) => this.call(tool, input),
-    );
   }
 
   /** 처리기에서 난 예외는 프로세스를 끝내지 않고 도구 오류 결과로 바꾼다. Claude가 대화에서 원인을 전달한다. */

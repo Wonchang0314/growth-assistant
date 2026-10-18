@@ -67,7 +67,7 @@
 
 ## 4. 원격 전환: 모바일·아이패드 (프로토타입 1, 새 ADR)
 - [ ] 결정: 공개 경로(Funnel·Cloudflare Tunnel), 인증(OAuth·고정 헤더), IP 제한, 알림(예약 작업 푸시·ntfy), MCP Apps (사용자 인터뷰)
-- [ ] Streamable HTTP 진입점, 인증, 커스텀 커넥터 등록
+- [ ] Streamable HTTP 진입점, 인증, 커스텀 커넥터 등록 (로컬 HTTP 진입점 `mcp-http.ts`는 2026-10-19에 만듦, 인증·등록이 남음)
 - [ ] 상시 실행 진입점(launchd, `ops/install.sh`). 원격 서버와 5단계 예약 작업이 함께 쓴다
 - [ ] 운영 감시(죽으면 다시 띄우기, 로그)
 - [ ] 모바일·아이패드 수동 점검

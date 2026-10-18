@@ -23,9 +23,11 @@
     "sync": "nest build && node dist/sync.js",
     "extract": "nest build && node dist/extract.js",
     "abstract": "nest build && node dist/abstract.js",
-    "quiz": "nest build && node dist/quiz.js"
+    "quiz": "nest build && node dist/quiz.js",
+    "mcp:http": "node dist/mcp-http.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/node": "2.1.1",
     "@modelcontextprotocol/server": "2.3.1",
     "@nestjs/common": "12.1.3",
     "@nestjs/config": "12.0.1",

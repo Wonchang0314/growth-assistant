@@ -135,6 +135,7 @@
 src/
 ├── main.ts          # 상시 실행 진입점 (원격 서버·서버 예약 작업, 4단계에서 만든다)
 ├── mcp-stdio.ts     # MCP 진입점 (Claude Desktop이 띄움)
+├── mcp-http.ts      # MCP Streamable HTTP 진입점 (원격 커넥터의 바탕, 4단계)
 ├── core
 │   ├── mcp          # MCP 서버, 도구 등록, 도구 처리기 탐색
 │   ├── llm          # ClaudeClient, ClaudeCliClient, 프롬프트 템플릿, 호출 로그
