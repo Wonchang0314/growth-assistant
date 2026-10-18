@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { FakeClaudeClient } from '../../../test/fakes/fake-claude.client.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
+import { fillBlankReply, multipleChoiceReply, solvedReply } from '../../../test/fixtures/quiz.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { ExperienceRepository } from '../../core/memory/experience.repository.js';
@@ -33,36 +34,11 @@ const repository = new DrizzleQuizQuestionRepository(testDb.db);
 let claude: FakeClaudeClient;
 let service: QuizGenerationService;
 
+// 이 파일의 경험 카드는 1번 하나이고, 출제 응답은 기본으로 그 카드를 근거로 쓴다.
 const multipleChoice = (overrides: Record<string, unknown> = {}) =>
-  JSON.stringify({
-    angle: 'WHY',
-    keyPoint: '선택도가 낮으면 인덱스가 도움이 안 된다',
-    difficulty: 2,
-    prompt: '성별 컬럼에 인덱스를 걸어도 조회가 빨라지지 않는 이유는?',
-    choices: [
-      { text: '선택도가 낮아서', misconception: null },
-      { text: '컬럼이 짧아서', misconception: '짧은 컬럼은 인덱스가 안 된다고 믿음' },
-      { text: 'NULL이 많아서', misconception: 'NULL은 인덱스에 안 들어간다고 믿음' },
-      { text: '정렬이 안 돼서', misconception: '문자열은 정렬되지 않는다고 믿음' },
-    ],
-    answer: '선택도가 낮아서',
-    explanation: '해설',
-    referenceMaterial: '근거',
-    experienceId: 1,
-    ...overrides,
-  });
-const fillBlank = JSON.stringify({
-  angle: 'MECHANISM',
-  keyPoint: '선택도',
-  difficulty: 1,
-  prompt: '인덱스가 효과 있으려면 ____가 높아야 한다',
-  answer: '선택도',
-  acceptedAnswers: ['selectivity'],
-  explanation: '해설',
-  referenceMaterial: '근거',
-  experienceId: null,
-});
-const solved = (answer: Record<string, unknown>) => JSON.stringify({ singleAnswer: true, problems: [], ...answer });
+  multipleChoiceReply({ experienceId: 1, ...overrides });
+const fillBlank = fillBlankReply;
+const solved = solvedReply;
 
 beforeEach(async () => {
   await testDb.truncateAll();

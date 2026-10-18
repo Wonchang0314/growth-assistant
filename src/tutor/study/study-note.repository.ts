@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { asc, desc, eq, inArray, max, notInArray, sql } from 'drizzle-orm';
 import { DB, type Db, type Tx } from '../../core/db/db.module.js';
 import type { ConceptMergeParticipant } from '../../core/knowledge/concept-merge.js';
 import { containsAnyTerm } from '../../core/db/sql.js';
+import { conceptMastery } from '../mastery/mastery.schema.js';
 import { studyNote, studyNoteConcept } from './study-note.schema.js';
 import type { NewStudyNote, StudyNote, StudyNoteConceptLink } from './study-note.js';
 
@@ -53,6 +54,22 @@ export class StudyNoteRepository implements ConceptMergeParticipant {
       .where(inArray(studyNote.id, linked))
       .orderBy(desc(studyNote.createdAt), desc(studyNote.id))
       .limit(limit);
+  }
+
+  /** 헷갈렸다고 기록한 뒤로 아직 퀴즈로 확인하지 않은 개념. 최근에 헷갈린 것부터. */
+  async findUnresolvedConfused(limit: number): Promise<number[]> {
+    const lastConfused = max(studyNote.createdAt);
+    const rows = await this.db
+      .select({ conceptId: studyNoteConcept.conceptId, lastConfused })
+      .from(studyNoteConcept)
+      .innerJoin(studyNote, eq(studyNote.id, studyNoteConcept.noteId))
+      .leftJoin(conceptMastery, eq(conceptMastery.conceptId, studyNoteConcept.conceptId))
+      .where(eq(studyNoteConcept.signal, 'CONFUSED'))
+      .groupBy(studyNoteConcept.conceptId, conceptMastery.lastReviewAt)
+      .having(sql`max(${studyNote.createdAt}) > coalesce(${conceptMastery.lastReviewAt}, '-infinity')`)
+      .orderBy(desc(lastConfused), asc(studyNoteConcept.conceptId))
+      .limit(limit);
+    return rows.map((r) => r.conceptId);
   }
 
   /** 주제·요약·헷갈린 점 중 하나에 검색어가 하나라도 들어간 기록을 최근 것부터. 검색어가 없으면 빈 배열. */

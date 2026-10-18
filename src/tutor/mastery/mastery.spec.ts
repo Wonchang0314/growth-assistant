@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { applyAnswer, gradeOf, newMastery, weaknessLevel, type ConceptMastery, type GradedAnswer } from './mastery.js';
+import {
+  applyAnswer,
+  gradeOf,
+  newMastery,
+  replay,
+  weaknessLevel,
+  type ConceptMastery,
+  type GradedAnswer,
+} from './mastery.js';
 
 const t0 = new Date('2026-10-18T00:00:00Z');
 
@@ -75,6 +83,20 @@ describe('applyAnswer', () => {
 
   it('약점 점수는 1을 넘지 않는다', () => {
     expect(answerAll([wrong('SURE', true)]).weaknessScore).toBe(1);
+  });
+});
+
+describe('replay', () => {
+  it('응답을 처음부터 차례로 반영한 결과와 같다', () => {
+    const answers = [correct('SURE'), wrong('SURE', true), correct('UNSURE')];
+
+    expect(replay(1, answers, new Date('2026-12-01T00:00:00Z'))).toEqual(answerAll(answers));
+  });
+
+  it('응답이 없으면 [at]부터 복습할 새 일정이다', () => {
+    const at = new Date('2026-12-01T00:00:00Z');
+
+    expect(replay(1, [], at)).toEqual(newMastery(1, at));
   });
 });
 

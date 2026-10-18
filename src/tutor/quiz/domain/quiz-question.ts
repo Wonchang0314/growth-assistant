@@ -46,6 +46,9 @@ export type QuestionDraft = QuestionBase &
     | { readonly type: 'FILL_BLANK'; readonly answer: string; readonly acceptedAnswers: readonly string[] }
   );
 
+/** 저장된 문제. 신고된 문제는 출제하지 않고 그 풀이는 숙련도에서 뺀다. */
+export type Question = QuestionDraft & { readonly id: number; readonly reported: boolean };
+
 /**
  * 표기 차이만 지운다: 유니코드 호환 정규화(전각 → 반각), 대소문자, 공백.
  * 빈칸 채점과 검증에서 같은 답인지 볼 때 쓴다 (설계 문서 7.3).

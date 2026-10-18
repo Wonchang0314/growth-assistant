@@ -36,6 +36,15 @@ const foundColumns = {
 export class ExperienceRepository {
   constructor(@Inject(DB) private readonly db: Db) {}
 
+  async findById(id: number): Promise<FoundExperience | undefined> {
+    const [row] = await this.db
+      .select(foundColumns)
+      .from(experience)
+      .leftJoin(sourceDocument, eq(sourceDocument.id, experience.documentId))
+      .where(eq(experience.id, id));
+    return row && toFound(row);
+  }
+
   /** [conceptIds] 중 하나라도 연결된 카드. 맞은 개념이 많은 것부터, 같으면 최근 경험부터. */
   async findByConcepts(conceptIds: readonly number[], limit: number): Promise<FoundExperience[]> {
     if (conceptIds.length === 0) return [];
