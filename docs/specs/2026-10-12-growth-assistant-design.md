@@ -135,9 +135,10 @@
 src/
 ├── main.ts          # 서버 예약 작업 진입점 (5단계, mcp-http.ts에 합칠지 그때 정한다)
 ├── mcp-stdio.ts     # MCP 진입점 (Claude Desktop이 띄움)
-├── mcp-http.ts      # MCP Streamable HTTP 진입점 (원격 커넥터의 바탕, 4단계)
+├── mcp-http.ts      # MCP HTTP 진입점, Nest HTTP 앱 (/mcp, /healthz, 원격 커넥터의 바탕, 4단계)
 ├── core
-│   ├── mcp          # MCP 서버, 도구 등록, 도구 처리기 탐색
+│   ├── mcp          # MCP 서버, 도구 등록, 도구 처리기 탐색, /mcp 컨트롤러
+│   ├── health       # /healthz 컨트롤러
 │   ├── llm          # ClaudeClient, ClaudeCliClient, 프롬프트 템플릿, 호출 로그
 │   ├── memory       # SourceDocument, DocumentChunk, Experience, DecisionCase
 │   ├── knowledge    # Track, Concept, ConceptEdge, ConceptGraphRepository

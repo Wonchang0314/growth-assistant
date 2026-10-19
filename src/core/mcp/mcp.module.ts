@@ -11,6 +11,8 @@ export class McpModule {
   static forRoot(options: McpServerOptions): DynamicModule {
     return {
       module: McpModule,
+      // HTTP 진입점의 루트 모듈(McpHttpAppModule)이 McpServerHost를 주입받는다.
+      global: true,
       imports: [DiscoveryModule],
       providers: [{ provide: MCP_SERVER_OPTIONS, useValue: options }, McpServerHost],
       exports: [McpServerHost],

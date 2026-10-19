@@ -4,9 +4,9 @@
 
 ## 기술 스택
 
-- TypeScript 6 (strict, ESM), Node.js 24, NestJS 12 (HTTP 없이 애플리케이션 컨텍스트), npm
+- TypeScript 6 (strict, ESM), Node.js 24, NestJS 12 (MCP HTTP 진입점만 Nest HTTP 앱(`@nestjs/platform-express`, Express 5), stdio 진입점과 CLI는 HTTP 없이 애플리케이션 컨텍스트), npm
 - PostgreSQL 16 (Docker), Drizzle ORM, drizzle-kit 마이그레이션
-- MCP: 공식 TypeScript SDK v2 (`@modelcontextprotocol/server`, HTTP 진입점의 Node 어댑터 `@modelcontextprotocol/node`, 테스트용 `@modelcontextprotocol/client`)
+- MCP: 공식 TypeScript SDK v2 (`@modelcontextprotocol/server`, HTTP 진입점의 Express 미들웨어 `@modelcontextprotocol/express`(Host·Origin 검사)와 Node 요청 변환 `@modelcontextprotocol/node`(`toNodeHandler`), 테스트용 `@modelcontextprotocol/client`)
 - LLM: `claude` CLI 서브프로세스
 - 간격 반복: `ts-fsrs` (버전 고정, ADR-0016·0028)
 - 설정·검증: `@nestjs/config` + zod, 시드 개념 YAML 파싱은 `yaml`
@@ -23,8 +23,9 @@ src/
 │   ├── clock            # 현재 시각 포트 (테스트에서 고정)
 │   ├── config           # 환경 변수 검증 (zod)
 │   ├── db               # PostgreSQL 연결, 마이그레이션 (migrations/)
+│   ├── health           # GET /healthz (HTTP 진입점, DB 쿼리 확인)
 │   ├── logging          # 회전 파일 로거 (LOG_DIR), 표준에러 로거, 운영 알림 포트 (AdminNotifier, 지금은 로그)
-│   ├── mcp              # MCP 서버, @McpTool() 처리기 탐색·등록
+│   ├── mcp              # MCP 서버, @McpTool() 처리기 탐색·등록, /mcp 컨트롤러(Streamable HTTP)
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L), 판단 사례(회사 맥락을 걷어낸 버전, ADR-0021)
 │   ├── knowledge        # 트랙 6개(ADR-0022), 개념 그래프, 시드 개념(seed/<트랙>.yaml)
@@ -38,7 +39,7 @@ src/
     └── outreach         # 아침 복습, 저녁 주제, 주간 리포트
 ```
 
-기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), 테이블 정의(`*.schema.ts`), Drizzle 저장소, 유스케이스(서비스)를 둔다. MCP 도구 처리기는 그 기능의 `mcp/` 폴더에 둔다. 예외로 `quiz` 모듈은 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나누고, application이 저장소·출제 어댑터를 포트로 둬 infrastructure가 구현한다(ADR-0020·0029, 방향은 `eslint.config.js`의 `quizLayer`가 검사). 여러 레이어를 함께 쓰는 테스트는 모듈 루트에 둔다. MCP 진입점은 `mcp-stdio.ts`(Claude Desktop이 띄움)와 `mcp-http.ts`(Streamable HTTP, 원격 커넥터의 바탕)이고, 둘 다 루트 `McpAppModule`을 `mcp-entry.ts`로 띄운다. 상시 실행 진입점은 원격 서버를 띄우는 4단계에서 만든다(5단계 예약 작업도 쓴다). 유스케이스는 MCP SDK·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, DB가 필요한 테스트는 `*.db.spec.ts`(Testcontainers 컨테이너 하나를 함께 쓰고 차례로 실행)로 둔다. 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
+기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), 테이블 정의(`*.schema.ts`), Drizzle 저장소, 유스케이스(서비스)를 둔다. MCP 도구 처리기는 그 기능의 `mcp/` 폴더에 둔다. 예외로 `quiz` 모듈은 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나누고, application이 저장소·출제 어댑터를 포트로 둬 infrastructure가 구현한다(ADR-0020·0029, 방향은 `eslint.config.js`의 `quizLayer`가 검사). 여러 레이어를 함께 쓰는 테스트는 모듈 루트에 둔다. MCP 진입점은 `mcp-stdio.ts`(Claude Desktop이 띄움, 루트 `McpAppModule`을 애플리케이션 컨텍스트로)와 `mcp-http.ts`(Nest HTTP 앱, 원격 커넥터의 바탕)이고, 로거와 시작 실패 처리는 `mcp-entry.ts`가 함께 맡는다. HTTP 앱의 루트 `McpHttpAppModule`은 `McpAppModule`에 `/mcp`(`McpHttpController`)와 `/healthz`(`HealthModule`)를 얹는다. HTTP 경로를 더할 때는 그 기능 모듈에 컨트롤러를 두고 모듈을 이 루트 모듈에 import한다. 상시 실행 진입점은 원격 서버를 띄우는 4단계에서 만든다(5단계 예약 작업도 쓴다). 유스케이스는 MCP SDK·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, DB가 필요한 테스트는 `*.db.spec.ts`(Testcontainers 컨테이너 하나를 함께 쓰고 차례로 실행)로 둔다. 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
 
 ## 명령
 
@@ -56,7 +57,7 @@ src/
 - 시드 개념 적재: `npm run db:seed` (`src/core/knowledge/seed/*.yaml`을 검증한 뒤 반영, 여러 번 돌려도 같고 YAML에서 빠진 시드 개념·트랙은 지운다. 배포 스크립트도 마이그레이션 뒤에 돌린다)
 - 스타일 자동 수정: `npm run format`, `npx eslint --fix .`
 - MCP 서버: `npm run build && npm run mcp` (stdio. 표준출력은 MCP 메시지 통로라 로그는 표준에러나 `LOG_DIR/mcp`에 쓴다. `.env` 위치는 `GROWTH_ENV_FILE`)
-- MCP HTTP 서버: `npm run build && npm run mcp:http` (Streamable HTTP, `http://127.0.0.1:3100/mcp`. 주소는 `MCP_HTTP_HOST`·`MCP_HTTP_PORT`, 로그는 표준에러나 `LOG_DIR/mcp-http`. 인증이 없으니 공개하지 않는다)
+- MCP HTTP 서버: `npm run build && npm run mcp:http` (Nest HTTP 앱. Streamable HTTP `http://127.0.0.1:3100/mcp`, 헬스체크 `GET /healthz`(DB에 닿으면 200, 아니면 503). 주소는 `MCP_HTTP_HOST`·`MCP_HTTP_PORT`, 로그는 표준에러나 `LOG_DIR/mcp-http`, SIGINT·SIGTERM으로 끝낸다. 인증이 없으니 공개하지 않는다)
 - 운영(Mac mini): 배포 `ops/deploy.sh` (검사·빌드·릴리스·마이그레이션·시드 적재, `docs/ops.md`). Claude Desktop은 배포된 릴리스의 MCP 서버를 띄운다. Desktop 설정 항목 출력 `ops/desktop-config.sh`
 
 ## 문서
