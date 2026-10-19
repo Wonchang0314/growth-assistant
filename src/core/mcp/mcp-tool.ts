@@ -15,20 +15,7 @@ export interface McpToolHandler<Input extends z.ZodObject = z.ZodObject> {
   readonly inputSchema: Input;
   /** DB를 바꾸지 않는 도구인지. Claude 앱이 호출 승인을 물을지 정하는 힌트다. */
   readonly readOnly: boolean;
-  /** MCP Apps 화면. 있으면 이 화면을 지원하는 클라이언트가 도구 결과를 그 HTML로 그린다. */
-  readonly view?: McpToolView;
   handle(input: z.output<Input>): Promise<McpToolResult>;
-}
-
-/**
- * MCP Apps(`@modelcontextprotocol/ext-apps`) 화면. 클라이언트가 샌드박스 iframe(모바일은 WebView)에 띄우고,
- * 도구 결과의 구조화된 내용([McpToolResult.data])을 postMessage로 넘긴다. 외부 자원은 CSP로 막히므로 HTML 하나에 다 담는다.
- */
-export interface McpToolView {
-  readonly uri: `ui://${string}`;
-  /** 리소스 목록에 보이는 이름. */
-  readonly name: string;
-  readonly html: string;
 }
 
 export interface McpToolResult {
