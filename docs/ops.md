@@ -23,8 +23,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    ops/deploy.sh
    ```
    검사·테스트·빌드한 릴리스를 `~/.growth-assistant/app/releases/<시각>`에 만들고, DB 마이그레이션과 시드 개념 적재를 한 뒤 `~/.growth-assistant/app/current`를 새 릴리스로 바꾼다.
-6. **예전 Discord 봇 해제:** 예전에 봇(`com.growthassistant.bot`)을 등록했던 기기라면 `ops/uninstall.sh`를 한 번 실행한다. 지금의 상시 실행 서버도 함께 해제하므로 8번 전에 한다.
-7. **Claude Desktop 등록:**
+6. **Claude Desktop 등록:**
    ```bash
    ops/desktop-config.sh
    ```
@@ -48,8 +47,8 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    - 경로를 모두 절대 경로로 적는 이유: Desktop은 셸을 거치지 않고 macOS가 띄우므로 터미널의 PATH(nvm이 바꾼 것 포함)와 작업 디렉터리를 물려받지 않는다. `command`는 배포가 바꾸는 `app/node` 링크를, `args`는 `current` 링크를 가리키므로 새로 배포한 뒤에는(node 버전을 바꿨어도) Desktop을 다시 시작하기만 하면 된다.
    - `LOG_DIR`는 `.env`가 아니라 여기서 준다. 진입점이 `.env`를 읽기 전에 로거를 만들기 때문이다.
    - 튜터링은 Claude 프로젝트를 하나 만들고, 그 지침에 `docs/claude-project-instructions.md`의 본문을 붙여 넣은 뒤 그 안에서 대화한다.
-8. **상시 실행 서버 등록:** `ops/install.sh`. MCP HTTP 서버를 LaunchAgent로 등록해 바로 띄운다(아래 "상시 실행").
-9. **점검:** [수동 점검 체크리스트](manual-check.md)의 1단계 항목을 확인한다.
+7. **상시 실행 서버 등록:** `ops/install.sh`. MCP HTTP 서버를 LaunchAgent로 등록해 바로 띄운다(아래 "상시 실행").
+8. **점검:** [수동 점검 체크리스트](manual-check.md)의 1단계 항목을 확인한다.
 
 ## 일상 작업
 
