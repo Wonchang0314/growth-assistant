@@ -1,6 +1,6 @@
 # 운영 가이드 (Mac mini)
 
-Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md)). 개발 PC는 개발·테스트용이다. 지금은 상시 실행 프로세스가 없다. MCP 서버는 Claude Desktop이 배포된 릴리스에서 필요할 때 띄우고 끈다 ([ADR-0018](adr/0018-claude-mcp-server.md)). 서버 예약 작업이 생기는 4단계에서 launchd 상시 실행 앱을 다시 만든다.
+Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md)). 개발 PC는 개발·테스트용이다. 로컬 MCP 서버(stdio)는 Claude Desktop이 배포된 릴리스에서 필요할 때 띄우고 끈다 ([ADR-0018](adr/0018-claude-mcp-server.md)). 원격 커넥터의 바탕인 MCP HTTP 서버는 launchd 사용자 에이전트로 상시 실행한다 ([ADR-0035](adr/0035-remote-connector.md), 아래 "상시 실행").
 
 ## 처음 설치
 
@@ -23,7 +23,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    ops/deploy.sh
    ```
    검사·테스트·빌드한 릴리스를 `~/.growth-assistant/app/releases/<시각>`에 만들고, DB 마이그레이션과 시드 개념 적재를 한 뒤 `~/.growth-assistant/app/current`를 새 릴리스로 바꾼다.
-6. **예전 Discord 봇 해제:** 예전에 `ops/install.sh`로 봇을 등록했던 기기라면 `ops/uninstall.sh`를 한 번 실행한다.
+6. **예전 Discord 봇 해제:** 예전에 봇(`com.growthassistant.bot`)을 등록했던 기기라면 `ops/uninstall.sh`를 한 번 실행한다. 지금의 상시 실행 서버도 함께 해제하므로 8번 전에 한다.
 7. **Claude Desktop 등록:**
    ```bash
    ops/desktop-config.sh
@@ -48,21 +48,45 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    - 경로를 모두 절대 경로로 적는 이유: Desktop은 셸을 거치지 않고 macOS가 띄우므로 터미널의 PATH(nvm이 바꾼 것 포함)와 작업 디렉터리를 물려받지 않는다. `command`는 배포가 바꾸는 `app/node` 링크를, `args`는 `current` 링크를 가리키므로 새로 배포한 뒤에는(node 버전을 바꿨어도) Desktop을 다시 시작하기만 하면 된다.
    - `LOG_DIR`는 `.env`가 아니라 여기서 준다. 진입점이 `.env`를 읽기 전에 로거를 만들기 때문이다.
    - 튜터링은 Claude 프로젝트를 하나 만들고, 그 지침에 `docs/claude-project-instructions.md`의 본문을 붙여 넣은 뒤 그 안에서 대화한다.
-8. **점검:** [수동 점검 체크리스트](manual-check.md)의 1단계 항목을 확인한다.
+8. **상시 실행 서버 등록:** `ops/install.sh`. MCP HTTP 서버를 LaunchAgent로 등록해 바로 띄운다(아래 "상시 실행").
+9. **점검:** [수동 점검 체크리스트](manual-check.md)의 1단계 항목을 확인한다.
 
 ## 일상 작업
 
 | 할 일 | 명령 |
 |---|---|
-| 새 코드 배포 | `git pull && ops/deploy.sh` (의존성 설치 → 검사·테스트 → 빌드 → 새 릴리스 → 마이그레이션 → 시드 적재 → `current` 교체) 후 Claude Desktop 다시 시작. 릴리스는 최근 3개를 남긴다 |
+| 새 코드 배포 | `git pull && ops/deploy.sh` (의존성 설치 → 검사·테스트 → 빌드 → 새 릴리스 → 마이그레이션 → 시드 적재 → `current` 교체 → 상시 실행 서버 다시 띄우기) 후 Claude Desktop 다시 시작. 상시 실행 서버는 등록돼 있을 때만 배포가 다시 띄운다. 릴리스는 최근 3개를 남긴다 |
 | Node 버전 올리기 | `.nvmrc`를 고쳐 머지한 뒤 `git pull && nvm install && ops/deploy.sh` → Claude Desktop 다시 시작. 배포는 `node --version`이 `.nvmrc`와 다르면 멈추고, `app/node` 링크를 새 node로 바꾼다. `package.json`의 `engines`와 `.npmrc`의 `engine-strict` 때문에 범위 밖 버전에서는 `npm ci`가 실패한다 |
-| 이전 릴리스로 되돌리기 | `ls ~/.growth-assistant/app/releases` 후 `ln -sfn ~/.growth-assistant/app/releases/<이전> ~/.growth-assistant/app/current` → Claude Desktop 다시 시작. DB 마이그레이션은 되돌리지 않으므로 스키마가 바뀐 릴리스 사이에서는 쓰지 않는다 |
+| 이전 릴리스로 되돌리기 | `ls ~/.growth-assistant/app/releases` 후 `ln -sfn ~/.growth-assistant/app/releases/<이전> ~/.growth-assistant/app/current` → `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server`(상시 실행 서버) → Claude Desktop 다시 시작. DB 마이그레이션은 되돌리지 않으므로 스키마가 바뀐 릴리스 사이에서는 쓰지 않는다 |
 | 마이그레이션만 적용 | `npm run db:migrate` (작업 트리의 `.env` 기준) |
 | 시드 개념만 적재 | `npm run db:seed` (작업 트리의 `.env` 기준). 시드 YAML을 고친 뒤. 개념은 이름으로 찾아 트랙·별칭·설명을 고치고, 승인 상태는 건드리지 않으며, 시드 개념끼리의 관계는 YAML대로 맞추고, YAML에서 빠진 시드 개념(관계 포함)과 트랙은 지운다. 학습 기록이 연결된 개념을 지우려 하면 적재 전체가 취소된다 |
 | Notion 동기화 | `npm run sync` (작업 트리의 `.env` 기준, `NOTION_TOKEN`과 `NOTION_ROOT_IDS`가 필요하다). 처음 실행은 백필이라 20분 남짓 걸리고, 그 뒤로는 Notion 수정 시각이 바뀐 문서만 읽는다. 실패한 문서는 다음 실행이 다시 읽는다. 상태는 Desktop에서 `sync_status` 도구로 본다 |
 | 경험 카드 추출 | `npm run extract` (작업 트리의 `.env` 기준). 동기화한 뒤 아직 뽑지 않았거나 실패한 문서마다 `claude -p`(Sonnet)를 한 번 부른다. 구독 사용량을 쓰므로 `-- --limit 5`로 나눠 돌릴 수 있고, 한도에 걸리면 남은 문서를 그대로 두고 멈춘다. 프롬프트를 고친 뒤 특정 문서를 다시 뽑으려면 `-- --ids 3,7`. 추출이 만든 승인 대기 개념은 Desktop에서 "승인 대기 개념 보여줘"로 검토한다(`list_pending_concepts`, `review_concept`) |
 | 판단 사례 추상화 | `npm run abstract` (작업 트리의 `.env` 기준). 경험 카드를 40장씩 선별(Sonnet)하고, 판단이 분명한 카드마다 치환(Sonnet)·패턴 게이트·독립 검증(Opus)을 거쳐 `decision_case`에 저장한다. 경험 사례가 두 번 다 걸리면 가정 사례(Sonnet)·정답을 숨긴 풀이 검증(Opus)으로 폴백하고, 그것도 걸리면 PENDING으로 둔다(ADR-0026). 사용량이 크므로 `-- --limit 10`으로 나눠 돌리고, 프롬프트를 고친 뒤 특정 카드를 다시 하려면 `-- --ids 3,7`(경험 카드 id). 한도에 걸리면 남은 카드를 두고 멈춘다 |
-| MCP 로그 보기 | `tail -F <LOG_DIR>/mcp/current.log` (`LOG_DIR`를 주지 않았으면 Claude Desktop의 MCP 로그에 남는다) |
+| MCP 로그 보기 | `tail -F <LOG_DIR>/mcp/current.log` (`LOG_DIR`를 주지 않았으면 Claude Desktop의 MCP 로그에 남는다). 상시 실행 서버는 `tail -F ~/.growth-assistant/logs/mcp-http/current.log` |
+| 상시 실행 서버 상태·재시작 | 아래 "상시 실행" |
+
+## 상시 실행 (MCP HTTP 서버)
+
+원격 커넥터의 바탕인 MCP HTTP 서버(`dist/mcp-http.js`, 기본 `127.0.0.1:3100`)를 launchd 사용자 에이전트 `com.growthassistant.server`로 상시 실행한다([ADR-0035](adr/0035-remote-connector.md)). 템플릿은 `ops/com.growthassistant.server.plist`다.
+
+- **실행하는 것:** `~/.growth-assistant/app/node`(배포가 바꾸는 node 링크)로 `~/.growth-assistant/app/current/dist/mcp-http.js`를 띄운다. Desktop 설정과 같은 방식이라 node 버전을 올려도 다시 등록하지 않는다. `.env`는 `GROWTH_ENV_FILE`(레포의 `.env`)로 읽고, 주소는 `.env`의 `MCP_HTTP_HOST`·`MCP_HTTP_PORT`다.
+- **다시 띄우기:** `RunAtLoad`로 로그인하면 시작하고, `KeepAlive`로 어떤 이유로 끝나든 다시 띄운다. 시작 실패가 되풀이되면 `ThrottleInterval` 10초에 한 번만 다시 띄운다.
+- **`PATH`:** launchd의 기본 `PATH`에는 `claude`가 없어서 plist에 `~/.local/bin:/opt/homebrew/bin:/usr/local/bin`을 앞에 둔다. 그 밖에 있으면 `.env`에 `CLAUDE_EXECUTABLE`을 넣는다(`ops/install.sh`가 못 찾으면 알려 준다).
+
+| 할 일 | 명령 |
+|---|---|
+| 등록(처음, 템플릿·`.env` 위치·로그 위치를 바꾼 뒤) | `ops/install.sh`. 배포된 릴리스가 있어야 한다(`ops/deploy.sh` 먼저). plist를 `~/Library/LaunchAgents/com.growthassistant.server.plist`로 만들고, 이미 등록돼 있으면 내렸다가 다시 올린다. 처음 등록하면 macOS가 "백그라운드 항목이 추가됨" 알림을 띄운다. 시스템 설정 → 일반 → 로그인 항목 및 확장 프로그램의 "백그라운드에서 허용"에서 node가 꺼져 있으면 켠다 |
+| 해제 | `ops/uninstall.sh`. 에이전트를 내리고 plist를 지운다. 릴리스와 로그는 남는다 |
+| 새 릴리스로 바꾸기 | `ops/deploy.sh`가 `current`를 바꾼 뒤 `launchctl kickstart -k`로 다시 띄운다. 등록하지 않았으면 건너뛴다 |
+| 상태 확인 | `launchctl print gui/$(id -u)/com.growthassistant.server \| grep -E 'state\|pid\|runs\|last exit'`. `state = running`이면 떠 있고, `runs`가 계속 늘면 시작에 실패해 되풀이되는 중이다. 포트는 `lsof -nP -iTCP:3100 -sTCP:LISTEN` |
+| 다시 띄우기 | `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server` |
+| 잠깐 멈추기 | `ops/uninstall.sh`(`KeepAlive`라 프로세스만 죽이면 다시 뜬다). 다시 쓰려면 `ops/install.sh` |
+| 로그 | `tail -F ~/.growth-assistant/logs/mcp-http/current.log`. 시작하자마자 죽으면 `~/.growth-assistant/logs/launchd/server.err.log` |
+
+- **재부팅 뒤:** 사용자 에이전트라 로그인해야 뜬다. FileVault가 켜져 있어 재부팅 뒤에는 디스크 암호를 풀고 로그인할 때까지 서버·DB(OrbStack)·터널이 모두 멈춘다(아래 "FileVault와 재부팅"). 화면 잠금이나 모니터 끄기로는 멈추지 않고, 로그아웃하면 멈춘다.
+- **DB보다 먼저 뜰 때:** 로그인하면 서버와 OrbStack이 함께 시작해 서버가 먼저 뜰 수 있다. 서버는 시작할 때 DB에 연결하지 않고 요청마다 연결하므로 그대로 떠 있고, DB가 뜨기 전 도구 호출은 `ECONNREFUSED`로 실패했다가 DB가 뜨면 저절로 돌아온다. 떠 있는 동안 DB가 재시작돼 프로세스가 죽어도 `KeepAlive`가 10초 뒤 다시 띄운다.
+- **수동 실행과 겹칠 때:** 에이전트가 떠 있으면 같은 포트로 `npm run mcp:http`를 띄울 수 없다(`EADDRINUSE`). 개발 중에는 `.env`나 셸에서 `MCP_HTTP_PORT`를 바꿔 띄운다.
 
 ## 로그
 
@@ -70,6 +94,8 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 |---|---|
 | `LOG_DIR/mcp/growth-assistant.<날짜>.<번호>.log` | MCP 서버 로그 (Claude Desktop 설정에서 `LOG_DIR`를 줬을 때). 하루 또는 10MB마다 새 파일, 최근 30개 보관. `current.log`가 지금 쓰는 파일을 가리킨다 |
 | Claude Desktop의 MCP 로그 (`~/Library/Logs/Claude/mcp-server-growth-assistant.log`) | `LOG_DIR`가 없을 때의 로그와 시작 실패(환경 변수 오류, node를 찾지 못함) |
+| `~/.growth-assistant/logs/mcp-http/growth-assistant.<날짜>.<번호>.log` | 상시 실행 MCP HTTP 서버 로그. 회전·보관은 위와 같고 `current.log`가 지금 파일이다 |
+| `~/.growth-assistant/logs/launchd/server.{out,err}.log` | 상시 실행 서버의 표준출력·표준에러. 로거가 뜨기 전 오류(node·릴리스를 찾지 못함)와 시작 실패만 남는다. 회전하지 않는다 |
 | `llm_call_log` 테이블 | Claude CLI 호출마다 용도·모델·소요 시간·성공 여부·오류 |
 
 ## 문제 해결
@@ -78,7 +104,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 - **Desktop에 서버가 failed로 보이거나 도구가 없음:** Desktop의 MCP 로그를 본다. `ops/desktop-config.sh`를 다시 실행해 설정의 경로가 맞는지 비교한다. 설정 파일이 JSON 형식에 맞지 않으면 Desktop이 서버를 하나도 띄우지 않는다.
 - **`.env`를 읽지 못함(`EPERM`):** 레포가 `~/Documents`, `~/Desktop`, `~/Downloads` 아래에 있으면 macOS 개인정보 보호가 Desktop이 띄운 프로세스의 접근을 막을 수 있다. 레포를 그 밖(예: `~/dev`)으로 옮기거나 시스템 설정 → 개인정보 보호 및 보안에서 Claude에 접근을 허용한다.
 - **도구가 오류를 돌려줌:** 오류 문장의 "원인"을 본다. `ECONNREFUSED`면 DB가 안 떠 있으니 `docker compose up -d`. `relation ... does not exist`처럼 테이블이 없으면 마이그레이션이 덜 된 것이니 `ops/deploy.sh`나 `npm run db:migrate`.
-- **`claude`를 찾지 못함 (`UNKNOWN: Error: spawn claude ENOENT`):** `which claude`로 경로를 찾아 `.env`에 `CLAUDE_EXECUTABLE=<경로>`를 넣는다.
+- **`claude`를 찾지 못함 (`UNKNOWN: Error: spawn claude ENOENT`):** `which claude`로 경로를 찾아 `.env`에 `CLAUDE_EXECUTABLE=<경로>`를 넣는다. 상시 실행 서버는 `.env`를 시작할 때 읽으므로 넣은 뒤 `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server`로 다시 띄운다.
 
 ## Mac 설정
 
@@ -98,7 +124,7 @@ pmset -g   # 확인
 
 ### FileVault와 재부팅
 
-FileVault를 켜 두었다(2026-10-13 결정). 그래서 재부팅 뒤에는 **사용자가 로그인해야** Docker, `claude`, Claude Desktop이 동작한다.
+FileVault를 켜 두었다(2026-10-13 결정, ADR-0035에서 유지). 디스크 암호화라서 재부팅 뒤에는 **사용자가 로그인해야** Docker(DB), `claude`, Claude Desktop, 상시 실행 서버가 동작한다. 화면 잠금으로는 멈추지 않는다.
 
 - 계획된 재시작은 `sudo fdesetup authrestart`로 한다. 다음 부팅에서 한 번 디스크 잠금을 자동으로 풀고 로그인한다.
 - 정전 뒤에는 자동으로 복구되지 않는다. 켜진 뒤 직접(또는 화면 공유로) 로그인한다.

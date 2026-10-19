@@ -5,9 +5,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-# ops/deploy.sh와 같은 위치. 배포 위치를 바꿔 시험할 때만 GROWTH_APP_DIR을 지정한다.
-APP_DIR="${GROWTH_APP_DIR:-$HOME/.growth-assistant/app}"
-LOG_DIR="${GROWTH_LOG_DIR:-$HOME/.growth-assistant/logs}"
+source "$PROJECT_DIR/ops/common.sh"
 SERVER="$APP_DIR/current/dist/mcp-stdio.js"
 ENV_FILE="$PROJECT_DIR/.env"
 

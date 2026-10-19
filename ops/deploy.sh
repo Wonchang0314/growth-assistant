@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 검사(테스트 포함)와 빌드를 거친 코드를 새 릴리스 디렉터리에 배포하고, DB 마이그레이션을 적용한 뒤 current를 바꾼다.
 # Claude Desktop은 current의 MCP 서버(dist/mcp-stdio.js)를 띄우므로, 개발 중인 작업 트리를 고쳐도 Desktop의 도구가 깨지지 않는다.
+# 상시 실행 MCP HTTP 서버(LaunchAgent, ops/install.sh)가 등록돼 있으면 current를 바꾼 뒤 다시 띄운다.
 # 실행 중인 릴리스의 파일을 덮어쓰지 않도록 릴리스마다 디렉터리를 따로 만든다. 최근 3개만 남긴다.
 #   ~/.growth-assistant/app/releases/<시각>/{dist, node_modules, package.json}
 #   ~/.growth-assistant/app/current -> releases/<시각>
@@ -8,8 +9,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-# 배포 위치를 바꿔 시험할 때만 GROWTH_APP_DIR을 지정한다.
-APP_DIR="${GROWTH_APP_DIR:-$HOME/.growth-assistant/app}"
+source "$PROJECT_DIR/ops/common.sh"
 KEEP_RELEASES=3
 
 cd "$PROJECT_DIR"
@@ -34,6 +34,12 @@ ln -sfn "$release" "$APP_DIR/current"
 # Desktop은 셸을 거치지 않아 nvm의 PATH를 모른다. 버전이 바뀌어도 설정을 다시 넣지 않도록 고정 경로의 링크를 바꾼다.
 ln -sfn "$(command -v node)" "$APP_DIR/node"
 echo "배포함: $release (node $want)"
+
+# 상시 실행 서버는 링크를 시작할 때만 따라가므로 다시 띄운다(-k: 떠 있는 것을 끄고 띄운다). 등록하지 않았으면 건너뛴다.
+if agent_loaded; then
+    launchctl kickstart -k "$AGENT_TARGET"
+    echo "상시 실행 서버를 새 릴리스로 다시 띄웠다: $AGENT_LABEL"
+fi
 
 # 오래된 릴리스를 지운다 (current는 항상 가장 최근 것이다).
 ls -1d "$APP_DIR"/releases/*/ | sort -r | tail -n +$((KEEP_RELEASES + 1)) | while read -r old; do

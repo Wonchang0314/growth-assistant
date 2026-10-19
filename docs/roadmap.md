@@ -68,7 +68,7 @@
 ## 4. 원격 전환: 모바일·아이패드 (프로토타입 1, 새 ADR)
 - [x] 결정: Cloudflare 터널, OAuth 2.1(CIMD, 구글 로그인), WAF 대역 제한, Nest HTTP 어댑터, LaunchAgent, ntfy + 헬스체크, MCP Apps는 6단계 (ADR-0035)
 - [ ] Streamable HTTP 진입점, 인증, 커스텀 커넥터 등록 (로컬 HTTP 진입점 `mcp-http.ts`는 2026-10-19에 만듦, 인증·등록이 남음)
-- [ ] 상시 실행 진입점(launchd, `ops/install.sh`). 원격 서버와 5단계 예약 작업이 함께 쓴다
+- [x] 상시 실행 진입점(LaunchAgent `com.growthassistant.server`, `ops/install.sh`·`ops/uninstall.sh`, 배포 뒤 다시 띄우기). MCP HTTP 서버를 띄운다. 5단계 예약 작업을 같은 프로세스에 둘지는 그때 정한다
 - [ ] 운영 감시(죽으면 다시 띄우기, 로그)
 - [ ] 모바일·아이패드 수동 점검
 
