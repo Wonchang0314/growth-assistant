@@ -26,6 +26,8 @@ export abstract class QuizQuestionRepository {
   abstract find(id: number): Promise<Question | undefined>;
   /** 낼 수 있는 문제: 검증을 통과했고, 신고되지 않았고, 아직 풀지 않은 문제. 변형 문제 먼저, 오래된 것부터. */
   abstract findServable(conceptId: number, limit: number): Promise<Question[]>;
+  /** 검증을 통과했고 신고되지 않은 그 유형의 문제 하나를 아무거나. 풀었는지와 개념은 보지 않는다. */
+  abstract findAnyValid(type: QuestionType): Promise<Question | undefined>;
   /** 그 개념의 검증 통과·신고 안 된 문제와 마지막 풀이, 변형이 있는지. 오래된 것부터. 다음에 만들 문제를 정할 때 쓴다. */
   abstract findHistory(conceptId: number): Promise<QuestionHistory[]>;
   /** 그 개념에서 문제로 만들어 본(검증 결과와 상관없이) 판단 사례. 검증에 걸린 사례를 매번 다시 쓰지 않게 한다. */

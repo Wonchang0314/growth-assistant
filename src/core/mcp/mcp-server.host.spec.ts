@@ -12,7 +12,7 @@ const echoInput = z.object({ word: z.string().min(1).describe('되돌려 줄 단
 @McpTool()
 @Injectable()
 class EchoTool implements McpToolHandler<typeof echoInput> {
-  readonly name = 'echo_word';
+  readonly name: string = 'echo_word';
   readonly description = '단어를 그대로 돌려준다';
   readonly inputSchema = echoInput;
   readonly readOnly = true;
@@ -30,6 +30,13 @@ class EchoTool implements McpToolHandler<typeof echoInput> {
 @McpTool()
 @Injectable()
 class DuplicateEchoTool extends EchoTool {}
+
+@McpTool()
+@Injectable()
+class EchoCardTool extends EchoTool {
+  override readonly name = 'echo_card';
+  readonly view = { uri: 'ui://test/echo.html', name: '단어 카드', html: '<p>카드</p>' } as const;
+}
 
 const closers: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -115,6 +122,21 @@ describe('McpServerHost', () => {
     const result = await client.callTool({ name: 'echo_word', arguments: { word: '' } });
 
     expect(result.isError).toBe(true);
+  });
+
+  it('화면(view)이 있는 도구는 MCP Apps 메타데이터와 함께 등록하고, 그 HTML을 ui:// 리소스로 내보낸다', async () => {
+    const client = await connect([EchoTool, EchoCardTool]);
+
+    const { tools } = await client.listTools();
+    const resource = await client.readResource({ uri: 'ui://test/echo.html' });
+
+    expect(tools.find((t) => t.name === 'echo_card')?._meta).toMatchObject({
+      ui: { resourceUri: 'ui://test/echo.html' },
+    });
+    expect(tools.find((t) => t.name === 'echo_word')?._meta).toBeUndefined();
+    expect(resource.contents).toEqual([
+      { uri: 'ui://test/echo.html', mimeType: 'text/html;profile=mcp-app', text: '<p>카드</p>' },
+    ]);
   });
 
   it('도구 이름이 겹치면 뜨지 않는다', async () => {
