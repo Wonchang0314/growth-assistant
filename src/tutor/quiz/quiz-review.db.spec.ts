@@ -105,7 +105,7 @@ beforeEach(async () => {
     questions,
     concepts,
     experiences,
-    cases,
+    mastery,
     studyNotes,
     new QuizGuidelineService(new AppSettingRepository(testDb.db)),
     clock,
@@ -116,7 +116,6 @@ beforeEach(async () => {
     attempts,
     generation,
     concepts,
-    cases,
     mastery,
     studyNotes,
     new QuizWeaknessService(mastery, concepts, attempts, clock),
@@ -334,7 +333,7 @@ describe('변형 문제', () => {
   });
 });
 
-describe('상황 판단형 문제', () => {
+describe('경험과 판단 사례 (ADR-0038)', () => {
   const body = {
     situation: '배포 중 구버전 앱이 함께 떠 있는 서비스에서 컬럼 이름을 바꿔야 한다',
     constraints: ['다운타임 불가'],
@@ -383,7 +382,7 @@ describe('상황 판단형 문제', () => {
     }
   }
 
-  it('안 쓴 판단 사례로 상황 판단형 객관식을 만들고, 회사 맥락이 담길 수 있는 경험 카드는 출제에 넣지 않는다', async () => {
+  it('승인된 판단 사례가 있어도 개념 문제만 만들고, 사례·경험 카드는 출제에 싣지 않는다', async () => {
     await seedCases();
     claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
 
@@ -391,35 +390,22 @@ describe('상황 판단형 문제', () => {
     await review.idle();
 
     const [question] = await testDb.db.select().from(quizQuestion);
-    expect(question).toMatchObject({ angle: 'SCENARIO', type: 'MULTIPLE_CHOICE', caseId: 1, experienceId: 1 });
+    expect(question).toMatchObject({ angle: 'MECHANISM', caseId: null });
     const prompt = claude.requestsFor('QUIZ_GENERATION')[0]?.prompt ?? '';
-    expect(prompt).toContain('## 판단 사례 (경험 사례)');
-    expect(prompt).toContain('- (고름) 새 컬럼을 추가하고 양쪽에 쓴다: 구버전이 깨지지 않는다');
-    expect(prompt).not.toContain('## 관련 경험 카드');
-    expect(await questions.usedCaseIds(1)).toEqual([1]);
+    expect(prompt).not.toMatch(/판단 사례|구버전|컬럼 이름|운영 중 컬럼 이름 변경|구버전 호환 배포/);
   });
 
-  it('가정 사례로 만든 문제는 질문 앞에 머리말을 붙이고, 채점 결과에서는 "같은 개념을 다룬 경험"으로 잇는다', async () => {
+  it('문제에 그 개념의 경험 카드를 잇고, 채점 결과에서는 "같은 개념을 다룬 경험"으로 보여 준다', async () => {
     await seedCases();
-    const generation = new QuizGenerationService(
-      new ClaudeQuestionGenerator(claude),
-      questions,
-      concepts,
-      experiences,
-      cases,
-      studyNotes,
-      new QuizGuidelineService(new AppSettingRepository(testDb.db)),
-      clock,
-      () => 0,
-    );
-    const [, hypothetical] = await cases.findActiveForConcept(1);
     claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
 
-    const made = await generation.generate({ conceptId: 1, type: 'FILL_BLANK', decisionCase: hypothetical });
-    const graded = await submit(made.id, '1');
+    await review.reviewSet({ concept: '인덱스', count: 1 });
+    await review.idle();
+    const [made] = await testDb.db.select().from(quizQuestion);
+    const graded = await submit(made?.id ?? 0, '1');
 
-    expect(made.question).toMatchObject({ type: 'MULTIPLE_CHOICE', caseId: 2, experienceId: 2 });
-    expect(made.question.prompt.startsWith('[가정한 상황] 성별 컬럼')).toBe(true);
+    // 두 카드 모두 날짜가 없어 나중에 저장한 카드(2)가 먼저다.
+    expect(made?.experienceId).toBe(2);
     expect(graded).toMatchObject({ experience: { title: '구버전 호환 배포', relation: 'SAME_CONCEPT' } });
   });
 });

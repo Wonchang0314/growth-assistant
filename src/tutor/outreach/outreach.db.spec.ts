@@ -173,8 +173,7 @@ describe('새벽 작업', () => {
     const run = app.get(NightlyPrepJob).run();
 
     await expect(run).rejects.toThrow(
-      '동기화 실패: Notion 응답 없음 / 추출: 문서 0개, 카드 0장, 실패 0 / ' +
-        '판단 사례: 선별 0장, 경험 0·가정 0·PENDING 0, 실패 0 / 문제 만들기: 문제가 없는 개념 1개 중 1개 만듦',
+      '동기화 실패: Notion 응답 없음 / 추출: 문서 0개, 카드 0장, 실패 0 / 문제 만들기: 문제가 없는 개념 1개 중 1개 만듦',
     );
     expect(await app.get(QuizQuestionRepository).findServable(1, 1)).toHaveLength(1);
   });

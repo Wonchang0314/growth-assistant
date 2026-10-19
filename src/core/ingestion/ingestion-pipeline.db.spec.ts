@@ -38,7 +38,7 @@ describe('IngestionPipeline', () => {
     source.listError = new Error('Notion 응답 없음');
     claude.reply(emptyExtractionReply);
 
-    const results = await pipeline.run({ abstract: false });
+    const results = await pipeline.run();
 
     expect(results).toEqual([
       { stage: '동기화', ok: false, summary: 'Notion 응답 없음' },

@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Clock } from '../../../core/clock/clock.js';
 import { ConceptService } from '../../../core/knowledge/concept.service.js';
-import { type ActiveCase, DecisionCaseRepository } from '../../../core/memory/decision-case.repository.js';
 import { ExperienceRepository } from '../../../core/memory/experience.repository.js';
+import { MasteryService } from '../../mastery/mastery.service.js';
 import { StudyNoteService } from '../../study/study-note.service.js';
 import { draftProblems, shuffled } from '../domain/question-gate.js';
 import { solutionProblems } from '../domain/question-solution.js';
 import type { QuestionDraft, QuestionType, ValidationStatus } from '../domain/quiz-question.js';
-import { type QuestionHistory, variantCheckProblems, variantProblems } from '../domain/variant.js';
+import { nextAngle, type QuestionHistory, variantCheckProblems, variantProblems } from '../domain/variant.js';
 import { type GenerationContext, QuestionGenerator, QuizQuestionRepository } from './ports.js';
 import { QuizGuidelineService } from './quiz-guideline.service.js';
 
@@ -16,8 +16,6 @@ export const RANDOM = Symbol('RANDOM');
 
 /** 다시 쓰는 횟수까지 합친 시도 수. 걸리면 1회 다시 생성한다 (설계 문서 7.3, ADR-0021과 같다). */
 const ATTEMPTS = 2;
-/** 출제에 싣는 경험 카드 수. */
-const EXPERIENCE_LIMIT = 3;
 
 export interface GeneratedQuestion {
   readonly id: number;
@@ -29,7 +27,7 @@ export interface GeneratedQuestion {
 
 /**
  * 개념 하나로 객관식·빈칸 문제를 만든다 (설계 문서 7.3).
- * 출제(Sonnet) → 모양 검사(코드) → 보기 섞기 → 정답을 숨긴 풀이 검증(Opus) → 변형이면 원래 문제와 비교(Opus).
+ * 출제(Sonnet) → 모양·길이 검사(코드) → 보기 섞기 → 정답을 숨긴 풀이 검증(Opus) → 변형이면 원래 문제와 비교(Opus).
  * 걸리면 이유를 붙여 한 번 다시 쓰고, 그래도 걸리면 INVALID로 남긴다. 통과한 문제만 VALID가 되어 출제에 쓰인다.
  */
 @Injectable()
@@ -39,7 +37,7 @@ export class QuizGenerationService {
     private readonly questions: QuizQuestionRepository,
     private readonly concepts: ConceptService,
     private readonly experiences: ExperienceRepository,
-    private readonly cases: DecisionCaseRepository,
+    private readonly mastery: MasteryService,
     private readonly studyNotes: StudyNoteService,
     private readonly guideline: QuizGuidelineService,
     private readonly clock: Clock,
@@ -47,23 +45,26 @@ export class QuizGenerationService {
   ) {}
 
   /**
-   * [variantOf]를 주면 그 문제의 변형을(같은 핵심, 다른 상황), [decisionCase]를 주면 그 판단 사례로 상황 판단형 객관식을 만든다.
-   * 상황 판단형 문제의 변형은 원래 문제의 판단 사례를 다시 쓴다.
+   * [variantOf]를 주면 그 문제의 변형을(같은 핵심, 다른 상황) 만든다.
+   * 출제 프롬프트에 싣지 않은 그 개념의 경험 카드 하나를 문제에 이어, 채점 결과에 "같은 개념을 다룬 내 경험"으로 보여 준다.
    */
   async generate(input: {
     conceptId: number;
     type: QuestionType;
     variantOf?: QuestionHistory | undefined;
-    decisionCase?: ActiveCase | undefined;
   }): Promise<GeneratedQuestion> {
     const variantOf = input.variantOf ?? null;
-    const caseId = variantOf?.question.caseId ?? null;
-    const decisionCase = input.decisionCase ?? (caseId === null ? undefined : await this.cases.findActive(caseId));
-    const context = await this.context(input.conceptId, input.type, variantOf, decisionCase ?? null);
+    const [context, [experience]] = await Promise.all([
+      this.context(input.conceptId, input.type, variantOf),
+      this.experiences.findByConcepts([input.conceptId], 1),
+    ]);
     let problems: string[] = [];
     let question: QuestionDraft | undefined;
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-      question = this.shuffle(await this.generator.write(context, problems));
+      question = {
+        ...this.shuffle(await this.generator.write(context, problems)),
+        experienceId: experience?.id ?? null,
+      };
       problems = await this.problemsOf(question, context.variantOf);
       if (problems.length === 0) break;
     }
@@ -93,27 +94,24 @@ export class QuizGenerationService {
     conceptId: number,
     type: QuestionType,
     variantOf: QuestionHistory | null,
-    decisionCase: ActiveCase | null,
   ): Promise<GenerationContext> {
-    const [[concept], knownKeyPoints, confusedPoints, experiences, guideline] = await Promise.all([
+    const [[concept], knownKeyPoints, confusedPoints, guideline, mastery, history] = await Promise.all([
       this.concepts.summaries([conceptId]),
       this.questions.keyPoints(conceptId),
       this.studyNotes.confusedPoints(conceptId),
-      // 상황 판단형은 회사 맥락을 걷어낸 판단 사례만 쓴다. 원래 경험 카드를 넣으면 회사 맥락이 문제로 샐 수 있다.
-      decisionCase === null ? this.experiences.findByConcepts([conceptId], EXPERIENCE_LIMIT) : [],
       this.guideline.rules(),
+      this.mastery.find(conceptId),
+      this.questions.findHistory(conceptId),
     ]);
     if (!concept) throw new Error(`개념이 없다: ${conceptId}`);
     return {
       concept,
-      // 상황 판단형은 객관식으로만 낸다 (ADR-0021).
-      type: decisionCase === null ? type : 'MULTIPLE_CHOICE',
+      type,
+      angle: nextAngle(mastery, history),
       knownKeyPoints,
       confusedPoints,
-      experiences,
       guideline,
       variantOf,
-      decisionCase,
     };
   }
 

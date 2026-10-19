@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Question } from './quiz-question.js';
+import type { Angle, Question } from './quiz-question.js';
 import {
   answerStatus,
   type LastAnswer,
+  nextAngle,
   nextQuestion,
   type QuestionHistory,
   variantCheckProblems,
@@ -83,35 +84,29 @@ describe('nextQuestion', () => {
   });
 });
 
-describe('nextQuestion: 상황 판단형', () => {
-  const scenario = (id: number): QuestionHistory => ({
-    question: question(id, { angle: 'SCENARIO', caseId: 9 }),
-    lastAnswer: answer(),
-    hasVariant: false,
+describe('nextAngle', () => {
+  const mastery = (gradedAttempts: number, weaknessScore: number, masteryScore: number) => ({
+    gradedAttempts,
+    weaknessScore,
+    masteryScore,
+  });
+  const asked = (...angles: Angle[]): QuestionHistory[] =>
+    angles.map((angle, i) => ({ question: question(i + 1, { angle }), lastAnswer: null, hasVariant: false }));
+
+  it.each([
+    ['일정 없음', undefined, 'MECHANISM'],
+    ['미측정(채점 1회)', mastery(1, 0, 1), 'MECHANISM'],
+    ['약점', mastery(3, 0.6, 0.4), 'MECHANISM'],
+    ['양호, 숙련도 0.8 미만', mastery(3, 0.3, 0.7), 'WHY'],
+    ['숙련도 0.8 이상', mastery(3, 0.1, 0.8), 'TRADEOFF'],
+  ] as const)('%s → %s', (_, m, angle) => {
+    expect(nextAngle(m, [])).toBe(angle);
   });
 
-  it('안 쓴 판단 사례가 있으면 흔들린 문제의 변형 다음으로 상황 판단형을 낸다', () => {
-    expect(nextQuestion([history(1, answer({ correct: false }))], ['사례']).kind).toBe('VARIANT');
-    expect(nextQuestion([history(1, answer())], ['사례'])).toEqual({ kind: 'SCENARIO', case: '사례' });
-    expect(nextQuestion([], ['사례'])).toEqual({ kind: 'SCENARIO', case: '사례' });
-  });
-
-  it('상황 판단형 다음에는 개념 문제를 두 개 낸 뒤에 다시 상황 판단형을 낸다(개념 2 : 상황 판단형 1)', () => {
-    const concept = (id: number) => history(id, answer(), { hasVariant: true });
-    expect(nextQuestion([scenario(1), concept(2)], ['사례']).kind).toBe('NEW');
-    expect(nextQuestion([scenario(1), concept(2), concept(3)], ['사례'])).toEqual({ kind: 'SCENARIO', case: '사례' });
-    // 개념 문제 차례에는 확인된 상황 판단형의 변형도 고르지 않는다(그것도 상황 판단형이라).
-    expect(nextQuestion([concept(1), scenario(2), concept(3)], ['사례']).kind).toBe('NEW');
-  });
-
-  it('가장 최근 문제가 상황 판단형이면 개념 문제를 낸다', () => {
-    expect(nextQuestion([history(1, answer(), { hasVariant: true }), scenario(2)], ['사례']).kind).toBe('NEW');
-    // 확인된 개념 문제의 변형은 개념 문제라 고를 수 있지만, 상황 판단형의 변형은 고르지 않는다.
-    expect(nextQuestion([history(1, answer()), scenario(2)], ['사례'])).toMatchObject({
-      kind: 'VARIANT',
-      of: { question: { id: 1 } },
-    });
-    expect(nextQuestion([history(1, null), scenario(2)], ['사례']).kind).toBe('NEW');
+  it('중간 숙련도에서는 왜·언제 쓰나 중 덜 낸 쪽을 낸다', () => {
+    const medium = mastery(3, 0.3, 0.7);
+    expect(nextAngle(medium, asked('MECHANISM', 'WHY'))).toBe('WHEN');
+    expect(nextAngle(medium, asked('WHY', 'WHEN'))).toBe('WHY');
   });
 });
 

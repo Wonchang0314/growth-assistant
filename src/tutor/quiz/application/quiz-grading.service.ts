@@ -19,8 +19,8 @@ export type SubmitResult =
       /** 고른 오답 보기의 오개념. */
       readonly misconception: string | null;
       /**
-       * 문제와 이어진 경험 카드 제목 (설계 문서 7.3). 가정 사례로 만든 문제는 상황을 지어낸 것이라
-       * "실제로 겪은 경험"이 아니라 "같은 개념을 다룬 경험"이다 (ADR-0032).
+       * 문제와 이어진 경험 카드 제목 (설계 문서 7.3). 경험 사례로 만든 옛 상황 판단형만 "실제로 겪은 경험"이고,
+       * 개념 문제는 같은 개념으로 이은 카드라 "같은 개념을 다룬 경험"이다 (ADR-0032·0038).
        */
       readonly experience: { readonly title: string; readonly relation: 'LIVED' | 'SAME_CONCEPT' } | null;
       /** 숙련도에 반영한 뒤의 상태. 신고된 문제면 반영하지 않아 null이다. */
@@ -77,7 +77,7 @@ export class QuizGradingService {
       userAnswer: grading.userAnswer,
       misconception: grading.misconception,
       experience: experience
-        ? { title: experience.title, relation: caseKind === 'HYPOTHETICAL' ? 'SAME_CONCEPT' : 'LIVED' }
+        ? { title: experience.title, relation: caseKind === 'EXPERIENCE' ? 'LIVED' : 'SAME_CONCEPT' }
         : null,
       mastery,
     };

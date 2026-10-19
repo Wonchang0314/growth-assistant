@@ -2,26 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { ClaudeClient } from '../../../core/llm/claude.client.js';
 import { listSection, loadPrompt } from '../../../core/llm/prompt.js';
-import type { ActiveCase } from '../../../core/memory/decision-case.repository.js';
 import { type GenerationContext, QuestionGenerator } from '../application/ports.js';
+import { LENGTH_LIMITS } from '../domain/question-gate.js';
 import type { Solution } from '../domain/question-solution.js';
-import {
-  BLANK,
-  CHOICE_COUNT,
-  CONCEPT_ANGLES,
-  HYPOTHETICAL_PREFIX,
-  type Question,
-  type QuestionDraft,
-} from '../domain/quiz-question.js';
+import { BLANK, CHOICE_COUNT, type ConceptAngle, type Question, type QuestionDraft } from '../domain/quiz-question.js';
 import type { QuestionHistory, VariantCheck } from '../domain/variant.js';
 
+/** 각도는 코드가 숙련도로 정한다 (ADR-0038). 프롬프트에 싣는 설명이다. */
+const ANGLE_TEXT: Record<ConceptAngle, string> = {
+  MECHANISM: '동작 원리(MECHANISM): 개념이 무엇이고 어떻게 동작하는지 짧게 확인한다. 처음 보거나 약한 개념이다',
+  WHY: '왜(WHY): 그렇게 동작하거나 그렇게 설계한 이유를 묻는다',
+  WHEN: '언제 쓰나(WHEN): 어떤 조건에서 쓰고 어떤 조건에서 피하는지 묻는다',
+  TRADEOFF: '트레이드오프(TRADEOFF): 무엇을 얻고 잃는지, 조건이 부딪칠 때 어느 쪽을 고를지 설계 판단을 묻는다',
+};
+
 const common = {
-  angle: z.enum(CONCEPT_ANGLES).describe('WHY: 왜, WHEN: 언제 쓰나, TRADEOFF: 무엇을 얻고 잃나, MECHANISM: 동작 원리'),
   keyPoint: z.string().min(1).describe('이 문제가 확인하는 핵심 한 가지를 한 문장으로'),
   difficulty: z.union([z.literal(1), z.literal(2), z.literal(3)]).describe('1 기본, 2 응용, 3 심화'),
   explanation: z.string().min(1).describe('정답인 이유와 오답이 틀린 이유'),
-  referenceMaterial: z.string().min(1).describe('정답의 근거가 되는 사실. 출처가 경험 카드면 카드 id를 밝힌다'),
-  experienceId: z.number().int().nullable().describe('문제의 근거로 쓴 경험 카드 id. 없으면 null'),
+  referenceMaterial: z.string().min(1).describe('정답의 근거가 되는 사실'),
 };
 
 const multipleChoiceSchema = z.object({
@@ -61,11 +60,7 @@ const variantCheckSchema = z.object({
   problems: z.array(z.string()).describe('고칠 점. 한 항목에 하나씩. 없으면 빈 배열'),
 });
 
-/** 상황 판단형: 각도(SCENARIO)와 근거 카드(사례의 원래 카드)는 코드가 정한다. */
-const scenarioSchema = multipleChoiceSchema.omit({ angle: true, experienceId: true });
-
 const GENERATION_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'quiz-generation');
-const SCENARIO_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'quiz-scenario');
 const VERIFICATION_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'quiz-verification');
 const VARIANT_CHECK_SYSTEM_PROMPT = loadPrompt(import.meta.dirname, 'quiz-variant-check');
 
@@ -91,53 +86,26 @@ export class ClaudeQuestionGenerator extends QuestionGenerator {
     super();
   }
 
+  /** 각도는 코드가 정한 것을 쓰고, 근거 경험 카드는 출제 서비스가 잇는다. */
   async write(context: GenerationContext, problems: readonly string[]): Promise<QuestionDraft> {
-    if (context.decisionCase !== null) return this.writeScenario(context, context.decisionCase, problems);
     const request = {
       purpose: 'QUIZ_GENERATION' as const,
       systemPrompt: GENERATION_SYSTEM_PROMPT,
       prompt: generationPrompt(context, problems),
     };
-    // 주지 않은 카드 id를 쓰면 근거 카드가 없는 것으로 본다.
-    const experienceId = (id: number | null) => (context.experiences.some((e) => e.id === id) ? id : null);
-    const fixed = { ...variantFields(context), caseId: null };
-    const base = { conceptId: context.concept.id };
-    if (context.type === 'MULTIPLE_CHOICE') {
-      const r = await this.claude.completeStructured(request, multipleChoiceSchema);
-      return { ...base, ...r, ...fixed, type: 'MULTIPLE_CHOICE', experienceId: experienceId(r.experienceId) };
-    }
-    const r = await this.claude.completeStructured(request, fillBlankSchema);
-    return { ...base, ...r, ...fixed, type: 'FILL_BLANK', experienceId: experienceId(r.experienceId) };
-  }
-
-  /**
-   * 판단 사례로 상황 판단형 객관식을 쓴다 (ADR-0021). 각도는 SCENARIO, 근거 카드는 사례를 뽑은 경험 카드다.
-   * 가정 사례면 질문 앞에 머리말을 코드가 붙인다 (ADR-0032).
-   */
-  private async writeScenario(
-    context: GenerationContext,
-    decisionCase: ActiveCase,
-    problems: readonly string[],
-  ): Promise<QuestionDraft> {
-    const r = await this.claude.completeStructured(
-      {
-        purpose: 'QUIZ_GENERATION',
-        systemPrompt: SCENARIO_SYSTEM_PROMPT,
-        prompt: scenarioPrompt(context, decisionCase, problems),
-      },
-      scenarioSchema,
-    );
-    const prompt = r.prompt.replace(HYPOTHETICAL_PREFIX.trim(), '').trim();
-    return {
-      ...r,
+    const fixed = {
       ...variantFields(context),
       conceptId: context.concept.id,
-      type: 'MULTIPLE_CHOICE',
-      angle: 'SCENARIO',
-      prompt: decisionCase.kind === 'HYPOTHETICAL' ? `${HYPOTHETICAL_PREFIX}${prompt}` : prompt,
-      caseId: decisionCase.id,
-      experienceId: decisionCase.experienceId,
+      angle: context.angle,
+      experienceId: null,
+      caseId: null,
     };
+    if (context.type === 'MULTIPLE_CHOICE') {
+      const r = await this.claude.completeStructured(request, multipleChoiceSchema);
+      return { ...r, ...fixed, type: 'MULTIPLE_CHOICE' };
+    }
+    const r = await this.claude.completeStructured(request, fillBlankSchema);
+    return { ...r, ...fixed, type: 'FILL_BLANK' };
   }
 
   compareVariant(original: Question, variant: QuestionDraft): Promise<VariantCheck> {
@@ -184,52 +152,17 @@ const focusSection = (context: GenerationContext): string[] =>
     ? listSection('이미 낸 핵심 (이것과 다른 핵심을 묻는다)', context.knownKeyPoints)
     : [variantSection(context.variantOf)];
 
-export function scenarioPrompt(
-  context: GenerationContext,
-  { kind, body }: ActiveCase,
-  problems: readonly string[],
-): string {
-  const options = body.options.map((o) => `- ${o.chosen ? '(고름) ' : ''}${o.text}: ${o.reason}`).join('\n');
-  return [
-    conceptSection(context),
-    [
-      `## 판단 사례 (${kind === 'EXPERIENCE' ? '경험 사례' : '가정 사례'})`,
-      `상황: ${body.situation}`,
-      ...listSection('제약', body.constraints),
-      `## 선택지와 이유\n${options}`,
-      `결정: ${body.decision}`,
-      `근거: ${body.rationale}`,
-      `결과: ${body.outcome}`,
-      ...listSection('불변 조건', body.invariants),
-    ].join('\n'),
-    ...focusSection(context),
-    ...listSection('사용자가 헷갈린 점', context.confusedPoints),
-    ...listSection('출제 지침 (사용자 요청)', context.guideline),
-    ...listSection('지난 문제의 문제', problems),
-  ].join('\n\n');
-}
+const { promptChars, promptSentences, choiceChars } = LENGTH_LIMITS;
 
 export function generationPrompt(context: GenerationContext, problems: readonly string[]): string {
   return [
     conceptSection(context),
     `## 문제 유형\n${context.type === 'MULTIPLE_CHOICE' ? `객관식 (보기 ${CHOICE_COUNT}개)` : '빈칸'}`,
+    `## 각도\n${ANGLE_TEXT[context.angle]}`,
+    `## 길이\n질문은 ${promptSentences}문장, ${promptChars}자 안으로 쓴다.` +
+      (context.type === 'MULTIPLE_CHOICE' ? ` 보기는 하나에 ${choiceChars}자 안으로 쓴다.` : ''),
     ...focusSection(context),
     ...listSection('사용자가 헷갈린 점', context.confusedPoints),
-    ...(context.experiences.length === 0
-      ? []
-      : [
-          `## 관련 경험 카드\n${context.experiences
-            .map((e) =>
-              [
-                `### id ${e.id}: ${e.title}`,
-                `상황: ${e.situation}`,
-                `행동: ${e.action}`,
-                `결과: ${e.result}`,
-                `교훈: ${e.lesson}`,
-              ].join('\n'),
-            )
-            .join('\n\n')}`,
-        ]),
     ...listSection('출제 지침 (사용자 요청)', context.guideline),
     ...listSection('지난 문제의 문제', problems),
   ].join('\n\n');
@@ -243,9 +176,7 @@ function variantSection({ question, lastAnswer }: QuestionHistory): string {
           `사용자의 답: ${lastAnswer.userAnswer} (${lastAnswer.correct ? '정답' : '오답'}, 확신도 ${lastAnswer.confidence}${lastAnswer.hintUsed ? ', 힌트 사용' : ''})`,
           ...(lastAnswer.misconception === null ? [] : [`그때 고른 오개념: ${lastAnswer.misconception}`]),
         ];
-  return [
-    '## 변형할 원래 문제 (같은 핵심을 다른 상황·조건·각도로 다시 묻는다)',
-    questionText(question),
-    ...answered,
-  ].join('\n');
+  return ['## 변형할 원래 문제 (같은 핵심을 다른 상황·조건으로 다시 묻는다)', questionText(question), ...answered].join(
+    '\n',
+  );
 }

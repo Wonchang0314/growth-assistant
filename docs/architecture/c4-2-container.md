@@ -34,7 +34,7 @@ flowchart TB
     mcpHttp -- "HTTPS POST: 운영 알림(종류·시각·건수), 학습 알림(개수)" --> ntfy
     uptime -- "HTTPS: /healthz 5분마다" --> tunnel
     syncProc -- "Drizzle / node-postgres" --> db
-    mcpHttp -- "추출·추상화·출제: stdin 프롬프트 → JSON 출력" --> cli
+    mcpHttp -- "추출·출제: stdin 프롬프트 → JSON 출력" --> cli
     cli -- "HTTPS" --> anthropic["Anthropic<br/>(Claude, 웹 검색)"]
     syncProc -- "HTTPS (초당 3회 이하)" --> notion
     syncProc -- "추출: stdin 프롬프트 → JSON 출력" --> cli
@@ -45,7 +45,7 @@ flowchart TB
 |---|---|---|
 | MCP 서버 프로세스 | 같은 NestJS 코드, 진입점 `mcp-stdio.ts`, MCP TypeScript SDK v2 | Claude Desktop에 로컬로 붙일 때의 도구 호출을 받는다. 2026-10-20부터 Desktop도 원격 커넥터를 써서 등록을 뺐고, 원격이 안 될 때 대신 쓴다. 시작할 때 마이그레이션하지 않는다 (ADR-0018) |
 | MCP HTTP 프로세스 | 같은 NestJS 코드·도구, 진입점 `mcp-http.ts`, Nest HTTP 앱(Express 어댑터, ADR-0035), Streamable HTTP | 원격 커스텀 커넥터(4단계)의 바탕. `/mcp`는 요청마다 새 MCP 서버로 답하고(세션 상태 없음) Host·Origin이 localhost나 공개 호스트(`PUBLIC_BASE_URL`)인 요청만 받으며, OAuth 액세스 토큰이 없으면 `401`이다. 같은 프로세스가 OAuth 인가 서버(메타데이터, `/authorize`, 구글 콜백·동의 화면, `/token`)를 겸한다. `/healthz`는 DB에 쿼리가 닿는지 답한다(외부 헬스체크용). 운영 알림(토큰 재사용, 허용 안 된 로그인, Claude CLI 인증 오류, 예약 작업 실패)은 `NTFY_TOPIC`이 있으면 ntfy로 보낸다(같은 종류 1시간에 한 번, 자세한 내용은 로그에만). 127.0.0.1에만 바인드하고 바깥에서는 Cloudflare 터널(`mcp.seok.app`)로 닿는다. 배포 릴리스에서 LaunchAgent(`com.growthassistant.server`)가 상시 실행한다. 상시 실행 프로세스라 서버 예약 작업도 맡는다(5단계, ADR-0036): 04:00 새벽 준비(Notion 동기화 → 경험 카드 추출 → 판단 사례 추상화 → 오늘 복습할 개념의 문제 미리 만들기), 07:30 아침·21:00 저녁 학습 알림(ntfy). 스케줄러는 같은 이벤트 루프에서 돌고, 작업마다 마지막 실행을 DB에 남겨 놓친 실행을 그날 안에 한 번 따라잡는다. 예약 작업 실패도 운영 알림으로 보낸다 |
-| 수집 프로세스 | 같은 NestJS 코드, 진입점 `sync.ts`·`extract.ts`·`abstract.ts`·`quiz.ts` | 사람이 손으로 돌리고 끝나는 CLI. Notion 문서를 한 번 동기화하고(처음은 백필), 경험 카드를 뽑고(문서마다 `claude -p` 한 번), 판단 사례를 만들고, 문제를 만들어 본다. 매일 실행은 MCP HTTP 프로세스의 새벽 작업이 같은 서비스로 한다 |
+| 수집 프로세스 | 같은 NestJS 코드, 진입점 `sync.ts`·`extract.ts`·`abstract.ts`·`quiz.ts` | 사람이 손으로 돌리고 끝나는 CLI. Notion 문서를 한 번 동기화하고(처음은 백필), 경험 카드를 뽑고(문서마다 `claude -p` 한 번), 판단 사례를 만들고, 문제를 만들어 본다. 매일 동기화·추출은 MCP HTTP 프로세스의 새벽 작업이 같은 서비스로 한다(판단 사례는 이 CLI로만, ADR-0038) |
 | PostgreSQL | PostgreSQL 16, drizzle-kit 마이그레이션 | 유일한 상태 저장소 (개념 그래프, 경험, 숙련도, 퀴즈, 학습 기록, 로그). 마이그레이션과 시드 개념 적재(`dist/seed.js`)는 배포할 때 한다 |
 | claude CLI | `claude -p` | LLM 호출. 호출마다 새 프로세스, 전용 빈 작업 디렉터리, 기본 도구 비활성 |
 

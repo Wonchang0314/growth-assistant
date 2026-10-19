@@ -39,21 +39,6 @@ const bodyColumns = {
   invariants: decisionCase.invariants,
 };
 
-/** 문제로 낼 수 있는 사례. [experienceId]는 사례를 뽑은 경험 카드다. */
-export interface ActiveCase {
-  readonly id: number;
-  readonly kind: DecisionCaseKind;
-  readonly experienceId: number;
-  readonly body: DecisionCaseBody;
-}
-
-const activeColumns = {
-  id: decisionCase.id,
-  kind: decisionCase.kind,
-  experienceId: decisionCase.experienceId,
-  body: bodyColumns,
-};
-
 /** 경험 카드에서 판단 사례를 만들고 검토하는 데 필요한 읽기·쓰기 (설계 문서 7.1 "판단 사례"). */
 @Injectable()
 export class DecisionCaseRepository {
@@ -77,28 +62,10 @@ export class DecisionCaseRepository {
     return rows;
   }
 
-  /** 개념에 연결된 승인된(ACTIVE) 사례. 오래된 것부터. 상황 판단형 문제의 재료다 (ADR-0021). */
-  async findActiveForConcept(conceptId: number): Promise<ActiveCase[]> {
-    return this.db
-      .select(activeColumns)
-      .from(decisionCase)
-      .innerJoin(decisionCaseConcept, eq(decisionCaseConcept.caseId, decisionCase.id))
-      .where(and(eq(decisionCaseConcept.conceptId, conceptId), eq(decisionCase.status, 'ACTIVE')))
-      .orderBy(asc(decisionCase.id));
-  }
-
   /** 사례 종류. 상태와 상관없이 찾는다(문제를 낸 뒤 사례가 거절돼도 채점 결과의 표현은 정해야 한다). */
   async findKind(id: number): Promise<DecisionCaseKind | undefined> {
     const [row] = await this.db.select({ kind: decisionCase.kind }).from(decisionCase).where(eq(decisionCase.id, id));
     return row?.kind;
-  }
-
-  async findActive(id: number): Promise<ActiveCase | undefined> {
-    const [row] = await this.db
-      .select(activeColumns)
-      .from(decisionCase)
-      .where(and(eq(decisionCase.id, id), eq(decisionCase.status, 'ACTIVE')));
-    return row;
   }
 
   async findBody(id: number): Promise<DecisionCaseBody | undefined> {
