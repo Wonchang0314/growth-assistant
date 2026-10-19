@@ -7,6 +7,7 @@
 - 갱신: 2026-10-17 (ADR-0022: 시드 개념을 커리큘럼으로, 트랙을 JS/TS·관계형 DB·백엔드·IT 인프라·네트워크·MCP로 재구성, 시드에서 빠진 개념은 적재 때 지움)
 - 갱신: 2026-10-19 (ADR-0034: 원격 전환과 예약 작업으로 프로토타입을 먼저 만들고, 퀴즈 품질은 실제로 쓰면서 올린다. 단계 4·5를 바꾸고 6단계를 더함)
 - 갱신: 2026-10-18 (ADR-0026: 판단 사례를 경험 사례와 가정 사례로 나누고, 경험 사례가 끝내 검증에 걸리면 가정 사례로 자동 폴백)
+- 갱신: 2026-10-20 (ADR-0035: 원격 커넥터. OAuth 인가 서버를 구현해 12장 원격 전환 항목을 5.7·7.7 본문으로 옮김)
 - 상태: 설계 확정 (구현 전)
 - 이번 범위: `core` + `tutor` 모듈 (커리어·Canva 연동은 후속 프로젝트)
 
@@ -294,7 +295,34 @@ concept N:M study_note (study_note_concept)
 source_document 1─N document_chunk
 source_document 1─N experience
 experience 1─1 decision_case 1─N quiz_question (SCENARIO)
+oauth_grant 1─N oauth_access_token
+oauth_grant 1─N oauth_refresh_token
 ```
+
+### 5.7 OAuth 인가 (원격 커넥터, ADR-0035)
+
+흐름은 7.7. 토큰·코드·state·동의 값은 원문을 저장하지 않고 SHA-256 해시(hex)만 둔다. 시각은 `Clock`으로 넣고 만료는 코드에서 비교한다. 클라이언트는 CIMD라 클라이언트 테이블이 없다.
+
+```
+oauth_authorization_request  id, client_id, client_name, redirect_uri, code_challenge,
+                             client_state, resource, google_state_hash UNIQUE,
+                             google_nonce, google_code_verifier, email,
+                             consent_token_hash UNIQUE, expires_at
+                             (/authorize에서 만들고 구글 로그인·동의 동안 붙든다.
+                              콜백에서 google_state_hash를 비우고 email·consent_token_hash를 채운다.
+                              동의·거절하면 지운다. 수명 10분)
+oauth_authorization_code     code_hash PK, client_id, redirect_uri, code_challenge,
+                             resource, email, expires_at
+                             (1회용, 토큰으로 바꾸면 지운다. 수명 5분)
+oauth_grant                  id, client_id, email, resource, created_at, revoked_at
+                             (로그인·동의 한 번에서 이어지는 토큰 계열)
+oauth_access_token           token_hash PK, grant_id FK, expires_at   (수명 1시간)
+oauth_refresh_token          token_hash PK, grant_id FK, expires_at, rotated_at
+                             (수명 90일, 회전하면 rotated_at을 채우고 새 토큰을 다시 90일로)
+```
+
+- 만료된 인가 요청·코드는 `/authorize`가 올 때 지운다. 만료·폐기된 토큰 행은 지우지 않는다(한 사람이 쓰므로 쌓여도 작다).
+- 액세스 토큰 검사는 해시로 찾고, 계열이 폐기되지 않았고, 만료 전이고, 계열의 `resource`가 이 서버의 MCP URL일 때만 통과한다.
 
 ---
 
@@ -567,6 +595,29 @@ MCP 서버의 `instructions`(연결 시 Claude에 전달)와 튜터용 Claude �
 | 3 | `get_review_set`, `submit_answer`, `report_question`, `get_weakness`, `update_quiz_guideline` |
 | 4 | `get_daily_topic`, `get_weekly_report` |
 
+### 7.7 원격 커넥터와 인증 (4단계, ADR-0035)
+
+- **연결:** Claude 커스텀 커넥터로 등록한다(MCP URL `https://mcp.seok.app/mcp`). 웹에서 추가하면 데스크톱·iOS에서도 쓴다. MCP HTTP 진입점(`mcp-http.ts`, Nest HTTP 앱)이 `/mcp`, OAuth 경로, `/healthz`를 띄우고 `127.0.0.1`에만 바인딩한다. 커넥터 등록은 아직이다.
+- **공개 경로:** Cloudflare 이름 있는 터널(`mcp.seok.app` → `127.0.0.1:3100`). 터널은 Host를 그대로 넘기므로 `/mcp`의 Host·Origin 검사는 localhost와 공개 호스트를 받는다.
+- **IP 제한 (예정):** Cloudflare WAF 사용자 정의 규칙으로 `/mcp`·`/token`은 Anthropic 외부 요청 대역(`160.79.104.0/21`)만 허용한다. 모든 Claude 사용자가 공유하는 대역이라 인증을 대신하지 못한다. `/authorize`와 구글 콜백·동의는 사용자 브라우저가 열므로 제외한다.
+- **역할:** 이 서버가 인가 서버(`/authorize`, `/token`)이자 자원 서버(`/mcp`)다. OAuth 2.1 인가 코드 + PKCE(S256), 클라이언트 식별은 CIMD, 본인 확인은 구글 로그인(OIDC, 범위 `openid email`) + 이메일 허용 목록(`OAUTH_ALLOWED_EMAILS`). 구글 토큰은 신원을 꺼낸 뒤 버린다. 코드는 `core/auth`.
+
+**흐름**
+
+1. **탐색:** Claude가 토큰 없이 `/mcp`를 부르면 `401` + `WWW-Authenticate: Bearer error="invalid_token", …, resource_metadata="https://mcp.seok.app/.well-known/oauth-protected-resource/mcp"`. Claude는 그 보호 리소스 메타데이터(RFC 9728, `resource`가 MCP URL과 정확히 같다, 경로 없는 `/.well-known/oauth-protected-resource`에서도 같은 문서)에서 인가 서버를 찾고, `/.well-known/oauth-authorization-server`(RFC 8414)에서 엔드포인트를 읽는다. `client_id_metadata_document_supported: true`와 `token_endpoint_auth_methods_supported: ["none"]`이 있어 등록(DCR) 대신 CIMD를 쓴다.
+2. **`GET /authorize`:** `client_id`(CIMD URL)를 검사한다. https, 허용 호스트(`OAUTH_CLIENT_ID_HOSTS`, 기본 `claude.ai`), 포트·사용자 정보·fragment 없음. 그다음 문서를 가져온다(리디렉트 따라가지 않음, 5초, 5KiB). 문서의 `client_id`가 URL과 같고, 공개 클라이언트이고, `redirect_uri`가 문서 목록에 정확히 있어야 한다(루프백 `http://localhost`·`127.0.0.1`·`[::1]`만 포트를 무시, RFC 8252). 여기까지 실패하면 클라이언트로 돌려보내지 않고 오류 화면(400)이다. 처음 보는 client_id와 거절한 client_id는 로그에 남긴다. 그다음 실패(`response_type`이 `code`가 아님, S256 PKCE 없음, `resource`가 MCP URL이 아님)는 redirect_uri에 `error`를 붙여 돌려보낸다. 통과하면 인가 요청을 저장하고 구글로 보낸다(우리 쪽 state·nonce·PKCE S256).
+3. **`GET /oauth/google/callback`:** state로 요청을 찾고(한 번만), 구글 코드를 토큰으로 바꿔 id_token을 검증한다(구글 공개 키 서명, `iss`, `aud`=우리 구글 client_id, `exp`, nonce). `email_verified`이고 이메일이 허용 목록에 있으면 동의 화면을 그린다. 아니면 요청을 지우고 403 오류 화면. 사용자가 구글 로그인을 취소했으면 `access_denied`로 돌려보낸다.
+4. **동의 화면, `POST /oauth/consent`:** 클라이언트 이름(CIMD `client_name`), client_id URL, 돌아갈 호스트, 로그인한 이메일을 보여 주고 "방금 내가 시작한 연결이 아니면 거절"을 안내한다. 콜백 주소가 모든 Claude 사용자에게 같아서, 남이 자기 Claude에 이 서버를 추가해 만든 로그인 링크를 내가 누르면 구글 자동 로그인으로 조용히 통과할 수 있기 때문이다. 폼에는 요청마다 새로 만든 값(`consent_token`)을 숨겨 넣어 다른 사이트가 대신 제출하지 못하게 하고(CSRF), 화면은 iframe에 넣지 못하게 한다(`frame-ancestors 'none'`). 허용이면 1회용 인가 코드를 만들어 `redirect_uri?code&state&iss`로(303), 거절이면 `error=access_denied`로 보낸다. 같은 동의 값은 다시 쓸 수 없다.
+5. **`POST /token`** (form-urlencoded, 응답 `Cache-Control: no-store`, 오류는 RFC 6749 JSON):
+   - `authorization_code`: 코드를 꺼내며 지우고(1회용), 만료·client_id·redirect_uri·PKCE(`code_verifier`의 S256이 저장한 challenge와 같음)·resource를 본다. 하나라도 틀리면 `invalid_grant`(resource는 `invalid_target`). 통과하면 토큰 계열을 열고 액세스 토큰(1시간)과 리프레시 토큰(90일)을 준다.
+   - `refresh_token`: 아직 회전하지 않은 토큰이면 회전 표시를 하고(조건부 UPDATE라 동시에 와도 하나만 통과) 같은 계열에 새 쌍을 준다. 새 리프레시 토큰은 다시 90일이다. 이미 회전한 토큰이 다시 오면 탈취로 보고 그 계열을 폐기하고(그 계열의 액세스·리프레시 토큰이 모두 막힌다) `AdminNotifier`로 알린 뒤 `invalid_grant`. 만료·폐기된 토큰도 `invalid_grant`라 Claude가 다시 로그인을 띄운다.
+6. **`/mcp`:** Host·Origin 검사(403) 뒤 Bearer 토큰을 본다. 없거나, 모르거나, 만료됐거나, 폐기된 계열이거나, 다른 resource를 위한 토큰이면 1번과 같은 `401`. Claude는 `401`을 받으면 리프레시한다.
+
+- **로그:** 토큰·코드·시크릿·state는 남기지 않는다. 거절 이유, 처음 보는 client_id, 허용·거절한 이메일은 남긴다.
+- **상시 실행:** LaunchAgent(`com.growthassistant.server`, `ops/install.sh`)가 배포 릴리스의 `dist/mcp-http.js`를 띄운다. `KeepAlive`로 죽으면 10초 간격으로 다시 띄우고, 배포가 새 릴리스로 바꾼 뒤 `kickstart -k`로 다시 띄운다. FileVault 유지(재부팅 뒤 로그인해야 뜸). 운영 방법은 `docs/ops.md` "상시 실행"·"OAuth".
+- **알림 (예정):** 운영 알림(인증 실패, 작업 실패)은 ntfy, 서버 다운은 외부 헬스체크. 지금 `AdminNotifier`는 로그만 남긴다. 학습 알림은 5단계에서 정한다.
+- **화면 (6단계):** MCP Apps로 객관식·확신도 버튼, 숙련도 3단계 색 표시, 응답 시간 측정을 검토한다(iOS는 WKWebView로 지원).
+
 ---
 
 ## 8. 숙련도와 약점 추적
@@ -651,6 +702,7 @@ EMA(x) = 첫 응답이면 x, 그 뒤로 0.4·x + 0.6·이전 값  (최근 4~5번
 | MCP 도구 | 유스케이스는 MCP 없이 테스트. 도구 등록·입력 검증·결과 형식은 MCP SDK 클라이언트를 메모리 전송으로 붙여 확인한다(정답이 결과에 새지 않는지 포함) |
 | 프롬프트 품질 (추출, 판단 사례 추상화, 출제, 변형 출제, 검증) | 정답이 정해진 소규모 평가 세트 + 수동 평가 스크립트. 프롬프트를 바꿀 때마다 실행. 판단 사례는 손으로 확인한 10~20개로 불변 조건 보존, 회사 정보 누출, 상황 판단형 문제의 정답 단일성을 본다 |
 | 패턴 게이트 | 단위 테스트: 패턴별 통과·거부, 역할 설명으로 치환된 문장은 통과 |
+| OAuth 인가 (7.7) | PKCE·CIMD 검사·토큰 수명·화면 이스케이프는 단위 테스트. 흐름 전체(메타데이터 → authorize → 구글 → 동의 → token → `/mcp` → 리프레시 회전 → 재사용 탐지, 401 헤더, 거절, 허용되지 않은 이메일)는 HTTP 앱을 띄워 가짜 구글·CIMD 어댑터로 시험한다(`test/oauth.db.spec.ts`). 실제 구글·Claude 연결은 수동으로 확인한다 |
 | Claude 앱 연동 | 맥미니 Claude Desktop에서 수동 점검 체크리스트(`docs/manual-check.md`)로 확인 (도구 호출, 학습 기록, 퀴즈 풀이) |
 
 ---
@@ -676,14 +728,6 @@ EMA(x) = 첫 응답이면 x, 그 뒤로 0.4·x + 0.6·이전 값  (최근 4~5번
 
 ## 12. 범위 밖 (후속 과제)
 
-- **원격 전환 (4단계, ADR-0035로 결정).** 구현하면 이 항목을 본문으로 옮긴다.
-  - 연결: Claude 커스텀 커넥터로 등록한다. 웹에서 추가하면 데스크톱·iOS에서도 쓴다. 앱은 Nest HTTP 앱(Express)으로 `/mcp`, OAuth 엔드포인트, `/healthz`를 띄우고 `127.0.0.1`에만 바인딩한다.
-  - 공개 경로: Cloudflare 이름 있는 터널(사용자 도메인의 하위 도메인).
-  - 인증: OAuth 2.1 인가 코드 + PKCE, 클라이언트 식별은 CIMD(Claude 메타데이터 URL 허용 목록). `/authorize`의 본인 확인은 구글 로그인(OIDC) + 이메일 허용 목록. 짧은 액세스 토큰, 회전하는 리프레시 토큰, 토큰은 해시로 저장.
-  - IP 제한: Cloudflare WAF 사용자 정의 규칙으로 `/mcp`·`/token`은 Anthropic 외부 요청 대역(`160.79.104.0/21`)만 허용한다. 모든 Claude 사용자가 공유하는 대역이라 인증을 대신하지 못한다. `/authorize`와 구글 콜백은 사용자 브라우저가 열므로 제외한다.
-  - 상시 실행: LaunchAgent(`com.growthassistant.server`, `ops/install.sh`)가 배포 릴리스의 `dist/mcp-http.js`를 띄운다. `KeepAlive`로 죽으면 10초 간격으로 다시 띄우고, 배포가 새 릴리스로 바꾼 뒤 `kickstart -k`로 다시 띄운다. FileVault 유지(재부팅 뒤 로그인해야 뜸). 운영 방법은 `docs/ops.md` "상시 실행".
-  - 알림: 운영 알림(인증 실패, 작업 실패)은 ntfy, 서버 다운은 외부 헬스체크. 학습 알림은 5단계에서 정한다.
-  - 화면: MCP Apps는 6단계에서 객관식·확신도 버튼, 숙련도 3단계 색 표시, 응답 시간 측정을 검토한다(iOS는 WKWebView로 지원).
 - **서술형 문제 (ADR-0019로 미룸).** 객관식·빈칸 품질을 확인한 뒤 설계한다.
   - 판단형: 제약이 있는 상황을 주고 "무엇을 고르고 왜, 무엇을 포기하나"를 묻는다. 결론보다 근거를 본다.
   - 면접형: 내 경험을 먼저 설명하게 한 뒤 경험 카드(STAR+L)와 비교해 빠진 요소를 피드백한다.

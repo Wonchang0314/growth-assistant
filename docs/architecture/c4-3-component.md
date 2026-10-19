@@ -6,6 +6,7 @@
 flowchart TB
     subgraph core
         mcp["mcp<br/>MCP 서버, 도구 처리기 탐색, /mcp 컨트롤러"]
+        auth["auth<br/>OAuth 인가 서버, /mcp Bearer 검사 (HTTP 진입점)"]
         llm["llm<br/>ClaudeClient"]
         logging["logging<br/>로거, 운영 알림 (AdminNotifier)"]
         memory["memory<br/>문서·청크·경험 카드·판단 사례"]
@@ -27,6 +28,8 @@ flowchart TB
     scheduler --> outreach
     scheduler --> ingestion
     llm -->|"인증 만료 알림"| logging
+    auth -->|"리프레시 토큰 재사용 알림"| logging
+    auth -.->|"/mcp 앞 미들웨어"| mcp
     quiz -->|"출제 지침"| setting
 
     ingestion --> llm
@@ -53,8 +56,9 @@ flowchart TB
 - `tutor` → `core` 방향으로만 의존한다. `core`는 `tutor`를 모른다.
 - `tutor` 하위 모듈끼리는 화살표 방향으로만 의존한다. 순환 의존을 만들지 않는다.
 - 유스케이스는 MCP SDK 객체를 받지 않는다. 도구 처리기가 zod로 검증된 값을 넘기고, 결과를 요약 텍스트와 구조화된 내용으로 돌려준다.
-- `core/mcp`는 `@McpTool()`이 붙은 provider를 `DiscoveryService`로 모아 등록한다(점선: 의존이 아니라 탐색). 기능 모듈은 `core/mcp`를 import하지 않는다. `McpServerHost`는 연결(stdio)이나 HTTP 요청마다 도구를 모두 단 새 SDK 서버를 만들고, HTTP 앱에서는 `McpHttpController`(`/mcp`)가 `createMcpHandler`로 Streamable HTTP를 받는다. 진입점은 전송만 고른다. HTTP 앱의 루트 모듈(`McpHttpAppModule`)이 `/mcp` 컨트롤러, `core/health`(`/healthz`), `/mcp`의 Host·Origin 검사 미들웨어를 모은다.
-- 외부 시스템과 닿는 경계만 포트·어댑터로 분리한다 ([ADR-0015](../adr/0015-nest-feature-modules.md)). 유스케이스는 `ClaudeClient`·`AdminNotifier`·`DocumentSource`(Notion 어댑터) 같은 포트에만 의존하고, 기능 모듈의 MCP 도구 처리기는 그 모듈의 `mcp/` 폴더에 둔다. `quiz` 모듈만 모듈 안을 레이어 폴더로 나누고 폴더별 린트로 의존 방향을 강제한다 ([ADR-0020](../adr/0020-quiz-layered-folders.md)).
+- `core/mcp`는 `@McpTool()`이 붙은 provider를 `DiscoveryService`로 모아 등록한다(점선: 의존이 아니라 탐색). 기능 모듈은 `core/mcp`를 import하지 않는다. `McpServerHost`는 연결(stdio)이나 HTTP 요청마다 도구를 모두 단 새 SDK 서버를 만들고, HTTP 앱에서는 `McpHttpController`(`/mcp`)가 `createMcpHandler`로 Streamable HTTP를 받는다. 진입점은 전송만 고른다. HTTP 앱의 루트 모듈(`McpHttpAppModule`)이 `/mcp` 컨트롤러, `core/auth`(OAuth 경로), `core/health`(`/healthz`), `/mcp` 앞의 미들웨어(Host·Origin 검사, `core/auth`의 Bearer 검사)를 모은다. `core/mcp`와 도구 처리기는 인증을 모른다.
+- `core/auth`는 흐름 순서대로 읽히게 나눈다(`auth.module.ts` 주석의 ①~⑥). 바깥 경계인 구글 OIDC(`GoogleLogin`, `jose`로 id_token 검증)와 CIMD 문서 가져오기(`ClientMetadataSource`)는 포트·어댑터이고 테스트는 가짜로 바꾼다. PKCE·CIMD 검사·토큰 수명은 순수 함수, 토큰·코드는 해시로만 저장한다(설계 문서 5.7·7.7).
+- 외부 시스템과 닿는 경계만 포트·어댑터로 분리한다 ([ADR-0015](../adr/0015-nest-feature-modules.md)). 유스케이스는 `ClaudeClient`·`AdminNotifier`·`DocumentSource`(Notion 어댑터)·`GoogleLogin`·`ClientMetadataSource` 같은 포트에만 의존하고, 기능 모듈의 MCP 도구 처리기는 그 모듈의 `mcp/` 폴더에 둔다. `quiz` 모듈만 모듈 안을 레이어 폴더로 나누고 폴더별 린트로 의존 방향을 강제한다 ([ADR-0020](../adr/0020-quiz-layered-folders.md)).
 - 도메인 규칙은 순수 함수로 두고, 저장소는 기능 모듈 안에서 Drizzle을 직접 써서 행과 도메인 타입을 변환한다.
 - `core`가 `tutor`를 가져오지 못하게 ESLint `no-restricted-imports`로 막는다.
 - `quiz` 안에서는 application이 출력 포트(`QuizQuestionRepository`, `QuestionGenerator`)를 두고 infrastructure가 구현한다(ADR-0029). `quiz`는 학습 기록의 헷갈린 점을 `study`에서, 경험 카드를 `memory`에서, 개념 요약을 `knowledge`에서 읽어 출제에 넣고, 보기 길이·패턴 게이트는 `ingestion`의 순수 함수(`case-gate.ts`)를 함께 쓴다. 복습 개념은 `mastery`(예정일·약점·일정 없는 개념)와 `study`(아직 확인하지 않은 CONFUSED)에서 고르고, 채점 결과는 `mastery`에 넘긴다. 풀에 없는 문제는 MCP 서버 프로세스 안에서 뒤에서 만든다(ADR-0030). 약점 보고(`get_weakness`)도 풀이 기록을 가진 `quiz`에 두고, 근본 원인은 `knowledge`의 선수 관계와 `mastery`의 점수로 찾는다(ADR-0031).
