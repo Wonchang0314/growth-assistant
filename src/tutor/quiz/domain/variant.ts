@@ -1,5 +1,5 @@
-import type { Confidence } from '../../mastery/mastery.js';
-import { normalizeAnswer, type Question, type QuestionDraft } from './quiz-question.js';
+import { type ConceptMastery, type Confidence, weaknessLevel } from '../../mastery/mastery.js';
+import { type ConceptAngle, normalizeAnswer, type Question, type QuestionDraft } from './quiz-question.js';
 
 /**
  * 문제의 마지막 풀이 상태. 틀렸거나, 찍었거나, 힌트를 쓴 풀이는 흔들린(SHAKY) 것으로 보고 다음에 변형을 먼저 낸다.
@@ -28,41 +28,40 @@ export interface QuestionHistory {
   readonly hasVariant: boolean;
 }
 
-export type NextQuestion<Case> =
-  | { readonly kind: 'NEW' }
-  | { readonly kind: 'VARIANT'; readonly of: QuestionHistory }
-  | { readonly kind: 'SCENARIO'; readonly case: Case };
-
-/** 상황 판단형 하나 뒤에 내는 개념 문제 수 (사용자 결정 2026-10-18, ADR-0033). */
-const CONCEPTS_PER_SCENARIO = 2;
+export type NextQuestion = { readonly kind: 'NEW' } | { readonly kind: 'VARIANT'; readonly of: QuestionHistory };
 
 /**
- * 개념에 새로 만들 문제를 정한다 (설계 문서 7.3 "변형 문제", ADR-0032·0033).
+ * 개념에 새로 만들 문제를 정한다 (설계 문서 7.3 "변형 문제").
  * ① 흔들린 문제가 있으면 그 변형
- * ② 아직 문제로 쓰지 않은 판단 사례가 있고 상황 판단형 차례면 상황 판단형. 마지막 상황 판단형 뒤로 개념 문제가
- *    [CONCEPTS_PER_SCENARIO]개 나왔거나 아직 상황 판단형이 없으면 차례다(개념 2 : 상황 판단형 1, ADR-0033)
- * ③ 확인된 핵심의 변형과 아직 묻지 않은 핵심을 번갈아(가장 최근 문제가 변형이 아니면 변형)
- * 변형이 이미 있는 문제는 다시 변형하지 않는다. [history]는 오래된 것부터, [unusedCases]는 먼저 쓸 것부터다.
+ * ② 확인된 핵심의 변형과 아직 묻지 않은 핵심을 번갈아(가장 최근 문제가 변형이 아니면 변형)
+ * 변형이 이미 있는 문제는 다시 변형하지 않는다. [history]는 오래된 것부터다.
  */
-export function nextQuestion<Case>(
-  history: readonly QuestionHistory[],
-  unusedCases: readonly Case[] = [],
-): NextQuestion<Case> {
+export function nextQuestion(history: readonly QuestionHistory[]): NextQuestion {
   const open = (status: AnswerStatus) => history.find((h) => !h.hasVariant && answerStatus(h.lastAnswer) === status);
   const shaky = open('SHAKY');
   if (shaky) return { kind: 'VARIANT', of: shaky };
-  const latest = history.at(-1);
-  const lastScenario = history.findLastIndex((h) => h.question.angle === 'SCENARIO');
-  const scenarioTurn = lastScenario === -1 || history.length - 1 - lastScenario >= CONCEPTS_PER_SCENARIO;
-  const unusedCase = unusedCases[0];
-  if (unusedCase !== undefined && scenarioTurn) return { kind: 'SCENARIO', case: unusedCase };
-  // 개념 문제 차례에는 상황 판단형의 변형을 고르지 않는다. 그것도 상황 판단형이라서다.
-  const confirmed = history.find(
-    (h) =>
-      !h.hasVariant && answerStatus(h.lastAnswer) === 'CONFIRMED' && (scenarioTurn || h.question.angle !== 'SCENARIO'),
-  );
-  if (confirmed && latest?.question.variantOf === null) return { kind: 'VARIANT', of: confirmed };
+  const confirmed = open('CONFIRMED');
+  if (confirmed && history.at(-1)?.question.variantOf === null) return { kind: 'VARIANT', of: confirmed };
   return { kind: 'NEW' };
+}
+
+/** 이 숙련도 점수부터 트레이드오프·설계 판단을 묻는다. */
+export const DEEP_MASTERY = 0.8;
+
+/**
+ * 숙련도에 맞춰 다음 문제의 각도를 정한다. 가볍게 시작해서 깊이 들어간다 (ADR-0038).
+ * - 일정이 없거나 미측정·약점 → 동작 원리(MECHANISM): 짧은 정의·원리 확인
+ * - 양호하고 숙련도 [DEEP_MASTERY] 미만 → 왜(WHY)·언제 쓰나(WHEN) 중 지금까지 덜 낸 쪽(같으면 WHY)
+ * - 숙련도 [DEEP_MASTERY] 이상 → 트레이드오프(TRADEOFF)
+ */
+export function nextAngle(
+  mastery: Pick<ConceptMastery, 'gradedAttempts' | 'weaknessScore' | 'masteryScore'> | undefined,
+  history: readonly QuestionHistory[],
+): ConceptAngle {
+  if (mastery === undefined || weaknessLevel(mastery) !== 'OK') return 'MECHANISM';
+  if (mastery.masteryScore >= DEEP_MASTERY) return 'TRADEOFF';
+  const asked = (angle: ConceptAngle) => history.filter((h) => h.question.angle === angle).length;
+  return asked('WHEN') < asked('WHY') ? 'WHEN' : 'WHY';
 }
 
 /** 변형 문제가 원래 문제와 같은 핵심을 묻고, 원래 답을 외워서는 풀 수 없는지 본 결과 (설계 문서 7.3 "검증 단계"). */

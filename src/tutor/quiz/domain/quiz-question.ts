@@ -9,12 +9,14 @@ export type QuestionType = (typeof QUESTION_TYPES)[number];
 export const ENABLED_TYPES: readonly QuestionType[] = ['MULTIPLE_CHOICE'];
 
 /**
- * 출제 각도 (설계 문서 5.4). 개념 문제는 앞의 넷으로 낸다.
- * SCENARIO는 판단 사례로 내는 상황 판단형(ADR-0021), MY_PROJECT는 서술형과 함께 미룬다(ADR-0019).
+ * 출제 각도 (설계 문서 5.4). 문제는 앞의 넷(개념 문제)으로만 낸다(ADR-0038).
+ * SCENARIO는 판단 사례로 냈던 상황 판단형(ADR-0021)으로 지금은 만들지 않고 풀이 기록이 있는 옛 문제에만 남는다.
+ * MY_PROJECT는 서술형과 함께 미룬다(ADR-0019).
  */
 export const ANGLES = ['WHY', 'WHEN', 'TRADEOFF', 'MECHANISM', 'SCENARIO', 'MY_PROJECT'] as const;
 export type Angle = (typeof ANGLES)[number];
 export const CONCEPT_ANGLES = ['WHY', 'WHEN', 'TRADEOFF', 'MECHANISM'] as const satisfies readonly Angle[];
+export type ConceptAngle = (typeof CONCEPT_ANGLES)[number];
 
 export const VALIDATION_STATUSES = ['PENDING', 'VALID', 'INVALID'] as const;
 export type ValidationStatus = (typeof VALIDATION_STATUSES)[number];
@@ -45,12 +47,9 @@ interface QuestionBase {
   readonly experienceId: number | null;
   /** 변형 문제면 원래 문제. 같은 핵심을 다른 상황으로 묻는다 (설계 문서 7.3 "변형 문제"). */
   readonly variantOf: number | null;
-  /** 상황 판단형(SCENARIO)이면 재료가 된 판단 사례 (ADR-0021). */
+  /** 옛 상황 판단형(SCENARIO)이면 재료가 된 판단 사례 (ADR-0021). 새 문제는 null이다(ADR-0038). */
   readonly caseId: number | null;
 }
-
-/** 가정 사례로 만든 상황 판단형 문제의 머리말 (ADR-0026·0032). 실제로 겪은 일처럼 읽히지 않게 코드가 붙인다. */
-export const HYPOTHETICAL_PREFIX = '[가정한 상황] ';
 
 /** 검증 전 문제. 객관식 [answer]는 정답 보기의 글이다. */
 export type QuestionDraft = QuestionBase &

@@ -2,7 +2,6 @@
 
 export const multipleChoiceReply = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({
-    angle: 'WHY',
     keyPoint: '선택도가 낮으면 인덱스가 도움이 안 된다',
     difficulty: 2,
     prompt: '성별 컬럼에 인덱스를 걸어도 조회가 빨라지지 않는 이유는?',
@@ -15,12 +14,10 @@ export const multipleChoiceReply = (overrides: Record<string, unknown> = {}) =>
     answer: '선택도가 낮아서',
     explanation: '해설',
     referenceMaterial: '근거',
-    experienceId: null,
     ...overrides,
   });
 
 export const fillBlankReply = JSON.stringify({
-  angle: 'MECHANISM',
   keyPoint: '선택도',
   difficulty: 1,
   prompt: '인덱스가 효과 있으려면 ____가 높아야 한다',
@@ -28,7 +25,6 @@ export const fillBlankReply = JSON.stringify({
   acceptedAnswers: ['selectivity'],
   explanation: '해설',
   referenceMaterial: '근거',
-  experienceId: null,
 });
 
 export const solvedReply = (answer: Record<string, unknown>) =>

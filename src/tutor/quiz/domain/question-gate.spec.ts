@@ -77,8 +77,27 @@ describe('draftProblems', () => {
     ['빈칸 없음', blank('인덱스가 효과 있으려면 선택도가 높아야 한다', '높아야'), /빈칸\(____\)/],
     ['빈칸 둘', blank('____가 높으면 ____가 빨라진다'), /정확히 하나/],
     ['정답이 문장에 드러남', blank('선택도는 ____ 비율이다. 선택도가 높아야 한다'), /정답이 그대로/],
+    ['질문 151자', multiple({ prompt: `${'가'.repeat(150)}?` }), /질문이 길다\(151자\)/],
+    ['질문 세 문장', multiple({ prompt: '테이블이 크다. 쓰기가 잦다. 인덱스를 더할까?' }), /질문이 3문장이다/],
+    [
+      '보기 41자',
+      multiple({ choices: [choice('선택도가 낮아서', null), choice('가'.repeat(41)), choice('B'), choice('C')] }),
+      /보기가 길다\(41자\)/,
+    ],
   ] as const)('%s → 걸린다', (_, draft, problem) => {
     expect(draftProblems(draft).join('\n')).toMatch(problem);
+  });
+
+  it('질문 150자·두 문장, 보기 40자까지는 통과하고 소수점은 문장 끝으로 세지 않는다', () => {
+    const long = '나'.repeat(40);
+    const draft = multiple({
+      prompt: `${'가'.repeat(127)} 응답이 3.5초 걸린다. 무엇부터 볼까?`,
+      choices: [choice(long, null), choice('다'.repeat(40)), choice('라'.repeat(40)), choice('마'.repeat(40))],
+      answer: long,
+    });
+
+    expect(draft.prompt).toHaveLength(150);
+    expect(draftProblems(draft)).toEqual([]);
   });
 });
 

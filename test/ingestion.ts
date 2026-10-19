@@ -2,13 +2,11 @@ import { Pool } from 'pg';
 import { inject } from 'vitest';
 import type { Clock } from '../src/core/clock/clock.js';
 import type { Db } from '../src/core/db/db.module.js';
-import { CaseAbstractionService } from '../src/core/ingestion/case-abstraction.service.js';
 import { ExtractionService } from '../src/core/ingestion/extraction.service.js';
 import { IngestionPipeline } from '../src/core/ingestion/ingestion-pipeline.js';
 import { SyncService } from '../src/core/ingestion/sync.service.js';
 import { ConceptRepository } from '../src/core/knowledge/concept.repository.js';
 import { ConceptService } from '../src/core/knowledge/concept.service.js';
-import { DecisionCaseRepository } from '../src/core/memory/decision-case.repository.js';
 import { ExperienceRepository } from '../src/core/memory/experience.repository.js';
 import { SourceDocumentRepository } from '../src/core/memory/source-document.repository.js';
 import { JobLock } from '../src/core/scheduler/job-lock.js';
@@ -19,7 +17,7 @@ import { FakeDocumentSource } from './fakes/fake-document-source.js';
 export const emptyExtractionReply = JSON.stringify({ summary: '요약', experiences: [], newConcepts: [] });
 
 /**
- * 공용 테스트 DB에 붙는 수집 파이프라인(동기화 → 추출 → 추상화)과 그 잠금. Notion·`claude -p`는 가짜다.
+ * 공용 테스트 DB에 붙는 수집 파이프라인(동기화 → 추출)과 그 잠금. Notion·`claude -p`는 가짜다.
  * 잠금은 세션 advisory 잠금이라 따로 연 풀을 쓴다. 파일 끝에 `close()`를 부른다.
  */
 export function createTestIngestion(db: Db, clock: Clock) {
@@ -37,7 +35,6 @@ export function createTestIngestion(db: Db, clock: Clock) {
       new ConceptService(new ConceptRepository(db)),
       clock,
     ),
-    new CaseAbstractionService(claude, new DecisionCaseRepository(db), clock),
     lock,
   );
   return { pipeline, lock, source, claude, documents, close: () => pool.end() };

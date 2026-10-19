@@ -9,8 +9,40 @@ export function draftProblems(draft: QuestionDraft): string[] {
   const leaks = findLeaks(questionText(draft));
   return [
     ...typeProblems(draft),
+    ...lengthProblems(draft),
     ...(leaks.length === 0 ? [] : [`특정 조직을 가리킬 수 있는 문자열이 있다: ${leaks.join(', ')}`]),
   ];
+}
+
+/** 문제 길이 상한 (ADR-0038). 가볍게 풀 수 있게 질문은 두 문장, 보기는 한 줄로 둔다. 출제 프롬프트에도 싣는다. */
+export const LENGTH_LIMITS = { promptChars: 150, promptSentences: 2, choiceChars: 40 } as const;
+
+/** 글자 수. 화면에 보이는 글자 단위로 세어 한글 음절 하나가 한 글자다. 완성형 한글·영문이면 DB의 `char_length`와 같다. */
+const graphemes = new Intl.Segmenter('ko', { granularity: 'grapheme' });
+const charCount = (text: string): number => [...graphemes.segment(text)].length;
+
+/** 문장 수. 마침표·물음표·느낌표 뒤가 공백이나 끝이면 문장 끝으로 본다("3.5"의 점은 세지 않는다). */
+const sentenceCount = (text: string): number =>
+  text
+    .trim()
+    .split(/[.?!](?:\s+|$)/)
+    .filter(Boolean).length;
+
+function lengthProblems(draft: QuestionDraft): string[] {
+  const { promptChars, promptSentences, choiceChars } = LENGTH_LIMITS;
+  const problems: string[] = [];
+  const chars = charCount(draft.prompt);
+  if (chars > promptChars) problems.push(`질문이 길다(${chars}자). ${promptChars}자 안으로 줄인다`);
+  const sentences = sentenceCount(draft.prompt);
+  if (sentences > promptSentences) {
+    problems.push(`질문이 ${sentences}문장이다. ${promptSentences}문장 안으로 줄인다`);
+  }
+  const long = draft.type === 'MULTIPLE_CHOICE' ? draft.choices.filter((c) => charCount(c.text) > choiceChars) : [];
+  if (long.length > 0)
+    problems.push(
+      `보기가 길다(${long.map((c) => charCount(c.text)).join('·')}자). 보기마다 ${choiceChars}자 안으로 줄인다`,
+    );
+  return problems;
 }
 
 function typeProblems(draft: QuestionDraft): string[] {

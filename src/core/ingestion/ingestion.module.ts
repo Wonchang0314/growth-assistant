@@ -24,7 +24,8 @@ import { SyncService } from './sync.service.js';
 
 /**
  * Notion 수집과 증분 동기화, 경험 카드 추출, 판단 사례 추상화, 수집에서 생긴 개념·판단 사례 검토 (설계 문서 6장, 7.1).
- * 동기화·추출·추상화는 `npm run sync`·`npm run extract`·`npm run abstract`와 새벽 예약 작업(`IngestionPipeline`)이 돌린다.
+ * 동기화·추출은 `npm run sync`·`npm run extract`와 새벽 예약 작업(`IngestionPipeline`)이, 추상화는 `npm run abstract`만 돌린다
+ * (판단 사례를 문제에 쓰지 않게 돼 새벽 작업에서 뺐다, ADR-0038).
  * MCP에는 상태 조회, 바로 동기화(`sync_now`, 뒤에서 돌림), 검토를 연다.
  */
 @Module({
