@@ -2,16 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { MasteryRepository } from './mastery.repository.js';
 import { applyAnswer, newMastery, replay, type ConceptMastery, type GradedAnswer } from './mastery.js';
 
-/** 복습 개념을 고르는 재료 (설계 문서 7.3 "개념 선택 우선순위"). */
-export interface ReviewCandidates {
-  /** ① 복습할 때가 된 개념. 예정일이 이른 것부터. */
-  readonly due: readonly number[];
-  /** ② 약점 개념. 약점 점수가 높은 것부터. */
-  readonly weak: readonly number[];
-  /** ③ 아직 일정이 없는 개념과 트랙 가중치. */
-  readonly fresh: readonly { readonly conceptId: number; readonly weight: number }[];
-}
-
 /** 개념별 복습 일정과 숙련도·약점 갱신 (설계 문서 5.3·8장). */
 @Injectable()
 export class MasteryService {
@@ -39,13 +29,9 @@ export class MasteryService {
     return this.repository.countUnmeasured();
   }
 
-  async reviewCandidates(now: Date, limit: number): Promise<ReviewCandidates> {
-    const [due, weak, fresh] = await Promise.all([
-      this.repository.findDue(now, limit),
-      this.repository.findWeak(limit),
-      this.repository.findUnscheduled(),
-    ]);
-    return { due, weak: weak.map((m) => m.conceptId), fresh };
+  /** 아직 일정이 없는 승인된 개념과 트랙 가중치. 복습에서 새 개념을 뽑을 때 쓴다. */
+  unscheduled(): Promise<{ conceptId: number; weight: number }[]> {
+    return this.repository.findUnscheduled();
   }
 
   /**

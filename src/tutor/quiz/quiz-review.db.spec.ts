@@ -173,6 +173,19 @@ describe('get_review_set', () => {
     expect(after).toMatchObject({ preparing: [], remainingToday: 9 });
   });
 
+  it('오늘(Asia/Seoul) 늦게 때가 되는 개념도 지금 내고, 내일 때가 되는 개념은 내지 않아 오늘 복습 알림과 같은 개념을 센다', async () => {
+    // 시계는 18:00(Asia/Seoul)이다. 인덱스는 23:00, 트랜잭션은 다음 날 때가 된다.
+    await mastery.introduce([1], new Date(clock.now().getTime() + 5 * 60 * 60_000));
+    await mastery.introduce([2], new Date(clock.now().getTime() + DAY));
+    await addQuestion(1);
+    await addQuestion(2);
+
+    const set = await review.reviewSet({});
+
+    expect(set.kind === 'READY' && set.questions.map((q) => q.concept)).toEqual(['인덱스']);
+    expect(await review.today()).toEqual({ answered: 0, conceptIds: [1] });
+  });
+
   it('오늘 10문제를 풀었으면 더 내지 않는다', async () => {
     const id = await addQuestion(1);
     for (let i = 0; i < 10; i++) await submit(id, '1');

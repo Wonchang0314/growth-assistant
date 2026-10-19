@@ -21,6 +21,7 @@ import { ALERT_SETTINGS, EveningAlertJob, MorningAlertJob } from './study-alert.
 import { StudyNotifier } from './study-notifier.js';
 
 const testDb = connectTestDb();
+const DAY = 24 * 60 * 60 * 1000;
 const clock = new FixedClock(new Date('2026-10-20T21:00:00+09:00'));
 const notifier = new FakeStudyNotifier();
 const source = new FakeDocumentSource();
@@ -144,6 +145,22 @@ describe('저녁 알림', () => {
 
     expect(await app.get(EveningAlertJob).run()).toBe(result);
     expect(notifier.alerts).toEqual([]);
+  });
+
+  // 시계는 화요일(2026-10-20) 21:00(Asia/Seoul)이다.
+  it.each([
+    ['토요일', 4],
+    ['일요일', 5],
+  ])('%s에는 복습할 개념이 있어도 보내지 않는다', async (_, days) => {
+    clock.advance(days * DAY);
+    try {
+      await dueToday();
+
+      expect(await app.get(EveningAlertJob).run()).toBe('주말이라 보내지 않음');
+      expect(notifier.alerts).toEqual([]);
+    } finally {
+      clock.advance(-days * DAY);
+    }
   });
 });
 

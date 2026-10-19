@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, count, desc, eq, gte, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { DB, type Db, type Tx } from '../../core/db/db.module.js';
 import type { ConceptMergeParticipant } from '../../core/knowledge/concept-merge.js';
 import { concept, track } from '../../core/knowledge/concept.schema.js';
@@ -13,17 +13,6 @@ export class MasteryRepository implements ConceptMergeParticipant {
   async find(conceptId: number, db: Db | Tx = this.db): Promise<ConceptMastery | undefined> {
     const [row] = await db.select().from(conceptMastery).where(eq(conceptMastery.conceptId, conceptId));
     return row;
-  }
-
-  /** 복습할 때가 된 개념. 예정일이 이른 것부터. */
-  async findDue(now: Date, limit: number): Promise<number[]> {
-    const rows = await this.db
-      .select({ conceptId: conceptMastery.conceptId })
-      .from(conceptMastery)
-      .where(lte(conceptMastery.dueAt, now))
-      .orderBy(asc(conceptMastery.dueAt), asc(conceptMastery.conceptId))
-      .limit(limit);
-    return rows.map((r) => r.conceptId);
   }
 
   /** [timeZone]의 [date](`2026-10-20`)가 끝나기 전에 복습할 때가 되는 개념. 예정일이 이른 것부터. */

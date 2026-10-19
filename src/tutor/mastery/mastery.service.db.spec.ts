@@ -90,7 +90,7 @@ describe('MasteryService', () => {
     expect(await repository.find(2)).toMatchObject({ gradedAttempts: keptAttempts });
   });
 
-  it('복습 후보: 예정일이 지난 개념, 약점 개념, 일정이 없는 개념과 트랙 가중치', async () => {
+  it('복습 후보: 그날 안에 예정일이 오는 개념, 약점 개념, 일정이 없는 개념과 트랙 가중치', async () => {
     const wrong = (answeredAt: Date) =>
       service.recordAnswer({
         conceptId: 1,
@@ -103,12 +103,10 @@ describe('MasteryService', () => {
     await wrong(t0);
     await wrong(new Date(t0.getTime() + DAY));
 
-    expect(await service.reviewCandidates(new Date(t0.getTime() + DAY), 10)).toEqual({
-      due: [],
-      weak: [1],
-      fresh: [{ conceptId: 2, weight: 1 }],
-    });
-    expect((await service.reviewCandidates(new Date(t0.getTime() + 3 * DAY), 10)).due).toEqual([1]);
+    expect(await service.dueOn('2026-10-18', 'Asia/Seoul', 10)).toEqual([]);
+    expect(await service.dueOn('2026-10-21', 'Asia/Seoul', 10)).toEqual([1]);
+    expect((await service.weakConcepts(10)).map((m) => m.conceptId)).toEqual([1]);
+    expect(await service.unscheduled()).toEqual([{ conceptId: 2, weight: 1 }]);
   });
 
   it('응답 기록으로 다시 계산해 저장한다', async () => {
