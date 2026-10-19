@@ -8,7 +8,7 @@ flowchart TB
         mcp["mcp<br/>MCP 서버, 도구 처리기 탐색, /mcp 컨트롤러"]
         auth["auth<br/>OAuth 인가 서버, /mcp Bearer 검사 (HTTP 진입점)"]
         llm["llm<br/>ClaudeClient"]
-        logging["logging<br/>로거, 운영 알림 (AdminNotifier)"]
+        logging["logging<br/>로거, 운영 알림 (AdminNotifier → ntfy, 1시간 묶기)"]
         memory["memory<br/>문서·청크·경험 카드·판단 사례"]
         knowledge["knowledge<br/>트랙, 개념 그래프, 시드 적재"]
         ingestion["ingestion<br/>Notion 수집, 경험 카드 추출, 판단 사례 추상화, 개념 검토"]
@@ -28,7 +28,7 @@ flowchart TB
     scheduler --> outreach
     scheduler --> ingestion
     llm -->|"인증 만료 알림"| logging
-    auth -->|"리프레시 토큰 재사용 알림"| logging
+    auth -->|"리프레시 토큰 재사용·허용 안 된 로그인 알림"| logging
     auth -.->|"/mcp 앞 미들웨어"| mcp
     quiz -->|"출제 지침"| setting
 

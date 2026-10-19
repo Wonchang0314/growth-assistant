@@ -148,17 +148,14 @@ export class ClaudeCliClient extends ClaudeClient {
     }
   }
 
-  /** 인증 오류는 호출마다 반복되므로 `#관리`에는 한 번만 알린다 (설계 문서 9장). */
+  /** 인증 오류는 호출마다 반복되므로 성공하기 전까지 한 번만 알린다 (설계 문서 9장). */
   private async alertAuthOnce(error: ClaudeException): Promise<void> {
     if (this.authAlerted) return;
     this.authAlerted = true;
-    try {
-      await this.adminNotifier.notify(
-        `Claude CLI 인증 오류: ${error.message}\n서버를 실행하는 기기에서 \`claude\`를 실행해 다시 로그인하면 이후 호출부터 정상으로 돌아옵니다.`,
-      );
-    } catch (e) {
-      this.logger.warn(`인증 오류 알림 실패: ${String(e)}`);
-    }
+    await this.adminNotifier.notify(
+      'CLAUDE_CLI_AUTH',
+      `${error.message}\n서버를 실행하는 기기에서 \`claude\`를 실행해 다시 로그인하면 이후 호출부터 정상으로 돌아옵니다.`,
+    );
   }
 }
 

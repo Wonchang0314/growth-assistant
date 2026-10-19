@@ -5,6 +5,8 @@ import { inject, vi } from 'vitest';
 import { ClientMetadataSource } from '../src/core/auth/client-metadata.source.js';
 import { GoogleLogin } from '../src/core/auth/google-login.js';
 import { Clock } from '../src/core/clock/clock.js';
+import { AdminNotifier } from '../src/core/logging/admin-notifier.js';
+import { FakeAdminNotifier } from './fakes/fake-admin-notifier.js';
 import { FakeClientMetadataSource } from './fakes/fake-client-metadata-source.js';
 import { FakeGoogleLogin } from './fakes/fake-google-login.js';
 
@@ -14,7 +16,8 @@ export const TEST_MCP_URL = `${TEST_PUBLIC_BASE_URL}/mcp`;
 export const TEST_ALLOWED_EMAIL = 'me@example.com';
 
 /**
- * 공용 테스트 DB 컨테이너에 붙는 MCP 진입점의 루트 모듈(McpAppModule)을 띄운다. 시각은 [clock]으로 고정한다.
+ * 공용 테스트 DB 컨테이너에 붙는 MCP 진입점의 루트 모듈(McpAppModule)을 띄운다. 시각은 [clock]으로 고정하고,
+ * 운영 알림은 늘 가짜로 바꾼다(`.env`에 `NTFY_TOPIC`이 있어도 휴대폰에 보내지 않는다).
  * 환경 변수를 바꾸므로 파일 끝에 `vi.unstubAllEnvs()`를 부른다.
  */
 export async function startMcpApp(clock: Clock): Promise<TestingModule> {
@@ -29,7 +32,7 @@ export async function startMcpApp(clock: Clock): Promise<TestingModule> {
  */
 export async function createMcpHttpApp(
   clock: Clock,
-  fakes: { google?: FakeGoogleLogin; clients?: FakeClientMetadataSource } = {},
+  fakes: { google?: FakeGoogleLogin; clients?: FakeClientMetadataSource; notifier?: FakeAdminNotifier } = {},
 ) {
   vi.stubEnv('PUBLIC_BASE_URL', TEST_PUBLIC_BASE_URL);
   vi.stubEnv('GOOGLE_OAUTH_CLIENT_ID', 'test-google-client');
@@ -44,6 +47,7 @@ export async function createMcpHttpApp(
         .useValue(fakes.google ?? new FakeGoogleLogin())
         .overrideProvider(ClientMetadataSource)
         .useValue(fakes.clients ?? new FakeClientMetadataSource()),
+    fakes.notifier,
   );
   const app = module.createNestApplication<NestExpressApplication>();
   const { configureHttpApp } = await import('../src/mcp-http-app.module.js');
@@ -55,6 +59,7 @@ async function compileMcpRoot(
   clock: Clock,
   loadRoot: () => Promise<Type>,
   override: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,
+  notifier = new FakeAdminNotifier(),
 ): Promise<TestingModule> {
   const database = inject('database');
   vi.stubEnv('POSTGRES_HOST', database.host);
@@ -68,6 +73,8 @@ async function compileMcpRoot(
   return override(
     Test.createTestingModule({ imports: [root] })
       .overrideProvider(Clock)
-      .useValue(clock),
+      .useValue(clock)
+      .overrideProvider(AdminNotifier)
+      .useValue(notifier),
   ).compile();
 }

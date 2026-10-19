@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
-import { AdminNotifier, LoggingAdminNotifier } from '../logging/admin-notifier.js';
+import { AdminNotifierModule } from '../logging/admin-notifier.module.js';
 import { AuthSettings } from './auth-settings.js';
 import { AuthorizationRepository } from './authorization.repository.js';
 import { AuthorizationService } from './authorization.service.js';
@@ -25,6 +25,7 @@ import { TokenService } from './token.service.js';
  * ⑥ `/mcp`: Bearer 검사 (bearer-auth.middleware.ts, McpHttpAppModule이 건다)
  */
 @Module({
+  imports: [AdminNotifierModule],
   controllers: [OAuthMetadataController, AuthorizeController, TokenController],
   providers: [
     {
@@ -41,7 +42,6 @@ import { TokenService } from './token.service.js';
     },
     { provide: ClientMetadataSource, useClass: HttpClientMetadataSource },
     { provide: GoogleLogin, useClass: GoogleOidcLogin },
-    { provide: AdminNotifier, useClass: LoggingAdminNotifier },
     AuthorizationRepository,
     TokenRepository,
     AuthorizationService,

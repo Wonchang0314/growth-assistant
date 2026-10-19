@@ -54,8 +54,8 @@ function setup(runner: ClaudeProcessRunner, { maxConcurrency = 2, failLogs = fal
     },
   } as unknown as LlmCallLogRepository;
   const notifier: AdminNotifier = {
-    notify: (message: string) => {
-      alerts.push(message);
+    notify: (kind, detail) => {
+      alerts.push(`${kind}: ${detail}`);
       return Promise.resolve();
     },
   };
@@ -206,7 +206,7 @@ describe('ClaudeCliClient', () => {
     await client.complete(summary('q'));
     await expect(client.complete(summary('q'))).rejects.toThrow(ClaudeException);
     expect(alerts).toHaveLength(2);
-    expect(alerts[0]).toContain('Not logged in');
+    expect(alerts[0]).toMatch(/^CLAUDE_CLI_AUTH: .*Not logged in/);
   });
 
   it('호출 기록 저장이 실패해도 응답은 그대로 돌려준다', async () => {

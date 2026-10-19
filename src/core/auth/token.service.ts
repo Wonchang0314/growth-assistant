@@ -102,9 +102,10 @@ export class TokenService {
     const grant = await this.tokens.findRefreshTokenGrant(refreshToken);
     if (!grant || grant.revokedAt) return;
     await this.tokens.revokeGrant(grant.id, now);
-    const message = `회전한 리프레시 토큰이 다시 와서 토큰 계열 ${grant.id}(${grant.email})을 폐기했다. 다시 로그인해야 한다`;
-    this.logger.warn(message);
-    await this.adminNotifier.notify(message);
+    await this.adminNotifier.notify(
+      'REFRESH_TOKEN_REUSE',
+      `회전한 리프레시 토큰이 다시 와서 토큰 계열 ${grant.id}(${grant.email})을 폐기했다. 다시 로그인해야 한다`,
+    );
   }
 
   private invalidGrant(reason: string): OAuthError {

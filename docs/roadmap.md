@@ -69,7 +69,7 @@
 - [x] 결정: Cloudflare 터널, OAuth 2.1(CIMD, 구글 로그인), WAF 대역 제한, Nest HTTP 어댑터, LaunchAgent, ntfy + 헬스체크, MCP Apps는 6단계 (ADR-0035)
 - [x] Streamable HTTP 진입점(Nest HTTP 앱), OAuth 인가 서버(CIMD, 구글 로그인, 동의 화면), Cloudflare 터널·WAF, 커스텀 커넥터 등록 (2026-10-20, claude.ai 웹에서 연결 확인)
 - [x] 상시 실행 진입점(LaunchAgent `com.growthassistant.server`, `ops/install.sh`·`ops/uninstall.sh`, 배포 뒤 다시 띄우기). MCP HTTP 서버를 띄운다. 5단계 예약 작업을 같은 프로세스에 둘지는 그때 정한다
-- [ ] 운영 감시(죽으면 다시 띄우기, 로그)
+- [ ] 운영 감시(죽으면 다시 띄우기, 로그) (ntfy 운영 알림·1시간 묶기는 끝남, UptimeRobot `/healthz` 등록만 남음)
 - [x] 모바일·아이패드 수동 점검 (2026-10-20, `docs/manual-check.md` 4단계. 맥미니 Desktop은 로컬 stdio 대신 원격 커넥터를 쓴다)
 
 ## 5. 예약 작업: 먼저 말 걸기 (프로토타입 2)
