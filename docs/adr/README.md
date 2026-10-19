@@ -39,3 +39,4 @@
 | [0033](0033-quiz-policy-after-first-trial.md) | 출제에 웹 검색을 쓰고, 근본 원인은 약점 둘 이상이 기댈 때만 고르며, 상황 판단형은 개념 문제 둘마다 하나 내고, 빈칸은 복습에서 뺀다 | 채택 |
 | [0034](0034-prototype-before-quality.md) | 퀴즈 품질 점검보다 원격 전환과 예약 작업으로 프로토타입을 먼저 만들고, 품질은 실제로 쓰면서 올린다 | 채택 |
 | [0035](0035-remote-connector.md) | 원격 커스텀 커넥터는 Cloudflare 터널과 OAuth 2.1(CIMD, 구글 로그인)로 열고, HTTP는 Nest HTTP 어댑터로 띄운다 | 채택 |
+| [0036](0036-scheduled-jobs.md) | 예약 작업은 상시 실행 HTTP 서버 안의 스케줄러로 돌리고, 아침 복습은 Cowork 예약 작업을 시험한 뒤 ntfy로 보완한다 | 채택 |
