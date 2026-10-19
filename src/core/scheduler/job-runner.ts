@@ -32,8 +32,12 @@ export class JobRunner {
     }
     try {
       // 잠금을 잡은 뒤에 본다. 앞선 실행이 방금 끝났어도 다시 돌지 않는다.
+      // 잠금을 잡았으니 RUNNING을 남긴 실행은 이미 없다(배포 재시작 등으로 도중에 죽었다). 그 몫은 다시 돌린다.
+      // FAILED는 오늘 몫을 돌린 것으로 본다(다시 돌리지 않는다).
       const now = this.clock.now();
-      if (!isDue(job.at, (await this.repository.find(job.name))?.slotDate, now, SCHEDULE_TIME_ZONE)) return 'NOT_DUE';
+      const last = await this.repository.find(job.name);
+      const lastSlot = last?.status === 'RUNNING' ? undefined : last?.slotDate;
+      if (!isDue(job.at, lastSlot, now, SCHEDULE_TIME_ZONE)) return 'NOT_DUE';
       await this.repository.start(job.name, localDate(now, SCHEDULE_TIME_ZONE), now);
       this.logger.log(`${job.name} 시작`);
       try {

@@ -180,6 +180,13 @@ describe('SchedulerHost', () => {
     expect(first.cron.cronTime.source).toBe('0 0 4 * * *');
   });
 
+  it('오늘 몫이 도중에 끊겨 RUNNING으로 남았으면 서버가 뜰 때 다시 돌린다', async () => {
+    await repository.start('test-job', '2026-10-20', new Date('2026-10-20T04:00:00+09:00'));
+
+    expect((await boot()).runs).toBe(1);
+    expect(await repository.find('test-job')).toMatchObject({ status: 'SUCCEEDED' });
+  });
+
   it('오늘 시각 전에 뜨면 따라잡지 않는다', async () => {
     clock = new FixedClock(new Date('2026-10-20T03:00:00+09:00'));
 
