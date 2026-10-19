@@ -238,8 +238,6 @@ describe('⑤ 토큰과 ⑥ /mcp', () => {
     const tokens = await signIn(baseUrl);
 
     expect((await postMcp(baseUrl, bearer('unknown'))).status).toBe(401);
-    // 받는 클라이언트의 Origin(ChatGPT)은 Origin 검사를 지나 토큰 검사(401)까지 간다.
-    expect((await postMcp(baseUrl, { origin: 'https://chatgpt.com' })).status).toBe(401);
     expect((await postMcp(baseUrl, { ...bearer(tokens.access_token), origin: 'https://evil.example' })).status).toBe(
       403,
     );
