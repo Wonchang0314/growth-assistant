@@ -51,10 +51,20 @@ export class DrizzleQuizAttemptRepository extends QuizAttemptRepository {
   }
 
   async countOnDate(date: string, timeZone: string): Promise<number> {
-    const [row] = await this.db
-      .select({ n: count() })
-      .from(quizAttempt)
-      .where(sql`(${quizAttempt.answeredAt} AT TIME ZONE ${timeZone})::date = ${date}::date`);
+    const [row] = await this.db.select({ n: count() }).from(quizAttempt).where(onDate(date, timeZone));
     return row?.n ?? 0;
   }
+
+  async conceptIdsOnDate(date: string, timeZone: string): Promise<number[]> {
+    const rows = await this.db
+      .selectDistinct({ conceptId: quizQuestion.conceptId })
+      .from(quizAttempt)
+      .innerJoin(quizQuestion, eq(quizQuestion.id, quizAttempt.questionId))
+      .where(onDate(date, timeZone));
+    return rows.map((r) => r.conceptId);
+  }
+}
+
+function onDate(date: string, timeZone: string) {
+  return sql`(${quizAttempt.answeredAt} AT TIME ZONE ${timeZone})::date = ${date}::date`;
 }

@@ -5,6 +5,7 @@ export const DAILY_LIMIT = 10;
  * 복습할 개념을 우선순위대로 [limit]개 고른다 (설계 문서 7.3 "개념 선택 우선순위", 8장).
  * 근본 원인 후보 → ① 복습할 때가 된 개념 → ② 헷갈렸다고 기록하고 아직 확인하지 않은 개념, 약점 개념
  * → ③ 새 개념(트랙 가중치로 뽑음). 앞에서 고른 개념은 뒤에서 다시 고르지 않는다. [random]은 [0, 1) 난수다.
+ * [exclude]의 개념은 고르지 않는다(더 풀기 세트에서 오늘 푼 개념, ADR-0039).
  */
 export function pickConcepts(input: {
   readonly rootCauses: readonly number[];
@@ -12,6 +13,7 @@ export function pickConcepts(input: {
   readonly confused: readonly number[];
   readonly weak: readonly number[];
   readonly fresh: readonly { readonly conceptId: number; readonly weight: number }[];
+  readonly exclude: readonly number[];
   readonly limit: number;
   readonly random: () => number;
 }): number[] {
@@ -22,7 +24,7 @@ export function pickConcepts(input: {
     ...input.weak,
     ...weightedOrder(input.fresh, input.random),
   ];
-  return [...new Set(ordered)].slice(0, input.limit);
+  return [...new Set(ordered)].filter((id) => !input.exclude.includes(id)).slice(0, input.limit);
 }
 
 /**

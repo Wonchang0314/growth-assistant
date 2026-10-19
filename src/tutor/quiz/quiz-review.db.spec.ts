@@ -196,6 +196,24 @@ describe('get_review_set', () => {
     await review.idle();
   });
 
+  it('더 풀기는 하루 상한을 넘어 같은 우선순위로 내되, 오늘 푼 개념은 낼 문제가 남아 있어도 뺀다', async () => {
+    const isolation = await addIsolationLevel();
+    const solved = await addQuestion(1);
+    for (let i = 0; i < 10; i++) await submit(solved, '2');
+    await addQuestion(1, '다른 핵심');
+    await addQuestion(2);
+    await addQuestion(isolation);
+    await mastery.introduce([isolation], clock.now());
+
+    const more = await review.reviewSet({ more: true });
+
+    expect(await review.reviewSet({})).toEqual({ kind: 'DAILY_LIMIT_REACHED' });
+    expect(more).toMatchObject({ kind: 'READY', remainingToday: null });
+    // 격리 수준은 복습할 때가 되어 새 개념인 트랜잭션보다 앞이다. 인덱스는 약점이지만 오늘 풀었다.
+    expect(more.kind === 'READY' && more.questions.map((q) => q.concept)).toEqual(['격리 수준', '트랜잭션']);
+    expect(await review.today()).toEqual({ answered: 10, conceptIds: [] });
+  });
+
   it('없는 개념이면 알려 준다', async () => {
     expect(await review.reviewSet({ concept: '쿠버네티스' })).toEqual({ kind: 'UNKNOWN_CONCEPT', name: '쿠버네티스' });
   });

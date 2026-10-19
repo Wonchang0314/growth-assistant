@@ -15,6 +15,13 @@ const input = z.object({
     .optional()
     .describe('사용자가 특정 개념 문제를 원하면 그 개념 이름. "복습하자"처럼 고르지 않았으면 비운다'),
   count: z.number().int().min(1).max(DAILY_LIMIT).optional().describe('문제 수. 사용자가 말하지 않았으면 비운다'),
+  more: z
+    .boolean()
+    .optional()
+    .describe(
+      '오늘 복습을 마친 뒤 사용자가 "더 풀래", "10문제 더", "더 내줘"처럼 더 풀겠다고 직접 말했을 때만 true. ' +
+        '하루 상한과 상관없이 오늘 푼 개념을 뺀 문제를 더 낸다. 그 밖에는 비운다',
+    ),
 });
 
 @McpTool()
@@ -24,6 +31,7 @@ export class GetReviewSetTool implements McpToolHandler<typeof input> {
   readonly description =
     '복습할 퀴즈 문제(지금은 객관식)를 가져온다. 사용자가 "복습하자", "문제 내줘", "OO 문제 내줘"라고 하면 부른다. ' +
     '개념을 고르지 않으면 복습할 때가 된 개념, 헷갈렸던 개념, 약점, 새 개념 순으로 하루 10문제 안에서 고른다. ' +
+    '오늘 몫을 다 푼 뒤 사용자가 더 풀겠다고 하면 more로 10문제를 더 낸다. ' +
     '고른 문제를 모두 MCP Apps 복습 카드로 보여 주고, 사용자는 카드에서 문제마다 보기와 확신도를 골라 제출한다(카드가 submit_answer로 채점). ' +
     '정답은 돌려주지 않는다.';
   readonly inputSchema = input;
@@ -43,7 +51,12 @@ export class GetReviewSetTool implements McpToolHandler<typeof input> {
       case 'UNKNOWN_CONCEPT':
         return { text: `개념 목록에 없다: ${set.name}`, data: { questions: [] } };
       case 'DAILY_LIMIT_REACHED':
-        return { text: `오늘 복습 ${DAILY_LIMIT}문제를 다 풀었다. 내일 이어서 한다.`, data: { questions: [] } };
+        return {
+          text:
+            `오늘 복습 ${DAILY_LIMIT}문제를 다 풀었다. 내일 이어서 한다. ` +
+            `사용자가 더 풀고 싶어 하면 more를 true로 다시 불러 ${DAILY_LIMIT}문제를 더 낼 수 있다.`,
+          data: { kind: set.kind, questions: [] },
+        };
       case 'READY': {
         const lines = [
           ...set.questions.map(describe),
