@@ -260,7 +260,7 @@ quiz_attempt    id, question_id, user_answer, is_correct,
 - `SCENARIO`는 판단 사례(`case_id`)로 만든 상황 판단형 객관식이다(ADR-0021). `MY_PROJECT`는 서술형 면접 연습용으로 남겨 두고, 서술형을 만들기 전에는 쓰지 않는다.
 
 - 출제 지침(문제 품질에 대한 내 요청)은 `app_setting`(`quiz.guideline`)에 두고, 출제 프롬프트에 넣는다.
-- `response_time_ms`는 응답 시간을 잴 수 있는 화면(MCP Apps, 원격 전환 때 검토)에서만 채운다. 텍스트 대화에서는 비워 둔다.
+- `response_time_ms`는 응답 시간을 잴 수 있는 화면(MCP Apps 복습 카드)에서만 채운다. 지금은 `submit_answer`가 받지 않아 모두 비어 있다.
 
 ### 5.5 학습 기록, 예약 실행, 운영
 
@@ -490,7 +490,7 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 7. 갱신: FSRS 상태, 숙련도·약점 점수 (8장 규칙)
 ```
 
-- 텍스트로 묻고 답한다. 객관식 버튼, 확신도 버튼, 응답 시간 측정은 6단계에서 MCP Apps로 만든다. 그 전에 아래 "MCP Apps 시험"으로 클라이언트마다 화면이 그려지는지 확인한다.
+- 화면을 그리는 클라이언트에서는 아래 "복습 카드"에서 보기·확신도를 골라 제출하고, 그렇지 않으면 텍스트로 묻고 답한다. 응답 시간 측정은 아직 하지 않는다.
 - 확신도와 힌트 사용 여부는 Claude가 대화에서 받아 넘긴다. 빠지면 `UNSURE`, 힌트 사용으로 보수적으로 처리한다.
 - 채점은 LLM을 부르지 않으므로 사용량 한도와 상관없이 미리 만든 문제로 복습을 이어 간다.
 - 문제를 만드는 데 1~2분 걸려 `get_review_set`이 기다리지 않는다(ADR-0030). 풀이 비어 있으면 첫 호출은 "만드는 중"만 돌려주고, 다시 부르면 나온다. 문제 풀 보충(7.4)이 생기기 전까지는 `npm run quiz`로 미리 채울 수 있다.
@@ -498,16 +498,15 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 - 우선순위 ②의 CONFUSED는 헷갈렸다고 기록한 뒤 아직 퀴즈로 확인하지 않은 개념이다. ③ 새 개념은 트랙 가중치에 비례해 뽑는다. 하루 10문제는 그날 채점한 풀이 수로 세고, 개념을 골라 달라고 했을 때(기본 3문제)는 세지 않는다(ADR-0030).
 - 객관식 답은 보기 번호로 받는다. 같은 오개념이 그 개념에서 전에도 나왔으면 반복 오개념이다(8장).
 
-**MCP Apps 시험** (`try_quiz_card`, 6단계 퀴즈 화면 전에 확인)
+**복습 카드** (MCP Apps, 2026-10-20)
 
-- 목적: MCP Apps 화면이 클라이언트(웹·Desktop·아이폰·아이패드·Cowork 예약 작업 대화)마다 그려지는지, 화면 버튼이 서버 도구를 불러 채점할 수 있는지 확인한다. 확인 순서는 `docs/manual-check.md` "MCP Apps 퀴즈 카드".
-- 사용자가 "퀴즈 카드 보여 줘"라고 할 때만 부른다. 평소 복습은 아래 "복습 카드"처럼 `get_review_set`이 같은 화면을 쓴다.
-- 문제 풀에서 검증을 통과했고 신고되지 않은 객관식 하나를 무작위로 고른다. 복습 일정·하루 상한·이미 풀었는지는 보지 않고, 낸 횟수(`used_count`)도 올리지 않는다.
-- 결과는 문제 ID·개념 이름·질문·보기만 담는다(정답·해설·오개념·기준 자료 없음). 카드를 그리지 못하는 클라이언트를 위해 텍스트에도 문제와 번호 보기를 싣는다.
-- 화면: 도구에 `_meta.ui.resourceUri = ui://growth-assistant/quiz-card.html`을 붙이고, 그 리소스(`text/html;profile=mcp-app`)로 의존성 없는 HTML 한 파일을 내보낸다(`@modelcontextprotocol/ext-apps`의 서버 도우미로 등록). 화면은 SDK의 `App` 대신 같은 프로토콜(postMessage JSON-RPC, `ui/initialize` 2026-01-26)을 직접 쓴다. 외부 자원이 없어 CSP 설정이 필요 없다.
-- 사용자가 보기를 고르고 확신도(확실·애매·찍음)를 누르면 화면이 호스트를 거쳐 `submit_answer`(`hintUsed: false`)를 부르고 정오·정답·고른 보기의 오개념·해설·다음 복습일을 보여 준다. 채점은 평소 풀이와 같이 기록되고 숙련도에 반영된다.
-- 화면 아래에 호스트 이름·플랫폼(`hostContext.platform`)·카드에서 채점할 수 있는지(`hostCapabilities.serverTools`)를 보여 주어 클라이언트별 결과를 적기 쉽게 한다.
-- **복습 카드 (2026-10-20, ChatGPT 시험):** `get_review_set`에도 같은 화면을 `ui://growth-assistant/review-quiz-card.html`로 붙인다. 화면은 결과의 `questions[0]`(복습 서비스가 고른 첫 문제)을 그리고, 텍스트에도 첫 문제 하나만 싣는다("오늘 더 풀 수 있는 문제" 줄은 뺀다, 문제가 없으면 "오늘 복습할 문제가 없어요"). 카드에서 채점한 뒤 다음 문제는 `get_review_set`을 다시 불러 낸다. ChatGPT 채팅만으로는 보기·확신도 버튼을 만들 수 없어서 넣었다.
+- `get_review_set`에 `_meta.ui.resourceUri = ui://growth-assistant/review-card.html`을 붙이고, 그 리소스(`text/html;profile=mcp-app`)로 의존성 없는 HTML 한 파일(`views/review-card.html`)을 내보낸다(`@modelcontextprotocol/ext-apps`의 서버 도우미로 등록). 화면은 SDK의 `App` 대신 같은 프로토콜(postMessage JSON-RPC, `ui/initialize` 2026-01-26)을 직접 쓴다. 외부 자원이 없어 CSP 설정이 필요 없다.
+- 카드는 결과의 `questions`를 모두 슬라이드로 보여 준다. 위에 "3 / 10"과 문제마다 점(안 푼 문제, 정답, 오답, 지금 문제)을 두고, 아래 이전·다음 버튼으로 넘긴다. `[가정한 상황]` 머리말은 그대로 둔다. 숙련도 색은 아직 넣지 않는다.
+- 문제마다 보기 하나와 확신도(확실·애매·찍음)를 고르고 제출을 누르면 그 문제만 호스트를 거쳐 `submit_answer`(`hintUsed: false`)로 채점한다. 그 슬라이드에 정오, 정답(오답일 때), 고른 보기의 오개념, 해설, 관련 경험, 다음 복습일을 보여 주고, 채점한 문제는 잠근다. 안 푼 문제는 기록하지 않는다. `submit_answer`가 응답 시간을 받지 않아 `response_time_ms`는 아직 비워 둔다.
+- 채점한 문제는 카드 저장소(`localStorage`, 쓸 수 없으면 넘어감)에 남겨 호스트가 화면을 다시 그려도 잠긴 채로 보인다. 호스트가 `updateModelContext`를 지원하면 채점할 때마다 지금까지의 결과(문제·정오·고른 보기·확신도)를 모델 맥락으로 넘겨 대화로 이어 갈 수 있게 한다.
+- "만드는 중"인 개념은 카드 아래에 "N개 만드는 중"과 새로고침 버튼으로 보여 준다. 새로고침은 호스트를 거쳐 `get_review_set`을 다시 부르고, 만드는 중이던 개념의 새 문제만 뒤에 붙인다(문제 ID로 중복을 건너뛰고, 이미 낸·채점한 문제는 그대로 둔다). 개념을 고르지 않은 복습을 그대로 다시 부르면 새 개념을 무작위로 다시 뽑으므로 만드는 중인 개념마다 `concept`·`count: 1`로 부르고, 개념을 골라 불렀으면 같은 인자(`ui/notifications/tool-input`)로 다시 부른다. "만들지 못함" 개념은 아래에 한 줄로 알린다.
+- 텍스트에는 모든 문제와 번호 보기를 싣는다(정답 없음). 카드를 그리지 못하는 클라이언트에서 모델이 한 문제씩 채팅으로 낸다. 문제가 없으면 "오늘 복습할 문제가 없어요". 카드가 보이면 모델은 문제를 채팅으로 다시 내지 않는다(서버 지침).
+- 레이아웃: 폭 320pt(아이폰 13 mini 375pt)부터 가로 스크롤 없이 한 줄씩 쌓고, 버튼은 모두 44pt 이상이다. 넓은 화면(아이패드)은 읽는 폭을 720px로 묶고 질문 글자를 키운다. 호스트가 `availableDisplayModes`에 `fullscreen`을 주면 "전체 화면" 버튼으로 `ui/request-display-mode`를 부른다. 색·글꼴·모서리는 호스트가 주는 변수(`hostContext.styles.variables`, `styles.css.fonts`)를 쓰고 없으면 Claude 기본값(밝음·어두움)으로 그린다. 안전 영역(`safeAreaInsets`)만큼 여백을 둔다. 확인 순서는 `docs/manual-check.md` "MCP Apps 복습 카드".
 
 **문제 생성 규칙**
 
@@ -643,7 +642,7 @@ MCP 서버의 `instructions`(연결 시 Claude에 전달)와 튜터용 Claude �
 - **로그:** 토큰·코드·시크릿·state는 남기지 않는다. 거절 이유, 처음 보는 client_id, 허용·거절한 이메일은 남긴다.
 - **상시 실행:** LaunchAgent(`com.growthassistant.server`, `ops/install.sh`)가 배포 릴리스의 `dist/mcp-http.js`를 띄운다. `KeepAlive`로 죽으면 10초 간격으로 다시 띄우고, 배포가 새 릴리스로 바꾼 뒤 `kickstart -k`로 다시 띄운다. FileVault 유지(재부팅 뒤 로그인해야 뜸). 운영 방법은 `docs/ops.md` "상시 실행"·"OAuth".
 - **운영 알림:** `AdminNotifier.notify(종류, 자세한 내용)`. 자세한 내용은 로그(`[관리 알림]`)에만 남기고, `NTFY_TOPIC`이 있으면 ntfy 토픽(`NTFY_URL`, 기본 `https://ntfy.sh`)으로 휴대폰에 제목(종류)·시각·건수만 보낸다(공용 서버를 평문으로 지나가므로 이메일·토큰 계열 ID는 보내지 않는다). 종류는 리프레시 토큰 재사용으로 연결 폐기(탈취 의심이라 우선순위 `urgent`, 나머지는 `high`), 허용되지 않은 계정(허용 목록 밖이거나 구글 미확인 이메일)의 로그인 시도, Claude CLI 인증 오류, 예약 작업 실패(`SCHEDULED_JOB_FAILED`, ADR-0036)다. 서버 시작·재시작과 일반 도구 오류는 알리지 않는다. 같은 종류는 1시간에 한 번만 보내고 그 사이 건수는 다음 알림에 "외 N건"으로 붙인다(프로세스 메모리, 재시작하면 초기화). 전송 실패(5초 타임아웃)는 로그만 남기고 원래 요청은 그대로 처리한다. 서버 다운은 외부 헬스체크(UptimeRobot, `/healthz`, 5분 간격)가 알린다. 학습 알림은 같은 토픽의 다른 종류다(7.4 "5단계 구현").
-- **화면 (6단계):** MCP Apps로 객관식·확신도 버튼, 숙련도 3단계 색 표시, 응답 시간 측정을 검토한다(iOS는 WKWebView로 지원). 먼저 시험 도구 `try_quiz_card`로 클라이언트마다 그려지는지 확인한다(7.3 "MCP Apps 시험").
+- **화면 (6단계):** `get_review_set`의 MCP Apps 복습 카드(7.3 "복습 카드")에서 문제를 넘기며 보기·확신도를 골라 제출한다(iOS는 WKWebView로 그린다). 숙련도 3단계 색 표시와 응답 시간 측정은 아직 하지 않는다.
 
 ---
 

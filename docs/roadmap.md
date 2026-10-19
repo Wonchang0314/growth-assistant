@@ -91,4 +91,6 @@
 - [ ] 무시 누적 감지, 주간 리포트 조정 권고
 - [ ] 숙련도 이력과 `get_weakness`의 지난주 대비 변화 (ADR-0031)
 - [ ] MCP Apps 퀴즈 화면 (4단계 결정에 따라)
-  - [ ] 시험: `try_quiz_card` 카드가 ChatGPT(웹·아이폰)에서 그려지고 채점되는지 (2026-10-20 ChatGPT로 옮기며 되살림, ADR-0037) (`docs/manual-check.md` "MCP Apps 퀴즈 카드")
+  - [x] 복습 카드: `get_review_set`의 문제를 모두 슬라이드로(진행 점, 이전·다음), 문제마다 보기·확신도·제출로 채점, "만드는 중" 새로고침, 전체 화면 버튼, 호스트 테마 변수. 시험 도구 `try_quiz_card`는 지웠다 (2026-10-20)
+  - [ ] 기기 확인: 아이폰 13 mini·아이패드 Pro에서 Claude와 ChatGPT (`docs/manual-check.md` "MCP Apps 복습 카드")
+  - [ ] 숙련도 3단계 색, 응답 시간 측정
