@@ -17,7 +17,7 @@
 1. **WAF IP 제한 규칙은 끈다(사용자가 대시보드에서 비활성화).** 누가 부르든 OAuth 액세스 토큰이 없으면 `/mcp`는 401이고, 토큰은 허용 이메일의 구글 로그인과 동의 화면을 거쳐야 나온다. IP 목록을 손으로 갱신하는 일을 지지 않는다. 규칙은 지우지 않고 꺼 두어 다시 켤 수 있다.
 2. **CIMD 허용 호스트 기본값을 `claude.ai,chatgpt.com`으로 한다.** 허용 호스트 제한(SSRF 방지)은 그대로다.
 3. **클라이언트 문서의 기본 방식이 공개 클라이언트가 아니어도 지원 목록에 `none`이 있으면 받는다.** 서버 메타데이터가 `token_endpoint_auth_methods_supported: ["none"]`만 알리므로 클라이언트는 `none`(PKCE)으로 토큰을 받는다.
-4. MCP Apps 퀴즈 카드 시험은 지웠다(커밋 `6eb9c53`에 남김). ChatGPT에서는 채팅 퀴즈가 어떻게 보이는지 본다.
+4. MCP Apps 퀴즈 카드 시험(`try_quiz_card`)은 한 번 지웠다가 ChatGPT에서 시험하려고 되살렸다. ChatGPT도 MCP Apps 표준(`_meta.ui.resourceUri`)을 기본으로 쓴다([MCP Apps compatibility in ChatGPT](https://developers.openai.com/apps-sdk/mcp-apps-in-chatgpt)). 채팅만으로는 보기·확신도 버튼을 만들 수 없다.
 
 ## 결과
 
