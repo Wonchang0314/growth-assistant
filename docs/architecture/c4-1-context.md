@@ -11,6 +11,7 @@ flowchart TB
     notion["Notion<br/>회고·트러블슈팅 기록"]
     connector["Claude 앱 (웹·Desktop·모바일)<br/>원격 커스텀 커넥터"]
     google["Google 로그인<br/>(본인 확인)"]
+    ntfy["ntfy<br/>운영 알림 (휴대폰)"]
 
     user -. "원격이 안 될 때" .-> desktop
     user -- "튜터링 대화, 퀴즈 풀이" --> connector
@@ -19,6 +20,8 @@ flowchart TB
     ga -- "연결할 때 본인 확인" --> google
     ga -- "출제·검증·추출 요청" --> claude
     ga -- "변경된 페이지 수집" --> notion
+    ga -- "운영 알림" --> ntfy
+    ntfy -- "푸시" --> user
 ```
 
 | 요소 | 역할 |
@@ -29,3 +32,4 @@ flowchart TB
 | Notion | 과거 경험의 유일한 원천. 읽기만 한다 (ADR-0023) |
 | Claude 앱 (원격 커스텀 커넥터) | 인터페이스. 웹·Desktop·모바일에서 같은 도구를 쓴다. 대화는 Claude 앱의 모델이 하고, Anthropic 서버가 공개 주소의 `/mcp`를 OAuth 토큰으로 부른다 (ADR-0035) |
 | Google 로그인 | 커넥터를 연결할 때 본인인지 확인한다(OIDC, 허용 이메일). 구글 토큰은 쓰지 않고 버린다 (ADR-0035) |
+| ntfy | 운영 알림(토큰 재사용, 허용 안 된 로그인, Claude CLI 인증 오류)을 휴대폰 앱으로 보낸다. 종류·시각·건수만 보내고 자세한 내용은 서버 로그에 둔다 (ADR-0035) |

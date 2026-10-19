@@ -100,7 +100,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 
 - **첫 연결:** 서버 로그에 `처음 보는 client_id: …`(받은 것)나 `허용하지 않는 client_id: …`(거절한 것)가 남는다. 호스팅 앱의 client_id 호스트가 `claude.ai`가 아니면 `OAUTH_CLIENT_ID_HOSTS`에 더한다. 2026-10-20 claude.ai 웹에서 연결할 때 받은 값은 `https://claude.ai/oauth/mcp-oauth-client-metadata`(redirect_uri `https://claude.ai/api/mcp/auth_callback`)이고 기본값 그대로 됐다.
 - **커넥터 추가:** claude.ai **웹**에서 설정 → Connectors → Add custom connector, URL `https://mcp.seok.app/mcp`(고급 설정은 비움) → Connect → 구글 로그인 → 동의 화면에서 허용. 웹에서 붙이면 Desktop·모바일에도 뜬다.
-- **토큰:** 액세스 토큰 1시간, 리프레시 토큰 90일(갱신할 때마다 회전해 새로 90일). 90일 동안 쓰지 않으면 Claude에서 다시 연결한다. 이미 회전한 리프레시 토큰이 다시 오면 그 연결의 토큰을 모두 폐기하고 관리 알림을 남긴다(로그 `[관리 알림]`). 그러면 Claude에서 다시 연결해야 한다.
+- **토큰:** 액세스 토큰 1시간, 리프레시 토큰 90일(갱신할 때마다 회전해 새로 90일). 90일 동안 쓰지 않으면 Claude에서 다시 연결한다. 이미 회전한 리프레시 토큰이 다시 오면 그 연결의 토큰을 모두 폐기하고 운영 알림을 보낸다(아래 "운영 알림", 로그 `[관리 알림]`). 그러면 Claude에서 다시 연결해야 한다.
 - **로컬에서 흐름 시험:** `.env`의 `PUBLIC_BASE_URL=http://localhost:3100`으로 `npm run build && npm run mcp:http`를 띄우고(상시 실행 서버가 3100을 쓰면 `ops/uninstall.sh`로 잠깐 내린다), Claude Code에서 `claude mcp add --transport http growth-local http://localhost:3100/mcp` → `/mcp`에서 인증하면 브라우저로 구글 로그인 → 동의 화면 → 도구 목록까지 이어진다. Claude Code의 CIMD 문서(`https://claude.ai/oauth/claude-code-client-metadata`)가 루프백 리디렉트(`http://localhost/callback`, 포트는 아무거나)를 쓰므로 허용 호스트 기본값 그대로 된다. 끝나면 `claude mcp remove growth-local`.
 - **로그인을 끊고 싶을 때:** 아직 도구가 없다. DB에서 `UPDATE oauth_grant SET revoked_at = now() WHERE revoked_at IS NULL;`로 모든 연결을 폐기한다.
 
@@ -119,6 +119,22 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
   확인: 이 Mac에서 `curl -X POST https://mcp.seok.app/token`이 Cloudflare 차단 페이지(403 "Sorry, you have been blocked")면 동작한다. Anthropic이 대역을 바꾸면([IP 주소 문서](https://platform.claude.com/docs/en/api/ip-addresses)) 이 규칙을 고친다.
 - **Bot Fight Mode는 끈다.** 켜면 Anthropic 서버의 요청을 봇으로 막을 수 있다.
 
+### 운영 알림 (ntfy, 외부 헬스체크)
+
+운영 문제는 [ntfy](https://ntfy.sh)로 휴대폰에 알리고, 서버가 죽은 것은 외부 헬스체크(UptimeRobot)가 `/healthz`를 보고 알린다.
+
+| 환경 변수 | 값 |
+|---|---|
+| `NTFY_TOPIC` | 알림을 보낼 토픽 이름. 토픽을 아는 사람은 누구나 구독·발행할 수 있으니 추측하기 어렵게 짓고 남에게 보이지 않는다. 없으면 알림 없이 로그(`[관리 알림]`)만 남긴다(stdio 서버, CLI, 테스트) |
+| `NTFY_URL` | 선택. ntfy 서버 주소(기본 `https://ntfy.sh`) |
+
+- **구독:** 휴대폰에 ntfy 앱(iOS·Android)을 설치하고 + → 토픽 이름을 넣어 구독한다. 토픽은 이 Mac에서 `grep NTFY_TOPIC .env`로 본다. 서버 주소를 바꿨으면 구독할 때 "다른 서버 사용"에 `NTFY_URL`을 넣는다. `.env`를 고친 뒤에는 `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server`로 다시 띄운다.
+- **알리는 것:** 리프레시 토큰 재사용으로 연결을 폐기했을 때, 허용 목록에 없거나 구글이 확인하지 않은 계정이 로그인을 시도했을 때, Claude CLI 인증 오류(다시 성공할 때까지 한 번). 5단계 예약 작업 실패도 같은 경로로 더한다. 서버 시작·재시작과 일반 도구 오류는 알리지 않는다(`KeepAlive`가 다시 띄울 때마다 울리지 않게).
+- **묶기:** 같은 종류는 1시간에 한 번만 보낸다. 그 사이 생긴 건수는 1시간이 지나 처음 오는 같은 종류 알림에 "외 N건"으로 붙는다. 묶기 상태는 프로세스 메모리라 서버를 다시 띄우면 처음부터 센다.
+- **알림 내용:** 제목(종류)과 시각, 건수만 보낸다. ntfy.sh 공용 서버를 평문으로 지나가므로 이메일·토큰 계열 ID 같은 자세한 내용은 보내지 않고 서버 로그의 `[관리 알림]` 줄에만 남긴다. 알림을 받으면 로그(`~/.growth-assistant/logs/mcp-http/current.log`)를 본다.
+- **ntfy 전송 실패:** 로그에 `ntfy 전송 실패`만 남기고 원래 요청은 그대로 처리한다(5초 타임아웃).
+- **서버 다운 감시 (UptimeRobot, 아직 등록 전):** UptimeRobot 무료 계정 → New monitor → HTTP(s), URL `https://mcp.seok.app/healthz`, 간격 5분 → 알림 연락처(앱 푸시나 이메일)를 고르고, 한 번 실패로 울리지 않게 연속 실패 뒤 알리도록 둔다 → 저장. `/healthz`는 DB에 쿼리가 닿으면 200, 아니면 503이고, 터널이 끊기면 530, 서버가 꺼져 있으면 502다. 내려감·복구 때 한 번씩만 알린다. `/healthz`는 WAF에서 열어 두었다.
+
 ## 로그
 
 | 위치 | 내용 |
@@ -131,7 +147,9 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 
 ## 문제 해결
 
-- **로그에 "Claude CLI 인증 오류" 관리 알림:** Mac mini에서 `claude`를 실행해 다시 로그인한다. 다음 호출부터 정상으로 돌아온다. 알림 경로는 원격 전환 때 정한다(ADR-0018).
+- **"Claude CLI 인증 오류" 알림(로그 `[관리 알림] CLAUDE_CLI_AUTH`):** Mac mini에서 `claude`를 실행해 다시 로그인한다. 다음 호출부터 정상으로 돌아온다.
+- **"허용되지 않은 계정이 로그인을 시도했다" 알림:** 로그의 `[관리 알림] LOGIN_REJECTED` 줄에서 이메일을 본다. 내 다른 계정이면 무시하거나 `OAUTH_ALLOWED_EMAILS`에 더하고, 모르는 계정이 되풀이되면 누군가 이 서버를 커넥터로 붙여 보는 중이다(허용 목록과 동의 화면이 막는다).
+- **"리프레시 토큰 재사용으로 연결을 폐기했다" 알림:** 토큰 탈취이거나 클라이언트가 같은 토큰을 두 번 보낸 것이다. Claude에서 커넥터를 다시 연결한다. 되풀이되면 모든 연결을 폐기한다(위 "로그인을 끊고 싶을 때").
 - **Desktop에 서버가 failed로 보이거나 도구가 없음:** Desktop의 MCP 로그를 본다. `ops/desktop-config.sh`를 다시 실행해 설정의 경로가 맞는지 비교한다. 설정 파일이 JSON 형식에 맞지 않으면 Desktop이 서버를 하나도 띄우지 않는다.
 - **`.env`를 읽지 못함(`EPERM`):** 레포가 `~/Documents`, `~/Desktop`, `~/Downloads` 아래에 있으면 macOS 개인정보 보호가 Desktop이 띄운 프로세스의 접근을 막을 수 있다. 레포를 그 밖(예: `~/dev`)으로 옮기거나 시스템 설정 → 개인정보 보호 및 보안에서 Claude에 접근을 허용한다.
 - **도구가 오류를 돌려줌:** 오류 문장의 "원인"을 본다. `ECONNREFUSED`면 DB가 안 떠 있으니 `docker compose up -d`. `relation ... does not exist`처럼 테이블이 없으면 마이그레이션이 덜 된 것이니 `ops/deploy.sh`나 `npm run db:migrate`.

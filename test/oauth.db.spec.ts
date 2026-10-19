@@ -1,8 +1,8 @@
 import { request } from 'node:http';
 import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LoggingAdminNotifier } from '../src/core/logging/admin-notifier.js';
 import { connectTestDb } from './db/test-db.js';
+import { FakeAdminNotifier } from './fakes/fake-admin-notifier.js';
 import { FakeClientMetadataSource, TEST_CLIENT } from './fakes/fake-client-metadata-source.js';
 import { FakeGoogleLogin } from './fakes/fake-google-login.js';
 import { FixedClock } from './fakes/fixed-clock.js';
@@ -30,19 +30,19 @@ const testDb = connectTestDb();
 const clock = new FixedClock(new Date('2026-10-20T09:00:00+09:00'));
 const google = new FakeGoogleLogin();
 const clients = new FakeClientMetadataSource();
-const notify = vi.spyOn(LoggingAdminNotifier.prototype, 'notify');
+const notifier = new FakeAdminNotifier();
 let app: INestApplication;
 let baseUrl: string;
 
 beforeAll(async () => {
-  app = await createMcpHttpApp(clock, { google, clients });
+  app = await createMcpHttpApp(clock, { google, clients, notifier });
   await app.listen(0, '127.0.0.1');
   baseUrl = await app.getUrl();
 });
 beforeEach(async () => {
   await testDb.truncateAll();
   google.identity = { email: TEST_ALLOWED_EMAIL, emailVerified: true };
-  notify.mockClear();
+  notifier.alerts.length = 0;
 });
 afterAll(async () => {
   await app.close();
@@ -132,13 +132,14 @@ describe('②~④ 로그인과 동의', () => {
   it.each([
     ['허용 목록에 없는 이메일', { email: 'other@example.com', emailVerified: true }],
     ['구글이 확인하지 않은 이메일', { email: TEST_ALLOWED_EMAIL, emailVerified: false }],
-  ])('%s은 동의 화면 없이 403 오류 화면이다', async (_, identity) => {
+  ])('%s은 동의 화면 없이 403 오류 화면이고 운영 알림을 보낸다', async (_, identity) => {
     google.identity = identity;
     const res = await loginWithGoogle(baseUrl);
 
     expect(res.status).toBe(403);
     expect(consentToken(await res.text())).toBe('');
     expect(await testDb.count('oauth_authorization_request')).toBe(0);
+    expect(notifier.alerts.map((a) => a.kind)).toEqual(['LOGIN_REJECTED']);
   });
 
   it.each([
@@ -228,7 +229,7 @@ describe('⑤ 토큰과 ⑥ /mcp', () => {
     const reused = await requestToken(baseUrl, refreshGrant(first.refresh_token));
 
     expect(await reused.json()).toMatchObject({ error: 'invalid_grant' });
-    expect(notify).toHaveBeenCalledOnce();
+    expect(notifier.alerts.map((a) => a.kind)).toEqual(['REFRESH_TOKEN_REUSE']);
     expect((await postMcp(baseUrl, bearer(second.access_token))).status).toBe(401);
     expect((await requestToken(baseUrl, refreshGrant(second.refresh_token))).status).toBe(400);
   });

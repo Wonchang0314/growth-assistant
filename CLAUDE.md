@@ -26,7 +26,7 @@ src/
 │   ├── config           # 환경 변수 검증 (zod)
 │   ├── db               # PostgreSQL 연결, 마이그레이션 (migrations/)
 │   ├── health           # GET /healthz (HTTP 진입점, DB 쿼리 확인)
-│   ├── logging          # 회전 파일 로거 (LOG_DIR), 표준에러 로거, 운영 알림 포트 (AdminNotifier, 지금은 로그)
+│   ├── logging          # 회전 파일 로거 (LOG_DIR), 표준에러 로거, 운영 알림 포트 (AdminNotifier, ntfy·같은 종류 1시간 묶기, NTFY_TOPIC 없으면 로그)
 │   ├── mcp              # MCP 서버, @McpTool() 처리기 탐색·등록, /mcp 컨트롤러(Streamable HTTP)
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L), 판단 사례(회사 맥락을 걷어낸 버전, ADR-0021)

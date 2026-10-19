@@ -27,6 +27,14 @@ const envSchema = z.object({
   /** CIMD `client_id` URL로 받을 호스트 (쉼표 구분). 이 호스트의 https 문서만 가져온다(SSRF 방지). */
   OAUTH_CLIENT_ID_HOSTS: commaList('claude.ai'),
 
+  // 운영 알림 (core/logging). 토픽이 없으면 로그만 남긴다.
+  /** ntfy 토픽 이름. 아는 사람은 누구나 구독·발행할 수 있으니 추측하기 어렵게 짓고 비밀로 둔다. */
+  NTFY_TOPIC: z.string().min(1).optional(),
+  NTFY_URL: z
+    .url({ protocol: /^https?$/ })
+    .transform((s) => s.replace(/\/+$/, ''))
+    .default('https://ntfy.sh'),
+
   // Notion 수집 (설계 문서 7.1). MCP 서버는 쓰지 않으므로 없어도 시작한다. 수집할 때 없으면 그때 실패한다.
   NOTION_TOKEN: z.string().min(1).optional(),
   /** 수집 루트 페이지·DB ID (쉼표 구분). 루트와 그 하위 전체를 모은다. 하이픈은 있어도 없어도 된다. */

@@ -1,6 +1,7 @@
 import { inspect } from 'node:util';
 import { Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../clock/clock.js';
+import { AdminNotifier } from '../logging/admin-notifier.js';
 import { AuthorizationRepository } from './authorization.repository.js';
 import { AuthorizeError } from './authorize-error.js';
 import { AuthSettings } from './auth-settings.js';
@@ -48,6 +49,7 @@ export class AuthorizationService {
     private readonly google: GoogleLogin,
     private readonly clock: Clock,
     private readonly settings: AuthSettings,
+    private readonly adminNotifier: AdminNotifier,
   ) {}
 
   /** ② `GET /authorize`: 클라이언트를 확인하고 요청을 저장한 뒤 구글 로그인 주소를 돌려준다. */
@@ -159,9 +161,11 @@ export class AuthorizationService {
 
   /** 구글 코드를 바꿔 id_token의 nonce, 이메일 확인 여부, 허용 목록을 본다. 떨어지면 요청을 지운다. */
   private async verifiedEmail(request: AuthorizationRequest, code: string): Promise<string> {
-    const reject = async (status: 400 | 403, message: string, log: string) => {
+    /** 허용되지 않은 계정의 시도([alert])는 운영 알림으로, 나머지는 로그로 남긴다. */
+    const reject = async (status: 400 | 403, message: string, log: string, alert = false) => {
       await this.repository.deleteRequest(request.id);
-      this.logger.warn(`구글 로그인 거절: ${log}`);
+      if (alert) await this.adminNotifier.notify('LOGIN_REJECTED', `구글 로그인 거절: ${log}`);
+      else this.logger.warn(`구글 로그인 거절: ${log}`);
       return new AuthorizeError(status, message);
     };
     let identity: GoogleIdentity;
@@ -173,9 +177,10 @@ export class AuthorizationService {
     if (identity.nonce !== request.googleNonce)
       throw await reject(400, '구글 로그인을 확인하지 못했다', 'nonce 불일치');
     const email = identity.email.toLowerCase();
-    if (!identity.emailVerified) throw await reject(403, '구글에서 확인되지 않은 이메일이다', `미확인 이메일 ${email}`);
+    if (!identity.emailVerified)
+      throw await reject(403, '구글에서 확인되지 않은 이메일이다', `미확인 이메일 ${email}`, true);
     if (!this.settings.allowedEmails.includes(email))
-      throw await reject(403, `${email}은 이 서버에 연결할 수 없는 계정이다`, `허용 목록에 없는 이메일 ${email}`);
+      throw await reject(403, `${email}은 이 서버에 연결할 수 없는 계정이다`, `허용 목록에 없는 이메일 ${email}`, true);
     return email;
   }
 
