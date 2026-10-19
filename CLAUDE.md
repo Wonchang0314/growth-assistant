@@ -6,7 +6,7 @@
 
 - TypeScript 6 (strict, ESM), Node.js 24, NestJS 12 (MCP HTTP 진입점만 Nest HTTP 앱(`@nestjs/platform-express`, Express 5), stdio 진입점과 CLI는 HTTP 없이 애플리케이션 컨텍스트), npm
 - PostgreSQL 16 (Docker), Drizzle ORM, drizzle-kit 마이그레이션
-- MCP: 공식 TypeScript SDK v2 (`@modelcontextprotocol/server`, HTTP 진입점의 Express 미들웨어 `@modelcontextprotocol/express`(Host·Origin 검사)와 Node 요청 변환 `@modelcontextprotocol/node`(`toNodeHandler`), 테스트용 `@modelcontextprotocol/client`)
+- MCP: 공식 TypeScript SDK v2 (`@modelcontextprotocol/server`, HTTP 진입점의 Express 미들웨어 `@modelcontextprotocol/express`(Host·Origin 검사)와 Node 요청 변환 `@modelcontextprotocol/node`(`toNodeHandler`), 테스트용 `@modelcontextprotocol/client`, MCP Apps 화면 도구 등록 `@modelcontextprotocol/ext-apps/server`. 화면 HTML은 의존성 없는 한 파일로 기능 폴더의 `views/`에 두고 빌드 때 복사한다)
 - LLM: `claude` CLI 서브프로세스
 - 간격 반복: `ts-fsrs` (버전 고정, ADR-0016·0028)
 - 예약 작업: `@nestjs/schedule`과 그 크론 라이브러리 `cron`(둘 다 버전 고정, `SchedulerRegistry`에 동적으로 등록, ADR-0036)
@@ -37,7 +37,7 @@ src/
 │   └── setting          # 실행 중 정해지는 키-값 설정 (app_setting)
 └── tutor                # 튜터 기능 모듈
     ├── study            # 학습 맥락 조회·경험 카드 검색·학습 기록 MCP 도구, 서버 instructions
-    ├── quiz             # 출제·검증, 복습 문제 고르기·채점·신고·약점 보고·출제 지침 MCP 도구 (레이어 폴더와 출력 포트, ADR-0020·0029·0030·0031)
+    ├── quiz             # 출제·검증, 복습 문제 고르기·채점·신고·약점 보고·출제 지침 MCP 도구, MCP Apps 시험용 퀴즈 카드 (레이어 폴더와 출력 포트, ADR-0020·0029·0030·0031)
     ├── mastery          # 개념별 FSRS 복습 일정(ts-fsrs 어댑터), 숙련도·약점
     └── outreach         # 서버가 먼저 하는 일: 새벽 준비(04:00), 학습 알림(07:30 아침·21:00 저녁, ntfy). 저녁 주제·주간 리포트는 6단계
 ```
