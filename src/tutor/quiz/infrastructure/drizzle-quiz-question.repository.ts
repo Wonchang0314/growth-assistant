@@ -63,6 +63,18 @@ export class DrizzleQuizQuestionRepository extends QuizQuestionRepository implem
     return rows.map(toQuestion);
   }
 
+  async findAnyValid(type: QuestionType): Promise<Question | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(quizQuestion)
+      .where(
+        and(eq(quizQuestion.type, type), eq(quizQuestion.validationStatus, 'VALID'), eq(quizQuestion.reported, false)),
+      )
+      .orderBy(sql`random()`)
+      .limit(1);
+    return row && toQuestion(row);
+  }
+
   async findHistory(conceptId: number): Promise<QuestionHistory[]> {
     const usable = and(
       eq(quizQuestion.conceptId, conceptId),

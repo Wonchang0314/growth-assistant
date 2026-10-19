@@ -7,6 +7,7 @@ import { SettingModule } from '../../core/setting/setting.module.js';
 import { MasteryModule } from '../mastery/mastery.module.js';
 import { StudyModule } from '../study/study.module.js';
 import { QuestionGenerator, QuizAttemptRepository, QuizQuestionRepository } from './application/ports.js';
+import { QuizCardService } from './application/quiz-card.service.js';
 import { QuizGenerationService, RANDOM } from './application/quiz-generation.service.js';
 import { QuizGradingService } from './application/quiz-grading.service.js';
 import { QuizGuidelineService } from './application/quiz-guideline.service.js';
@@ -19,6 +20,7 @@ import { GetReviewSetTool } from './presentation/mcp/get-review-set.tool.js';
 import { GetWeaknessTool } from './presentation/mcp/get-weakness.tool.js';
 import { ReportQuestionTool } from './presentation/mcp/report-question.tool.js';
 import { SubmitAnswerTool } from './presentation/mcp/submit-answer.tool.js';
+import { TryQuizCardTool } from './presentation/mcp/try-quiz-card.tool.js';
 import { UpdateQuizGuidelineTool } from './presentation/mcp/update-quiz-guideline.tool.js';
 
 /**
@@ -43,6 +45,8 @@ import { UpdateQuizGuidelineTool } from './presentation/mcp/update-quiz-guidelin
     SubmitAnswerTool,
     ReportQuestionTool,
     UpdateQuizGuidelineTool,
+    QuizCardService,
+    TryQuizCardTool,
   ],
   exports: [QuizGenerationService, QuizReviewService],
 })
