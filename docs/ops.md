@@ -98,10 +98,26 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 | `OAUTH_ALLOWED_EMAILS` | 로그인을 허용할 구글 이메일(쉼표 구분). 구글이 확인한(`email_verified`) 이메일만 받는다 |
 | `OAUTH_CLIENT_ID_HOSTS` | 선택. CIMD `client_id` URL로 받을 호스트(쉼표 구분, 기본 `claude.ai`). 이 호스트의 https 문서만 가져온다 |
 
-- **첫 연결:** 서버 로그에 `처음 보는 client_id: …`(받은 것)나 `허용하지 않는 client_id: …`(거절한 것)가 남는다. 호스팅 앱의 client_id 호스트가 `claude.ai`가 아니면 `OAUTH_CLIENT_ID_HOSTS`에 더한다.
+- **첫 연결:** 서버 로그에 `처음 보는 client_id: …`(받은 것)나 `허용하지 않는 client_id: …`(거절한 것)가 남는다. 호스팅 앱의 client_id 호스트가 `claude.ai`가 아니면 `OAUTH_CLIENT_ID_HOSTS`에 더한다. 2026-10-20 claude.ai 웹에서 연결할 때 받은 값은 `https://claude.ai/oauth/mcp-oauth-client-metadata`(redirect_uri `https://claude.ai/api/mcp/auth_callback`)이고 기본값 그대로 됐다.
+- **커넥터 추가:** claude.ai **웹**에서 설정 → Connectors → Add custom connector, URL `https://mcp.seok.app/mcp`(고급 설정은 비움) → Connect → 구글 로그인 → 동의 화면에서 허용. 웹에서 붙이면 Desktop·모바일에도 뜬다.
 - **토큰:** 액세스 토큰 1시간, 리프레시 토큰 90일(갱신할 때마다 회전해 새로 90일). 90일 동안 쓰지 않으면 Claude에서 다시 연결한다. 이미 회전한 리프레시 토큰이 다시 오면 그 연결의 토큰을 모두 폐기하고 관리 알림을 남긴다(로그 `[관리 알림]`). 그러면 Claude에서 다시 연결해야 한다.
 - **로컬에서 흐름 시험:** `.env`의 `PUBLIC_BASE_URL=http://localhost:3100`으로 `npm run build && npm run mcp:http`를 띄우고(상시 실행 서버가 3100을 쓰면 `ops/uninstall.sh`로 잠깐 내린다), Claude Code에서 `claude mcp add --transport http growth-local http://localhost:3100/mcp` → `/mcp`에서 인증하면 브라우저로 구글 로그인 → 동의 화면 → 도구 목록까지 이어진다. Claude Code의 CIMD 문서(`https://claude.ai/oauth/claude-code-client-metadata`)가 루프백 리디렉트(`http://localhost/callback`, 포트는 아무거나)를 쓰므로 허용 호스트 기본값 그대로 된다. 끝나면 `claude mcp remove growth-local`.
 - **로그인을 끊고 싶을 때:** 아직 도구가 없다. DB에서 `UPDATE oauth_grant SET revoked_at = now() WHERE revoked_at IS NULL;`로 모든 연결을 폐기한다.
+
+### 공개 경로 (Cloudflare 터널, WAF)
+
+`https://mcp.seok.app`은 Cloudflare 이름 있는 터널로 이 Mac의 `127.0.0.1:3100`에 닿는다(ADR-0035). 맥미니의 `cloudflared`가 Cloudflare로 밖으로 나가는 연결을 맺으므로 공유기 포트를 열지 않는다. 도메인 `seok.app`의 DNS는 Cloudflare에 있다.
+
+- **터널:** 이름 `growth-assistant`(ID `d6c8e11b-e168-4172-9323-6b8f58d94fd8`). 설정 `~/.cloudflared/config.yml`(ingress: `mcp.seok.app` → `http://127.0.0.1:3100`, 나머지 404), 자격 파일 `~/.cloudflared/<ID>.json`과 `~/.cloudflared/cert.pem`은 비밀이다. DNS `mcp` CNAME은 `cloudflared tunnel route dns growth-assistant mcp.seok.app`으로 만들었다.
+- **처음 만들기(다른 기기에서 다시 할 때):** `brew install cloudflared` → `cloudflared tunnel login`(도메인 선택) → `cloudflared tunnel create growth-assistant` → `config.yml` 작성 → `cloudflared tunnel ingress validate` → `cloudflared tunnel route dns …` → `cloudflared tunnel run growth-assistant`로 시험 → 상시 실행 등록. Homebrew가 안내하는 `brew services start cloudflared`는 터널 인자 없이 띄우므로 쓰지 않는다.
+- **상시 실행:** `cloudflared service install`(sudo 없이)로 LaunchAgent `com.cloudflare.cloudflared`가 생긴다. 로그인해야 뜬다(서버와 같은 조건). **함정:** 이렇게 만든 plist는 `ProgramArguments`가 `cloudflared` 하나뿐이라 터널을 띄우지 않고(로그에 "use `cloudflared tunnel run`" 반복, 공개 주소 530) 종료를 되풀이한다. `~/Library/LaunchAgents/com.cloudflare.cloudflared.plist`의 `ProgramArguments`에 `tunnel`, `run`을 더하고 `launchctl bootout gui/$(id -u)/com.cloudflare.cloudflared` → `launchctl bootstrap gui/$(id -u) <plist>`로 다시 올린다(2026-10-20에 고침, 원본 `.bak-20261020`). `cloudflared service install`을 다시 하면 이 수정이 사라진다.
+- **로그:** `~/Library/Logs/com.cloudflare.cloudflared.{out,err}.log`. 공개 주소가 502면 터널은 붙었고 서버가 꺼진 것, 530이면 터널이 안 붙은 것이다.
+- **WAF:** Cloudflare 대시보드 → `seok.app` → Security rules → Custom rules에 규칙 하나(무료 플랜). `/mcp`·`/token`은 Anthropic 외부 요청 대역에서만 받고, `/authorize`·구글 콜백·메타데이터·`/healthz`는 브라우저와 외부 헬스체크가 쓰므로 열어 둔다. Action은 Block.
+  ```
+  (http.host eq "mcp.seok.app" and http.request.uri.path in {"/mcp" "/mcp/" "/token"} and not ip.src in {160.79.104.0/21})
+  ```
+  확인: 이 Mac에서 `curl -X POST https://mcp.seok.app/token`이 Cloudflare 차단 페이지(403 "Sorry, you have been blocked")면 동작한다. Anthropic이 대역을 바꾸면([IP 주소 문서](https://platform.claude.com/docs/en/api/ip-addresses)) 이 규칙을 고친다.
+- **Bot Fight Mode는 끈다.** 켜면 Anthropic 서버의 요청을 봇으로 막을 수 있다.
 
 ## 로그
 
