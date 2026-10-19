@@ -25,7 +25,7 @@ const envSchema = z.object({
   /** 로그인을 허용할 구글 이메일 (쉼표 구분, 대소문자 무시). */
   OAUTH_ALLOWED_EMAILS: commaList().transform((list) => list.map((e) => e.toLowerCase())),
   /** CIMD `client_id` URL로 받을 호스트 (쉼표 구분). 이 호스트의 https 문서만 가져온다(SSRF 방지). */
-  OAUTH_CLIENT_ID_HOSTS: commaList('claude.ai'),
+  OAUTH_CLIENT_ID_HOSTS: commaList('claude.ai,chatgpt.com'),
 
   // 운영 알림 (core/logging). 토픽이 없으면 로그만 남긴다.
   /** ntfy 토픽 이름. 아는 사람은 누구나 구독·발행할 수 있으니 추측하기 어렵게 짓고 비밀로 둔다. */
