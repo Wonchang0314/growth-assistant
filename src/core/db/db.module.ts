@@ -12,7 +12,8 @@ export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 /** 저장소가 `@Inject(DB)`로 받는 Drizzle 인스턴스. */
 export const DB = Symbol('DB');
-const DB_POOL = Symbol('DB_POOL');
+/** 연결 하나를 오래 잡아야 하는 곳(세션 advisory 잠금 `JobLock`)이 `@Inject(DB_POOL)`로 받는 pg 풀. */
+export const DB_POOL = Symbol('DB_POOL');
 
 /** drizzle-kit이 만든 SQL 마이그레이션 (`npm run db:generate`). 빌드할 때 dist로 함께 복사한다 (nest-cli.json). */
 export const MIGRATIONS_FOLDER = join(import.meta.dirname, 'migrations');
@@ -55,7 +56,7 @@ export class DbModule implements OnApplicationShutdown {
           },
         },
       ],
-      exports: [DB],
+      exports: [DB, DB_POOL],
     };
   }
 

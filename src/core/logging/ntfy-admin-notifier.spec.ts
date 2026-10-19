@@ -52,6 +52,15 @@ describe('NtfyAdminNotifier', () => {
     expect(request?.body).toBe('2026-10-20 09:00:00. 자세한 내용은 서버 로그를 본다.');
   });
 
+  it('리프레시 토큰 재사용(탈취 의심)만 우선순위가 urgent다', async () => {
+    const { notifier } = setup();
+
+    await notifier.notify('REFRESH_TOKEN_REUSE', '계열 1');
+    await notifier.notify('SCHEDULED_JOB_FAILED', 'nightly-prep');
+
+    expect(received.map((r) => r.headers.priority)).toEqual(['urgent', 'high']);
+  });
+
   it('1시간 안의 같은 종류는 보내지 않고, 1시간 뒤 알림에 그 건수를 붙인다', async () => {
     const { clock, notifier } = setup();
 

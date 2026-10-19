@@ -189,6 +189,31 @@ describe('get_review_set', () => {
   });
 });
 
+describe('오늘 복습 (새벽 문제 만들기, 학습 알림)', () => {
+  it('오늘 안에 때가 되는 개념을 고르고 내일 개념과 새 개념은 넣지 않으며, 오늘 푼 수를 함께 준다', async () => {
+    await mastery.introduce([1], new Date(clock.now().getTime() + 60_000));
+    await mastery.introduce([2], new Date(clock.now().getTime() + DAY));
+
+    const before = await review.today();
+    await submit(await addQuestion(1), '1');
+
+    expect(before).toEqual({ answered: 0, conceptIds: [1] });
+    expect(await review.today()).toMatchObject({ answered: 1 });
+  });
+
+  it('낼 문제가 없는 개념만 상한까지 하나씩 만든다', async () => {
+    await mastery.introduce([1, 2, await addIsolationLevel()], clock.now());
+    await addQuestion(1);
+    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+
+    const result = await review.prepareToday(1);
+
+    expect(result).toEqual({ concepts: 1, ready: 1 });
+    expect(claude.requestsFor('QUIZ_GENERATION')).toHaveLength(1);
+    expect(await questions.findServable(2, 1)).toHaveLength(1);
+  });
+});
+
 describe('submit_answer', () => {
   it('채점해 풀이를 남기고 숙련도와 다음 복습일을 갱신한다', async () => {
     const id = await addQuestion(1);

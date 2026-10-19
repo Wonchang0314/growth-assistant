@@ -95,6 +95,7 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       'review_concept',
       'search_experience',
       'submit_answer',
+      'sync_now',
       'sync_status',
       'update_quiz_guideline',
     ]);
