@@ -71,6 +71,7 @@
 - [x] 상시 실행 진입점(LaunchAgent `com.growthassistant.server`, `ops/install.sh`·`ops/uninstall.sh`, 배포 뒤 다시 띄우기). MCP HTTP 서버를 띄운다. 5단계 예약 작업을 같은 프로세스에 둘지는 그때 정한다
 - [x] 운영 감시 (LaunchAgent `KeepAlive`, ntfy 운영 알림·같은 종류 1시간 묶기, UptimeRobot `/healthz` 5분 감시, 2026-10-20)
 - [x] 모바일·아이패드 수동 점검 (2026-10-20, `docs/manual-check.md` 4단계. 맥미니 Desktop은 로컬 stdio 대신 원격 커넥터를 쓴다)
+- [ ] ChatGPT에서 같은 커넥터 시험 (WAF IP 제한 끔, CIMD 허용 호스트에 `chatgpt.com`, ADR-0037). 채팅 퀴즈가 어떻게 보이는지 본다
 
 ## 5. 예약 작업: 먼저 말 걸기 (프로토타입 2)
 - [x] 결정: HTTP 서버 안의 스케줄러(놓친 실행 DB로 한 번 따라잡기), 새벽 04:00 동기화·추출·추상화·문제 보충, 아침 07:30 Cowork 예약 작업 시험 + ntfy 저녁 21:00, `sync_now` (ADR-0036)

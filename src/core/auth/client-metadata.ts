@@ -13,6 +13,7 @@ const clientMetadataSchema = z.object({
   client_name: z.string().optional(),
   redirect_uris: z.array(z.string()).min(1),
   token_endpoint_auth_method: z.string().optional(),
+  token_endpoint_auth_methods_supported: z.array(z.string()).optional(),
 });
 
 /** 검사를 통과한 클라이언트. 동의 화면에 보여 준다. */
@@ -43,14 +44,18 @@ export function parseClientIdUrl(clientId: string, allowedHosts: readonly string
 
 /**
  * 가져온 문서가 그 `client_id`의 문서이고 [redirectUri]가 문서에 등록돼 있는지 본다.
- * 공개 클라이언트(시크릿 없음)만 받는다.
+ * 공개 클라이언트(시크릿 없음)만 받는다. 기본 방식이 다르더라도 지원 목록에 `none`이 있으면 받는다
+ * (ChatGPT는 기본이 `private_key_jwt`이고 `none`도 지원해, 서버가 알린 `none`으로 토큰을 받는다).
  */
 export function verifyClientMetadata(document: unknown, clientId: string, redirectUri: string): VerifiedClient {
   const parsed = clientMetadataSchema.safeParse(document);
   if (!parsed.success) throw new AuthorizeError(400, 'client_id 문서의 형식이 맞지 않다');
   const metadata = parsed.data;
   if (metadata.client_id !== clientId) throw new AuthorizeError(400, 'client_id 문서의 client_id가 주소와 다르다');
-  if ((metadata.token_endpoint_auth_method ?? 'none') !== 'none')
+  if (
+    (metadata.token_endpoint_auth_method ?? 'none') !== 'none' &&
+    !metadata.token_endpoint_auth_methods_supported?.includes('none')
+  )
     throw new AuthorizeError(400, '공개 클라이언트(token_endpoint_auth_method=none)만 받는다');
   if (!redirectUriRegistered(metadata.redirect_uris, redirectUri))
     throw new AuthorizeError(400, `client_id 문서에 없는 redirect_uri다: ${redirectUri}`);

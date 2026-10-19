@@ -36,10 +36,26 @@ describe('verifyClientMetadata', () => {
     expect(verifyClientMetadata(document({ client_name: undefined }), CLIENT_ID, CALLBACK).name).toBe('claude.ai');
   });
 
+  it('기본 방식이 기밀이어도 지원 목록에 none이 있으면 받는다 (ChatGPT)', () => {
+    const doc = document({
+      token_endpoint_auth_method: 'private_key_jwt',
+      token_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
+    });
+    expect(verifyClientMetadata(doc, CLIENT_ID, CALLBACK).clientId).toBe(CLIENT_ID);
+  });
+
   it.each([
     ['문서의 client_id가 주소와 다르면', document({ client_id: 'https://claude.ai/other' }), /주소와 다르다/],
     ['redirect_uri가 문서에 없으면', document({ redirect_uris: ['https://claude.ai/other'] }), /없는 redirect_uri/],
     ['기밀 클라이언트면', document({ token_endpoint_auth_method: 'client_secret_basic' }), /공개 클라이언트/],
+    [
+      '지원 목록에도 none이 없으면',
+      document({
+        token_endpoint_auth_method: 'private_key_jwt',
+        token_endpoint_auth_methods_supported: ['private_key_jwt'],
+      }),
+      /공개 클라이언트/,
+    ],
     ['형식이 다르면', { client_id: CLIENT_ID }, /형식/],
   ])('%s 거절한다', (_, doc, message) => {
     expect(() => verifyClientMetadata(doc, CLIENT_ID, CALLBACK)).toThrow(message);

@@ -19,7 +19,7 @@ describe('AuthSettings', () => {
       resourceMetadataUrl: 'https://mcp.seok.app/.well-known/oauth-protected-resource/mcp',
       googleRedirectUri: 'https://mcp.seok.app/oauth/google/callback',
       allowedEmails: ['me@example.com'],
-      clientIdHosts: ['claude.ai'],
+      clientIdHosts: ['claude.ai', 'chatgpt.com'],
     });
   });
 

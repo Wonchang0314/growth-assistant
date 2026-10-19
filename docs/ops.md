@@ -96,9 +96,9 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 | `PUBLIC_BASE_URL` | 바깥에서 닿는 주소 `https://mcp.seok.app`. OAuth issuer이고, Claude에 넣는 MCP URL은 여기에 `/mcp`를 붙인 `https://mcp.seok.app/mcp`다. 로컬에서 시험할 때는 `http://localhost:3100` |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | Google Cloud의 OAuth 클라이언트(웹 애플리케이션). 리디렉트 URI는 `<PUBLIC_BASE_URL>/oauth/google/callback`(운영 `https://mcp.seok.app/…`, 개발 `http://localhost:3100/…`) |
 | `OAUTH_ALLOWED_EMAILS` | 로그인을 허용할 구글 이메일(쉼표 구분). 구글이 확인한(`email_verified`) 이메일만 받는다 |
-| `OAUTH_CLIENT_ID_HOSTS` | 선택. CIMD `client_id` URL로 받을 호스트(쉼표 구분, 기본 `claude.ai`). 이 호스트의 https 문서만 가져온다 |
+| `OAUTH_CLIENT_ID_HOSTS` | 선택. CIMD `client_id` URL로 받을 호스트(쉼표 구분, 기본 `claude.ai,chatgpt.com`). 이 호스트의 https 문서만 가져온다 |
 
-- **첫 연결:** 서버 로그에 `처음 보는 client_id: …`(받은 것)나 `허용하지 않는 client_id: …`(거절한 것)가 남는다. 호스팅 앱의 client_id 호스트가 `claude.ai`가 아니면 `OAUTH_CLIENT_ID_HOSTS`에 더한다. 2026-10-20 claude.ai 웹에서 연결할 때 받은 값은 `https://claude.ai/oauth/mcp-oauth-client-metadata`(redirect_uri `https://claude.ai/api/mcp/auth_callback`)이고 기본값 그대로 됐다.
+- **첫 연결:** 서버 로그에 `처음 보는 client_id: …`(받은 것)나 `허용하지 않는 client_id: …`(거절한 것)가 남는다. 호스팅 앱의 client_id 호스트가 기본값에 없으면 `OAUTH_CLIENT_ID_HOSTS`에 더한다. 2026-10-20 claude.ai 웹에서 연결할 때 받은 값은 `https://claude.ai/oauth/mcp-oauth-client-metadata`(redirect_uri `https://claude.ai/api/mcp/auth_callback`)이고 기본값 그대로 됐다. ChatGPT의 client_id는 `https://chatgpt.com/oauth/client.json`(redirect_uri `https://chatgpt.com/connector_platform_oauth_redirect`, 기본 인증 방식 `private_key_jwt`이지만 `none`도 지원해 받는다, ADR-0037)이다.
 - **커넥터 추가:** claude.ai **웹**에서 설정 → Connectors → Add custom connector, URL `https://mcp.seok.app/mcp`(고급 설정은 비움) → Connect → 구글 로그인 → 동의 화면에서 허용. 웹에서 붙이면 Desktop·모바일에도 뜬다.
 - **토큰:** 액세스 토큰 1시간, 리프레시 토큰 90일(갱신할 때마다 회전해 새로 90일). 90일 동안 쓰지 않으면 Claude에서 다시 연결한다. 이미 회전한 리프레시 토큰이 다시 오면 그 연결의 토큰을 모두 폐기하고 운영 알림을 보낸다(아래 "운영 알림", 로그 `[관리 알림]`). 그러면 Claude에서 다시 연결해야 한다.
 - **로컬에서 흐름 시험:** `.env`의 `PUBLIC_BASE_URL=http://localhost:3100`으로 `npm run build && npm run mcp:http`를 띄우고(상시 실행 서버가 3100을 쓰면 `ops/uninstall.sh`로 잠깐 내린다), Claude Code에서 `claude mcp add --transport http growth-local http://localhost:3100/mcp` → `/mcp`에서 인증하면 브라우저로 구글 로그인 → 동의 화면 → 도구 목록까지 이어진다. Claude Code의 CIMD 문서(`https://claude.ai/oauth/claude-code-client-metadata`)가 루프백 리디렉트(`http://localhost/callback`, 포트는 아무거나)를 쓰므로 허용 호스트 기본값 그대로 된다. 끝나면 `claude mcp remove growth-local`.
@@ -112,11 +112,11 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 - **처음 만들기(다른 기기에서 다시 할 때):** `brew install cloudflared` → `cloudflared tunnel login`(도메인 선택) → `cloudflared tunnel create growth-assistant` → `config.yml` 작성 → `cloudflared tunnel ingress validate` → `cloudflared tunnel route dns …` → `cloudflared tunnel run growth-assistant`로 시험 → 상시 실행 등록. Homebrew가 안내하는 `brew services start cloudflared`는 터널 인자 없이 띄우므로 쓰지 않는다.
 - **상시 실행:** `cloudflared service install`(sudo 없이)로 LaunchAgent `com.cloudflare.cloudflared`가 생긴다. 로그인해야 뜬다(서버와 같은 조건). **함정:** 이렇게 만든 plist는 `ProgramArguments`가 `cloudflared` 하나뿐이라 터널을 띄우지 않고(로그에 "use `cloudflared tunnel run`" 반복, 공개 주소 530) 종료를 되풀이한다. `~/Library/LaunchAgents/com.cloudflare.cloudflared.plist`의 `ProgramArguments`에 `tunnel`, `run`을 더하고 `launchctl bootout gui/$(id -u)/com.cloudflare.cloudflared` → `launchctl bootstrap gui/$(id -u) <plist>`로 다시 올린다(2026-10-20에 고침, 원본 `.bak-20261020`). `cloudflared service install`을 다시 하면 이 수정이 사라진다.
 - **로그:** `~/Library/Logs/com.cloudflare.cloudflared.{out,err}.log`. 공개 주소가 502면 터널은 붙었고 서버가 꺼진 것, 530이면 터널이 안 붙은 것이다.
-- **WAF:** Cloudflare 대시보드 → `seok.app` → Security rules → Custom rules에 규칙 하나(무료 플랜). `/mcp`·`/token`은 Anthropic 외부 요청 대역에서만 받고, `/authorize`·구글 콜백·메타데이터·`/healthz`는 브라우저와 외부 헬스체크가 쓰므로 열어 둔다. Action은 Block.
+- **WAF (2026-10-20부터 꺼 둠, ADR-0037):** Cloudflare 대시보드 → `seok.app` → Security rules → Custom rules에 규칙 하나(무료 플랜)가 비활성 상태로 있다. 켜면 `/mcp`·`/token`을 Anthropic 외부 요청 대역에서만 받는다. ChatGPT도 받으려고 껐다(ChatGPT 대역은 수백 개이고 자주 바뀐다). 지금은 OAuth만 막는다. 이상한 요청이 늘면 다시 켠다(그러면 ChatGPT 연결은 막힌다).
   ```
   (http.host eq "mcp.seok.app" and http.request.uri.path in {"/mcp" "/mcp/" "/token"} and not ip.src in {160.79.104.0/21})
   ```
-  확인: 이 Mac에서 `curl -X POST https://mcp.seok.app/token`이 Cloudflare 차단 페이지(403 "Sorry, you have been blocked")면 동작한다. Anthropic이 대역을 바꾸면([IP 주소 문서](https://platform.claude.com/docs/en/api/ip-addresses)) 이 규칙을 고친다.
+  확인: 꺼진 상태에서 이 Mac의 `curl -X POST https://mcp.seok.app/mcp`는 서버가 답하는 401, 켜진 상태에서는 Cloudflare 차단 페이지(403)다. Anthropic 대역은 [IP 주소 문서](https://platform.claude.com/docs/en/api/ip-addresses).
 - **Bot Fight Mode는 끈다.** 켜면 Anthropic 서버의 요청을 봇으로 막을 수 있다.
 
 ### 운영 알림 (ntfy, 외부 헬스체크)
@@ -133,7 +133,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 - **묶기:** 같은 종류는 1시간에 한 번만 보낸다. 그 사이 생긴 건수는 1시간이 지나 처음 오는 같은 종류 알림에 "외 N건"으로 붙는다. 묶기 상태는 프로세스 메모리라 서버를 다시 띄우면 처음부터 센다.
 - **알림 내용:** 제목(종류)과 시각, 건수만 보낸다. ntfy.sh 공용 서버를 평문으로 지나가므로 이메일·토큰 계열 ID 같은 자세한 내용은 보내지 않고 서버 로그의 `[관리 알림]` 줄에만 남긴다. 알림을 받으면 로그(`~/.growth-assistant/logs/mcp-http/current.log`)를 본다.
 - **ntfy 전송 실패:** 로그에 `ntfy 전송 실패`만 남기고 원래 요청은 그대로 처리한다(5초 타임아웃).
-- **서버 다운 감시 (UptimeRobot, 2026-10-20 등록):** UptimeRobot 무료 계정 → New monitor → HTTP(s), URL `https://mcp.seok.app/healthz`, 간격 5분 → 알림 연락처(앱 푸시나 이메일)를 고르고, 한 번 실패로 울리지 않게 연속 실패 뒤 알리도록 둔다 → 저장. `/healthz`는 DB에 쿼리가 닿으면 200, 아니면 503이고, 터널이 끊기면 530, 서버가 꺼져 있으면 502다. 내려감·복구 때 한 번씩만 알린다. `/healthz`는 WAF에서 열어 두었다.
+- **서버 다운 감시 (UptimeRobot, 2026-10-20 등록):** UptimeRobot 무료 계정 → New monitor → HTTP(s), URL `https://mcp.seok.app/healthz`, 간격 5분 → 알림 연락처(앱 푸시나 이메일)를 고르고, 한 번 실패로 울리지 않게 연속 실패 뒤 알리도록 둔다 → 저장. `/healthz`는 DB에 쿼리가 닿으면 200, 아니면 503이고, 터널이 끊기면 530, 서버가 꺼져 있으면 502다. 내려감·복구 때 한 번씩만 알린다. 
 
 ### 예약 작업 (새벽 준비, 학습 알림)
 
