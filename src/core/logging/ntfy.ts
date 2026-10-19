@@ -10,6 +10,8 @@ export interface NtfyMessage {
   readonly priority: 'urgent' | 'high' | 'default';
   /** ntfy 태그(쉼표 구분). 알림 앞에 이모지로 보인다. */
   readonly tags: string;
+  /** 알림을 누르면 여는 주소 (ntfy `Click` 헤더). */
+  readonly click?: string;
 }
 
 /** `<NTFY_URL>/<NTFY_TOPIC>`. 토픽이 없으면 undefined(알림을 로그로만 남긴다). 토픽을 아는 사람은 누구나 구독할 수 있으므로 로그에 남기지 않는다. */
@@ -23,7 +25,12 @@ export function ntfyTopicUrl(config: ConfigService<Env, true>): URL | undefined 
 export async function publishNtfy(topicUrl: URL, message: NtfyMessage): Promise<void> {
   const res = await fetch(topicUrl, {
     method: 'POST',
-    headers: { Title: encodeHeader(message.title), Priority: message.priority, Tags: message.tags },
+    headers: {
+      Title: encodeHeader(message.title),
+      Priority: message.priority,
+      Tags: message.tags,
+      ...(message.click === undefined ? {} : { Click: message.click }),
+    },
     body: message.body,
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });

@@ -77,17 +77,11 @@ export class QuizReviewService {
       if (!found) return { kind: 'UNKNOWN_CONCEPT', name: input.concept };
       return this.serve([{ conceptId: found.id, count: input.count ?? CONCEPT_DEFAULT_COUNT }], null);
     }
-    const now = this.clock.now();
-    const remaining =
-      DAILY_LIMIT - (await this.attempts.countOnDate(localDate(now, this.clock.timeZone), this.clock.timeZone));
+    const { date, answered } = await this.answeredToday();
+    const remaining = DAILY_LIMIT - answered;
     if (remaining <= 0) return { kind: 'DAILY_LIMIT_REACHED' };
     const limit = Math.min(input.count ?? remaining, remaining);
-    const [rootCauses, candidates, confused] = await Promise.all([
-      this.weakness.rootCauseIds(limit),
-      this.mastery.reviewCandidates(now, limit),
-      this.studyNotes.unresolvedConfusedConcepts(limit),
-    ]);
-    const conceptIds = pickConcepts({ ...candidates, rootCauses, confused, limit, random: this.random });
+    const conceptIds = await this.pick(date, limit, await this.mastery.unscheduled());
     return this.serve(
       conceptIds.map((conceptId) => ({ conceptId, count: 1 })),
       remaining,
@@ -96,31 +90,44 @@ export class QuizReviewService {
 
   /**
    * 오늘([Clock.timeZone]) 푼 수와 오늘 더 복습할 개념. 학습 알림과 새벽 문제 만들기가 쓴다.
-   * 개념은 복습 세트의 우선순위(근본 원인 → 오늘 안에 때가 되는 개념 → 헷갈린 개념 → 약점)대로 오늘 남은 수까지이고,
-   * 새 개념(복습 세트가 그때그때 무작위로 뽑음)은 넣지 않는다.
+   * 개념은 복습 세트와 같은 우선순위로 오늘 남은 수까지이고, 새 개념(복습 세트가 그때그때 무작위로 뽑음)은 넣지 않는다.
    */
   async today(): Promise<{ answered: number; conceptIds: number[] }> {
-    const { timeZone } = this.clock;
-    const date = localDate(this.clock.now(), timeZone);
-    const answered = await this.attempts.countOnDate(date, timeZone);
+    const { date, answered } = await this.answeredToday();
     const limit = DAILY_LIMIT - answered;
     if (limit <= 0) return { answered, conceptIds: [] };
+    return { answered, conceptIds: await this.pick(date, limit, []) };
+  }
+
+  private async answeredToday(): Promise<{ date: string; answered: number }> {
+    const date = localDate(this.clock.now(), this.clock.timeZone);
+    return { date, answered: await this.attempts.countOnDate(date, this.clock.timeZone) };
+  }
+
+  /**
+   * 오늘 복습할 개념을 우선순위(근본 원인 → [date] 안에 때가 되는 개념 → 헷갈린 개념 → 약점)대로 [limit]개 고르고,
+   * 모자라면 [fresh]에서 채운다. 아침에 받은 알림의 개수와 그날 복습 세트가 같은 개념을 세도록 "지금"이 아니라 날짜로 본다.
+   */
+  private async pick(
+    date: string,
+    limit: number,
+    fresh: readonly { conceptId: number; weight: number }[],
+  ): Promise<number[]> {
     const [rootCauses, due, confused, weak] = await Promise.all([
       this.weakness.rootCauseIds(limit),
-      this.mastery.dueOn(date, timeZone, limit),
+      this.mastery.dueOn(date, this.clock.timeZone, limit),
       this.studyNotes.unresolvedConfusedConcepts(limit),
       this.mastery.weakConcepts(limit),
     ]);
-    const conceptIds = pickConcepts({
+    return pickConcepts({
       rootCauses,
       due,
       confused,
       weak: weak.map((m) => m.conceptId),
-      fresh: [],
+      fresh,
       limit,
       random: this.random,
     });
-    return { answered, conceptIds };
   }
 
   /**
