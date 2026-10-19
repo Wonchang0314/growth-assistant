@@ -97,7 +97,6 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
       'submit_answer',
       'sync_now',
       'sync_status',
-      'try_quiz_card',
       'update_quiz_guideline',
     ]);
     expect(tools.find((t) => t.name === 'get_learning_context')?.annotations?.readOnlyHint).toBe(true);
@@ -138,50 +137,6 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
     expect(JSON.stringify(set.content)).not.toContain('거의 모든 행');
     expect(graded.structuredContent).toMatchObject({ correct: true, correctAnswer: '2. 선택도가 낮아서' });
     expect(JSON.stringify(graded.content)).toContain('다음 복습 2026-10-');
-  });
-
-  it('try_quiz_card는 문제를 카드 화면(ui://)과 글로 함께 내고, 정답·해설·오개념은 싣지 않는다', async () => {
-    const conceptId = (await testDb.db.select().from(concept).where(eq(concept.name, '인덱스 원리')))[0]?.id ?? -1;
-    await new DrizzleQuizQuestionRepository(testDb.db).add({
-      conceptId,
-      type: 'MULTIPLE_CHOICE',
-      angle: 'WHY',
-      keyPoint: '선택도',
-      difficulty: 1,
-      prompt: '성별 컬럼 인덱스가 느린 이유는?',
-      choices: [
-        { text: '컬럼이 짧아서', misconception: '짧으면 안 된다고 믿음' },
-        { text: '선택도가 낮아서', misconception: null },
-      ],
-      answer: '선택도가 낮아서',
-      explanation: '거의 모든 행을 읽는다',
-      referenceMaterial: '근거 자료',
-      experienceId: null,
-      variantOf: null,
-      caseId: null,
-      validationStatus: 'VALID',
-      validationNote: null,
-      createdAt: clock.now(),
-    });
-
-    const tool = (await client.listTools()).tools.find((t) => t.name === 'try_quiz_card');
-    const uri = 'ui://growth-assistant/quiz-card.html';
-    const card = await client.callTool({ name: 'try_quiz_card', arguments: {} });
-    const view = await client.readResource({ uri });
-
-    expect(tool?._meta).toMatchObject({ ui: { resourceUri: uri } });
-    expect(card.structuredContent).toEqual({
-      questionId: 1,
-      concept: '인덱스 원리',
-      prompt: '성별 컬럼 인덱스가 느린 이유는?',
-      choices: ['컬럼이 짧아서', '선택도가 낮아서'],
-    });
-    expect(JSON.stringify(card.content)).toContain('1. 컬럼이 짧아서\\n2. 선택도가 낮아서');
-    for (const secret of ['거의 모든 행', '짧으면 안 된다고', '근거 자료']) {
-      expect(JSON.stringify(card)).not.toContain(secret);
-    }
-    expect(view.contents[0]).toMatchObject({ mimeType: 'text/html;profile=mcp-app' });
-    expect(JSON.stringify(view.contents[0])).toContain('submit_answer');
   });
 
   it('update_quiz_guideline으로 출제 지침을 더하고 빼며, 인자 없이 부르면 지금 지침을 보여 준다', async () => {

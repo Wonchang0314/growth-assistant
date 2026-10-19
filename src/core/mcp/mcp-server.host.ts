@@ -1,7 +1,6 @@
 import { inspect } from 'node:util';
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { DiscoveryService } from '@nestjs/core';
-import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { type CallToolResult, McpServer, type Transport } from '@modelcontextprotocol/server';
 import { isMcpToolHandler, McpTool, type McpToolHandler } from './mcp-tool.js';
 
@@ -50,21 +49,15 @@ export class McpServerHost implements OnModuleInit {
       this.options.instructions ? { instructions: this.options.instructions } : {},
     );
     for (const tool of this.tools.values()) {
-      const config = {
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        annotations: { readOnlyHint: tool.readOnly, destructiveHint: false, openWorldHint: false },
-      };
-      const callback = (input: Record<string, unknown>) => this.call(tool, input);
-      if (!tool.view) {
-        server.registerTool(tool.name, config, callback);
-        continue;
-      }
-      const { uri, name, html } = tool.view;
-      registerAppTool(server, tool.name, { ...config, _meta: { ui: { resourceUri: uri } } }, callback);
-      registerAppResource(server, name, uri, {}, () => ({
-        contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: html }],
-      }));
+      server.registerTool(
+        tool.name,
+        {
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+          annotations: { readOnlyHint: tool.readOnly, destructiveHint: false, openWorldHint: false },
+        },
+        (input) => this.call(tool, input),
+      );
     }
     return server;
   }
