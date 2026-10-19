@@ -218,9 +218,12 @@
       }
 
       function show(result) {
-        const data = result?.structuredContent;
+        const payload = result?.structuredContent;
+        const data = Array.isArray(payload?.questions) ? payload.questions[0] : payload;
         if (!data || !Array.isArray(data.choices)) {
-          renderStatus(result?.content?.[0]?.text ?? '문제가 없다');
+          card = null;
+          $('card').hidden = true;
+          renderStatus(result?.content?.[0]?.text ?? '오늘 복습할 문제가 없어요');
           return;
         }
         card = data;
