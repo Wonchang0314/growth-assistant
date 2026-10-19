@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { McpTool, type McpToolHandler, type McpToolResult } from '../../../../core/mcp/mcp-tool.js';
+import { McpTool, type McpToolHandler, type McpToolResult, type McpToolView } from '../../../../core/mcp/mcp-tool.js';
 import { QuizReviewService, RETRY_AFTER_MS, type ServedQuestion } from '../../application/quiz-review.service.js';
 import { DAILY_LIMIT } from '../../domain/review-selection.js';
 
@@ -22,9 +24,14 @@ export class GetReviewSetTool implements McpToolHandler<typeof input> {
   readonly description =
     '복습할 퀴즈 문제(지금은 객관식)를 가져온다. 사용자가 "복습하자", "문제 내줘", "OO 문제 내줘"라고 하면 부른다. ' +
     '개념을 고르지 않으면 복습할 때가 된 개념, 헷갈렸던 개념, 약점, 새 개념 순으로 하루 10문제 안에서 고른다. ' +
-    '정답은 돌려주지 않는다. 문제를 한 번에 하나씩 내고, 답을 들으면 확신도를 물은 뒤 submit_answer로 채점한다.';
+    '첫 복습 문제를 MCP Apps 퀴즈 카드로 표시한다. 정답은 돌려주지 않는다. 카드에서 보기와 확신도를 골라 submit_answer로 채점한다. 시험용 무작위 문제로 대체하지 않는다.';
   readonly inputSchema = input;
   readonly readOnly = false;
+  readonly view: McpToolView = {
+    uri: 'ui://growth-assistant/review-quiz-card.html',
+    name: '오늘 복습 퀴즈 카드',
+    html: readFileSync(join(import.meta.dirname, 'views', 'quiz-card.html'), 'utf8'),
+  };
 
   constructor(private readonly review: QuizReviewService) {}
 
@@ -37,7 +44,7 @@ export class GetReviewSetTool implements McpToolHandler<typeof input> {
         return { text: `오늘 복습 ${DAILY_LIMIT}문제를 다 풀었다. 내일 이어서 한다.`, data: { questions: [] } };
       case 'READY': {
         const lines = [
-          set.questions.length === 0 ? '지금 낼 문제가 없다' : set.questions.map(describe).join('\n\n'),
+          ...(set.questions[0] ? [describe(set.questions[0])] : []),
           ...(set.preparing.length === 0
             ? []
             : [`문제를 만드는 중(1~2분 걸림, 다시 부르면 나옴): ${set.preparing.join(', ')}`]),
@@ -46,9 +53,8 @@ export class GetReviewSetTool implements McpToolHandler<typeof input> {
             : [
                 `문제를 만들지 못함(검증을 통과하지 못함, ${RETRY_AFTER_MS / 60_000}분 뒤 다시 만든다): ${set.failed.join(', ')}`,
               ]),
-          ...(set.remainingToday === null ? [] : [`오늘 더 풀 수 있는 문제: ${set.remainingToday}`]),
         ];
-        return { text: lines.join('\n\n'), data: { ...set } };
+        return { text: lines.join('\n\n') || '오늘 복습할 문제가 없어요', data: { ...set } };
       }
       default: {
         const _exhaustive: never = set;

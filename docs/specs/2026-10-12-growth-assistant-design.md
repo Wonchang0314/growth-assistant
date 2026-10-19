@@ -501,12 +501,13 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 **MCP Apps 시험** (`try_quiz_card`, 6단계 퀴즈 화면 전에 확인)
 
 - 목적: MCP Apps 화면이 클라이언트(웹·Desktop·아이폰·아이패드·Cowork 예약 작업 대화)마다 그려지는지, 화면 버튼이 서버 도구를 불러 채점할 수 있는지 확인한다. 확인 순서는 `docs/manual-check.md` "MCP Apps 퀴즈 카드".
-- 사용자가 "퀴즈 카드 보여 줘"라고 할 때만 부른다. 평소 복습(`get_review_set`)은 바꾸지 않는다.
+- 사용자가 "퀴즈 카드 보여 줘"라고 할 때만 부른다. 평소 복습은 아래 "복습 카드"처럼 `get_review_set`이 같은 화면을 쓴다.
 - 문제 풀에서 검증을 통과했고 신고되지 않은 객관식 하나를 무작위로 고른다. 복습 일정·하루 상한·이미 풀었는지는 보지 않고, 낸 횟수(`used_count`)도 올리지 않는다.
 - 결과는 문제 ID·개념 이름·질문·보기만 담는다(정답·해설·오개념·기준 자료 없음). 카드를 그리지 못하는 클라이언트를 위해 텍스트에도 문제와 번호 보기를 싣는다.
 - 화면: 도구에 `_meta.ui.resourceUri = ui://growth-assistant/quiz-card.html`을 붙이고, 그 리소스(`text/html;profile=mcp-app`)로 의존성 없는 HTML 한 파일을 내보낸다(`@modelcontextprotocol/ext-apps`의 서버 도우미로 등록). 화면은 SDK의 `App` 대신 같은 프로토콜(postMessage JSON-RPC, `ui/initialize` 2026-01-26)을 직접 쓴다. 외부 자원이 없어 CSP 설정이 필요 없다.
 - 사용자가 보기를 고르고 확신도(확실·애매·찍음)를 누르면 화면이 호스트를 거쳐 `submit_answer`(`hintUsed: false`)를 부르고 정오·정답·고른 보기의 오개념·해설·다음 복습일을 보여 준다. 채점은 평소 풀이와 같이 기록되고 숙련도에 반영된다.
 - 화면 아래에 호스트 이름·플랫폼(`hostContext.platform`)·카드에서 채점할 수 있는지(`hostCapabilities.serverTools`)를 보여 주어 클라이언트별 결과를 적기 쉽게 한다.
+- **복습 카드 (2026-10-20, ChatGPT 시험):** `get_review_set`에도 같은 화면을 `ui://growth-assistant/review-quiz-card.html`로 붙인다. 화면은 결과의 `questions[0]`(복습 서비스가 고른 첫 문제)을 그리고, 텍스트에도 첫 문제 하나만 싣는다("오늘 더 풀 수 있는 문제" 줄은 뺀다, 문제가 없으면 "오늘 복습할 문제가 없어요"). 카드에서 채점한 뒤 다음 문제는 `get_review_set`을 다시 불러 낸다. ChatGPT 채팅만으로는 보기·확신도 버튼을 만들 수 없어서 넣었다.
 
 **문제 생성 규칙**
 
