@@ -1,4 +1,4 @@
-import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import type { Client } from '@modelcontextprotocol/client';
 import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { McpServerHost } from '../src/core/mcp/mcp-server.host.js';
@@ -6,6 +6,7 @@ import { STUDY_INSTRUCTIONS } from '../src/tutor/study/study-instructions.js';
 import { connectTestDb } from './db/test-db.js';
 import { FixedClock } from './fakes/fixed-clock.js';
 import { createMcpHttpApp } from './mcp-app.js';
+import { connectMcp, signIn } from './oauth-client.js';
 
 const testDb = connectTestDb();
 let app: INestApplication;
@@ -17,8 +18,8 @@ beforeAll(async () => {
   app = await createMcpHttpApp(new FixedClock(new Date('2026-10-15T09:00:00+09:00')));
   await app.listen(0, '127.0.0.1');
   baseUrl = await app.getUrl();
-  client = new Client({ name: 'test-client', version: '0.0.0' });
-  await client.connect(new StreamableHTTPClientTransport(new URL('/mcp', baseUrl)));
+  // 인증 흐름 자체는 test/oauth.db.spec.ts가 본다. 여기서는 로그인해 받은 토큰으로 붙기만 한다.
+  client = await connectMcp(baseUrl, (await signIn(baseUrl)).access_token);
 });
 afterAll(async () => {
   await client.close();

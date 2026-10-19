@@ -14,19 +14,37 @@ const envSchema = z.object({
   MCP_HTTP_HOST: z.string().min(1).default('127.0.0.1'),
   MCP_HTTP_PORT: z.coerce.number().int().positive().default(3100),
 
+  // OAuth 인가 서버 (core/auth, ADR-0035). HTTP 진입점만 쓰므로 여기서는 없어도 되고, 없으면 HTTP 진입점이 시작하지 않는다.
+  /** 바깥에서 이 서버에 닿는 주소 (예: `https://mcp.seok.app`). OAuth issuer이고 MCP 자원 URL은 여기에 `/mcp`를 붙인다. */
+  PUBLIC_BASE_URL: z
+    .url({ protocol: /^https?$/ })
+    .transform((s) => s.replace(/\/+$/, ''))
+    .optional(),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  /** 로그인을 허용할 구글 이메일 (쉼표 구분, 대소문자 무시). */
+  OAUTH_ALLOWED_EMAILS: commaList().transform((list) => list.map((e) => e.toLowerCase())),
+  /** CIMD `client_id` URL로 받을 호스트 (쉼표 구분). 이 호스트의 https 문서만 가져온다(SSRF 방지). */
+  OAUTH_CLIENT_ID_HOSTS: commaList('claude.ai'),
+
   // Notion 수집 (설계 문서 7.1). MCP 서버는 쓰지 않으므로 없어도 시작한다. 수집할 때 없으면 그때 실패한다.
   NOTION_TOKEN: z.string().min(1).optional(),
   /** 수집 루트 페이지·DB ID (쉼표 구분). 루트와 그 하위 전체를 모은다. 하이픈은 있어도 없어도 된다. */
-  NOTION_ROOT_IDS: z
+  NOTION_ROOT_IDS: commaList().transform((ids) => ids.map((id) => id.replaceAll('-', ''))),
+});
+
+/** 쉼표로 나눈 목록. 앞뒤 공백과 빈 항목은 버린다. */
+function commaList(defaultValue = '') {
+  return z
     .string()
-    .default('')
+    .default(defaultValue)
     .transform((s) =>
       s
         .split(',')
-        .map((id) => id.trim().replaceAll('-', ''))
-        .filter((id) => id.length > 0),
-    ),
-});
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    );
+}
 
 export type Env = z.infer<typeof envSchema>;
 

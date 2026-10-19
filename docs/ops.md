@@ -87,6 +87,22 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 - **DB보다 먼저 뜰 때:** 로그인하면 서버와 OrbStack이 함께 시작해 서버가 먼저 뜰 수 있다. 서버는 시작할 때 DB에 연결하지 않고 요청마다 연결하므로 그대로 떠 있고, DB가 뜨기 전 도구 호출은 `ECONNREFUSED`로 실패했다가 DB가 뜨면 저절로 돌아온다. 떠 있는 동안 DB가 재시작돼 프로세스가 죽어도 `KeepAlive`가 10초 뒤 다시 띄운다.
 - **수동 실행과 겹칠 때:** 에이전트가 떠 있으면 같은 포트로 `npm run mcp:http`를 띄울 수 없다(`EADDRINUSE`). 개발 중에는 `.env`나 셸에서 `MCP_HTTP_PORT`를 바꿔 띄운다.
 
+### OAuth (원격 커넥터 인증)
+
+`/mcp`는 OAuth 액세스 토큰이 있어야 답한다(없으면 `401`). 서버가 인가 서버를 겸하고, 본인 확인은 구글 로그인 + 이메일 허용 목록이다([ADR-0035](adr/0035-remote-connector.md), 설계 문서 7.7). 아래 환경 변수가 하나라도 없으면 HTTP 서버가 시작하지 않는다(stdio 서버와 CLI는 쓰지 않는다). 값은 로그에 남기지 않는다.
+
+| 환경 변수 | 값 |
+|---|---|
+| `PUBLIC_BASE_URL` | 바깥에서 닿는 주소 `https://mcp.seok.app`. OAuth issuer이고, Claude에 넣는 MCP URL은 여기에 `/mcp`를 붙인 `https://mcp.seok.app/mcp`다. 로컬에서 시험할 때는 `http://localhost:3100` |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | Google Cloud의 OAuth 클라이언트(웹 애플리케이션). 리디렉트 URI는 `<PUBLIC_BASE_URL>/oauth/google/callback`(운영 `https://mcp.seok.app/…`, 개발 `http://localhost:3100/…`) |
+| `OAUTH_ALLOWED_EMAILS` | 로그인을 허용할 구글 이메일(쉼표 구분). 구글이 확인한(`email_verified`) 이메일만 받는다 |
+| `OAUTH_CLIENT_ID_HOSTS` | 선택. CIMD `client_id` URL로 받을 호스트(쉼표 구분, 기본 `claude.ai`). 이 호스트의 https 문서만 가져온다 |
+
+- **첫 연결:** 서버 로그에 `처음 보는 client_id: …`(받은 것)나 `허용하지 않는 client_id: …`(거절한 것)가 남는다. 호스팅 앱의 client_id 호스트가 `claude.ai`가 아니면 `OAUTH_CLIENT_ID_HOSTS`에 더한다.
+- **토큰:** 액세스 토큰 1시간, 리프레시 토큰 90일(갱신할 때마다 회전해 새로 90일). 90일 동안 쓰지 않으면 Claude에서 다시 연결한다. 이미 회전한 리프레시 토큰이 다시 오면 그 연결의 토큰을 모두 폐기하고 관리 알림을 남긴다(로그 `[관리 알림]`). 그러면 Claude에서 다시 연결해야 한다.
+- **로컬에서 흐름 시험:** `.env`의 `PUBLIC_BASE_URL=http://localhost:3100`으로 `npm run build && npm run mcp:http`를 띄우고(상시 실행 서버가 3100을 쓰면 `ops/uninstall.sh`로 잠깐 내린다), Claude Code에서 `claude mcp add --transport http growth-local http://localhost:3100/mcp` → `/mcp`에서 인증하면 브라우저로 구글 로그인 → 동의 화면 → 도구 목록까지 이어진다. Claude Code의 CIMD 문서(`https://claude.ai/oauth/claude-code-client-metadata`)가 루프백 리디렉트(`http://localhost/callback`, 포트는 아무거나)를 쓰므로 허용 호스트 기본값 그대로 된다. 끝나면 `claude mcp remove growth-local`.
+- **로그인을 끊고 싶을 때:** 아직 도구가 없다. DB에서 `UPDATE oauth_grant SET revoked_at = now() WHERE revoked_at IS NULL;`로 모든 연결을 폐기한다.
+
 ## 로그
 
 | 위치 | 내용 |
