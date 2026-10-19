@@ -30,6 +30,11 @@ export class MasteryService {
     return this.repository.findWeak(limit);
   }
 
+  /** [timeZone]의 [date] 안에 복습할 때가 되는 개념. 예정일이 이른 것부터. */
+  dueOn(date: string, timeZone: string, limit: number): Promise<number[]> {
+    return this.repository.findDueOn(date, timeZone, limit);
+  }
+
   countUnmeasured(): Promise<number> {
     return this.repository.countUnmeasured();
   }

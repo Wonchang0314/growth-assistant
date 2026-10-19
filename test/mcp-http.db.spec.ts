@@ -5,7 +5,8 @@ import { McpServerHost } from '../src/core/mcp/mcp-server.host.js';
 import { STUDY_INSTRUCTIONS } from '../src/tutor/study/study-instructions.js';
 import { connectTestDb } from './db/test-db.js';
 import { FixedClock } from './fakes/fixed-clock.js';
-import { createMcpHttpApp } from './mcp-app.js';
+import { NightlyPrepJob } from '../src/tutor/outreach/nightly-prep.job.js';
+import { compileMcpRoot, createMcpHttpApp } from './mcp-app.js';
 import { connectMcp, signIn } from './oauth-client.js';
 
 const testDb = connectTestDb();
@@ -54,6 +55,17 @@ describe('MCP HTTP 앱 (앱 전체)', () => {
 
     expect(other.status).toBe(404);
     expect(foreign.status).toBe(403);
+  });
+
+  it('상시 실행 서버의 루트 모듈(스케줄러와 예약 작업을 더함)도 의존성을 모두 푼다', async () => {
+    // 띄우지(init) 않으므로 예약 작업은 돌지 않는다.
+    const server = await compileMcpRoot(
+      new FixedClock(new Date('2026-10-15T09:00:00+09:00')),
+      async () => (await import('../src/mcp-http-app.module.js')).McpHttpServerModule,
+    );
+
+    expect(server.get(NightlyPrepJob).at).toBe('04:00');
+    await server.close();
   });
 
   it('/healthz는 DB에 닿으면 200이다', async () => {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ListPendingConceptsTool } from '../../core/ingestion/mcp/list-pending-concepts.tool.js';
 import { ReviewConceptTool } from '../../core/ingestion/mcp/review-concept.tool.js';
+import { SyncNowTool } from '../../core/ingestion/mcp/sync-now.tool.js';
+import { SyncStatusTool } from '../../core/ingestion/mcp/sync-status.tool.js';
 import { GetLearningContextTool } from './mcp/get-learning-context.tool.js';
 import { RecordStudyNoteTool } from './mcp/record-study-note.tool.js';
 import { SearchExperienceTool } from './mcp/search-experience.tool.js';
@@ -17,6 +19,8 @@ describe('STUDY_INSTRUCTIONS', () => {
       new SearchExperienceTool(undefined as never),
       new ListPendingConceptsTool(undefined as never),
       new ReviewConceptTool(undefined as never),
+      new SyncNowTool(undefined as never),
+      new SyncStatusTool(undefined as never, undefined as never, undefined as never),
     ];
 
     for (const { name } of tools) expect(STUDY_INSTRUCTIONS).toContain(`\`${name}\``);

@@ -52,7 +52,7 @@ export type ReviewSet =
 export class QuizReviewService {
   private readonly logger = new Logger(QuizReviewService.name);
   /** 개념별로 만들고 있는 작업. 같은 개념을 겹쳐 만들면 이미 낸 핵심을 서로 몰라 같은 문제가 나온다. */
-  private readonly preparing = new Map<number, Promise<void>>();
+  private readonly preparing = new Map<number, Promise<number>>();
   /** 개념별로 마지막 만들기가 검증을 하나도 통과하지 못한 시각. 서버를 다시 띄우면 비워진다. */
   private readonly failedAt = new Map<number, Date>();
 
@@ -94,6 +94,48 @@ export class QuizReviewService {
     );
   }
 
+  /**
+   * 오늘([Clock.timeZone]) 푼 수와 오늘 더 복습할 개념. 학습 알림과 새벽 문제 만들기가 쓴다.
+   * 개념은 복습 세트의 우선순위(근본 원인 → 오늘 안에 때가 되는 개념 → 헷갈린 개념 → 약점)대로 오늘 남은 수까지이고,
+   * 새 개념(복습 세트가 그때그때 무작위로 뽑음)은 넣지 않는다.
+   */
+  async today(): Promise<{ answered: number; conceptIds: number[] }> {
+    const { timeZone } = this.clock;
+    const date = localDate(this.clock.now(), timeZone);
+    const answered = await this.attempts.countOnDate(date, timeZone);
+    const limit = DAILY_LIMIT - answered;
+    if (limit <= 0) return { answered, conceptIds: [] };
+    const [rootCauses, due, confused, weak] = await Promise.all([
+      this.weakness.rootCauseIds(limit),
+      this.mastery.dueOn(date, timeZone, limit),
+      this.studyNotes.unresolvedConfusedConcepts(limit),
+      this.mastery.weakConcepts(limit),
+    ]);
+    const conceptIds = pickConcepts({
+      rootCauses,
+      due,
+      confused,
+      weak: weak.map((m) => m.conceptId),
+      fresh: [],
+      limit,
+      random: this.random,
+    });
+    return { answered, conceptIds };
+  }
+
+  /**
+   * 오늘 복습할 개념 중 낼 문제가 없는 개념의 문제를 [limit]개 개념까지 하나씩 만들고 끝날 때까지 기다린다.
+   * 새벽 예약 작업이 불러 아침 복습의 "만드는 중" 대기를 줄인다 (ADR-0036).
+   */
+  async prepareToday(limit: number): Promise<{ concepts: number; ready: number }> {
+    const { conceptIds } = await this.today();
+    const servable = await Promise.all(conceptIds.map((id) => this.questions.findServable(id, 1)));
+    const missing = conceptIds.filter((_, i) => servable[i]?.length === 0).slice(0, limit);
+    let ready = 0;
+    for (const conceptId of missing) if ((await this.prepare(conceptId, 1)) > 0) ready += 1;
+    return { concepts: missing.length, ready };
+  }
+
   /** 뒤에서 만들고 있는 문제가 모두 끝날 때까지 기다린다. 테스트에서 쓴다. MCP 서버가 끝나면 만들던 문제는 버려진다. */
   async idle(): Promise<void> {
     await Promise.all(this.preparing.values());
@@ -116,7 +158,7 @@ export class QuizReviewService {
         failed.push(nameOf(w.conceptId));
         return;
       }
-      this.prepare(w.conceptId, missing);
+      void this.prepare(w.conceptId, missing);
       preparing.push(nameOf(w.conceptId));
     });
     await this.questions.markServed(questions.map((q) => q.id));
@@ -139,10 +181,11 @@ export class QuizReviewService {
   /**
    * [count]개를 뒤에서 차례로 만든다. 흔들린 문제의 변형이 먼저이고, 다음은 안 쓴 판단 사례의 상황 판단형과 개념 문제를 번갈아,
    * 개념 문제는 확인된 핵심의 변형과 새 핵심을 번갈아 만든다 (`nextQuestion`).
-   * 이미 만들고 있는 개념이면 그 작업에 맡긴다. 검증을 통과한 문제가 하나도 없으면 실패로 남긴다.
+   * 이미 만들고 있는 개념이면 그 작업에 맡긴다. 검증을 통과한 문제가 하나도 없으면 실패로 남긴다. 검증을 통과한 수를 돌려준다.
    */
-  private prepare(conceptId: number, count: number): void {
-    if (this.preparing.has(conceptId)) return;
+  private prepare(conceptId: number, count: number): Promise<number> {
+    const running = this.preparing.get(conceptId);
+    if (running) return running;
     const task = (async () => {
       let valid = 0;
       for (let i = 0; i < count; i++) {
@@ -176,9 +219,11 @@ export class QuizReviewService {
       .then((valid) => {
         if (valid === 0) this.failedAt.set(conceptId, this.clock.now());
         else this.failedAt.delete(conceptId);
+        return valid;
       })
       .finally(() => this.preparing.delete(conceptId));
     this.preparing.set(conceptId, task);
+    return task;
   }
 }
 

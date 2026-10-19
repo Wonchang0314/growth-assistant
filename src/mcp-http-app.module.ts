@@ -7,7 +7,9 @@ import { AuthSettings } from './core/auth/auth-settings.js';
 import { BearerAuthMiddleware } from './core/auth/bearer-auth.middleware.js';
 import { HealthModule } from './core/health/health.module.js';
 import { McpHttpController } from './core/mcp/mcp-http.controller.js';
+import { SchedulerHostModule } from './core/scheduler/scheduler.module.js';
 import { McpAppModule } from './mcp-app.module.js';
+import { OutreachModule } from './tutor/outreach/outreach.module.js';
 
 /**
  * MCP HTTP 진입점(mcp-http.ts)의 루트 모듈. stdio와 같은 MCP 앱(McpAppModule)에 HTTP 경로를 얹는다.
@@ -38,6 +40,13 @@ export class McpHttpAppModule implements NestModule {
       .forRoutes(McpHttpController);
   }
 }
+
+/**
+ * 상시 실행 HTTP 진입점(mcp-http.ts)의 루트 모듈. [McpHttpAppModule]에 스케줄러와 예약 작업(새벽 준비, 학습 알림)을 더한다
+ * (ADR-0036). 테스트는 스케줄러가 돌지 않게 McpHttpAppModule을 띄운다.
+ */
+@Module({ imports: [McpHttpAppModule, SchedulerHostModule, OutreachModule] })
+export class McpHttpServerModule {}
 
 /** Nest 앱을 만든 뒤 진입점과 테스트가 함께 거는 HTTP 설정. 응답에 서버 종류(`X-Powered-By: Express`)를 싣지 않는다. */
 export function configureHttpApp(app: NestExpressApplication): void {

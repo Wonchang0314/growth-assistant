@@ -55,7 +55,11 @@ export async function createMcpHttpApp(
   return app;
 }
 
-async function compileMcpRoot(
+/**
+ * 공용 테스트 DB 컨테이너에 붙는 루트 모듈을 컴파일한다. [loadRoot]는 DB 환경 변수를 바꾼 뒤 부르므로, 루트 모듈과
+ * `AppConfigModule`은 그 안에서 불러온다. 시각은 [clock]으로 고정하고 운영 알림은 가짜로 바꾼다.
+ */
+export async function compileMcpRoot(
   clock: Clock,
   loadRoot: () => Promise<Type>,
   override: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,

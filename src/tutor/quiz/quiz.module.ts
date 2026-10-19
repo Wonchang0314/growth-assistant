@@ -44,7 +44,7 @@ import { UpdateQuizGuidelineTool } from './presentation/mcp/update-quiz-guidelin
     ReportQuestionTool,
     UpdateQuizGuidelineTool,
   ],
-  exports: [QuizGenerationService],
+  exports: [QuizGenerationService, QuizReviewService],
 })
 export class QuizModule implements OnModuleInit {
   constructor(

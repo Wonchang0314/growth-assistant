@@ -85,6 +85,13 @@
       "when": 1792429273398,
       "tag": "0011_oauth",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792431941381,
+      "tag": "0012_scheduled_job",
+      "breakpoints": true
     }
   ]
 }
