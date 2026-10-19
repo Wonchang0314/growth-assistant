@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 검사(테스트 포함)와 빌드를 거친 코드를 새 릴리스 디렉터리에 배포하고, DB 마이그레이션을 적용한 뒤 current를 바꾼다.
-# Claude Desktop은 current의 MCP 서버(dist/mcp-stdio.js)를 띄우므로, 개발 중인 작업 트리를 고쳐도 Desktop의 도구가 깨지지 않는다.
+# 상시 실행 서버와 (등록했다면) Claude Desktop의 stdio 서버는 current를 띄우므로, 개발 중인 작업 트리를 고쳐도 도구가 깨지지 않는다.
 # 상시 실행 MCP HTTP 서버(LaunchAgent, ops/install.sh)가 등록돼 있으면 current를 바꾼 뒤 다시 띄운다.
 # 실행 중인 릴리스의 파일을 덮어쓰지 않도록 릴리스마다 디렉터리를 따로 만든다. 최근 3개만 남긴다.
 #   ~/.growth-assistant/app/releases/<시각>/{dist, node_modules, package.json}
@@ -46,4 +46,4 @@ ls -1d "$APP_DIR"/releases/*/ | sort -r | tail -n +$((KEEP_RELEASES + 1)) | whil
     rm -rf "$old"
 done
 
-echo "Claude Desktop을 다시 시작하면 새 릴리스의 MCP 서버를 띄운다."
+echo "Claude Desktop에 로컬 stdio 서버를 등록해 쓴다면 Desktop을 다시 시작해야 새 릴리스를 띄운다."
