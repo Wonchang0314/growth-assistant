@@ -614,7 +614,7 @@ MCP 서버의 `instructions`(연결 시 Claude에 전달)와 튜터용 Claude �
 ### 7.7 원격 커넥터와 인증 (4단계, ADR-0035)
 
 - **연결:** Claude 커스텀 커넥터로 등록한다(MCP URL `https://mcp.seok.app/mcp`). 웹에서 추가하면 데스크톱·iOS에서도 쓴다. MCP HTTP 진입점(`mcp-http.ts`, Nest HTTP 앱)이 `/mcp`, OAuth 경로, `/healthz`를 띄우고 `127.0.0.1`에만 바인딩한다. 커넥터 등록은 아직이다.
-- **공개 경로:** Cloudflare 이름 있는 터널(`mcp.seok.app` → `127.0.0.1:3100`). 터널은 Host를 그대로 넘기므로 `/mcp`의 Host 검사는 localhost와 공개 호스트를 받는다. Origin 검사는 여기에 받는 클라이언트 호스트(`OAUTH_CLIENT_ID_HOSTS`, ChatGPT는 `Origin: https://chatgpt.com`을 싣는다)를 더한다. Origin이 없으면 통과한다.
+- **공개 경로:** Cloudflare 이름 있는 터널(`mcp.seok.app` → `127.0.0.1:3100`). 터널은 Host를 그대로 넘기므로 `/mcp`의 Host·Origin 검사는 localhost와 공개 호스트를 받는다. Origin이 없으면 통과한다(Claude·ChatGPT 서버는 싣지 않는다).
 - **IP 제한 (예정):** Cloudflare WAF 사용자 정의 규칙으로 `/mcp`·`/token`은 Anthropic 외부 요청 대역(`160.79.104.0/21`)만 허용한다. 모든 Claude 사용자가 공유하는 대역이라 인증을 대신하지 못한다. `/authorize`와 구글 콜백·동의는 사용자 브라우저가 열므로 제외한다.
 - **역할:** 이 서버가 인가 서버(`/authorize`, `/token`)이자 자원 서버(`/mcp`)다. OAuth 2.1 인가 코드 + PKCE(S256), 클라이언트 식별은 CIMD, 본인 확인은 구글 로그인(OIDC, 범위 `openid email`) + 이메일 허용 목록(`OAUTH_ALLOWED_EMAILS`). 구글 토큰은 신원을 꺼낸 뒤 버린다. 코드는 `core/auth`.
 

@@ -6,7 +6,7 @@
 
 ## 맥락
 
-사용자가 같은 서버를 ChatGPT에서도 써 보려 한다. ChatGPT도 CIMD를 지원하고, 서버가 지원하면 CIMD를 먼저 쓴다([OpenAI 인증 문서](https://developers.openai.com/plugins/build/auth)). 처음 연결했을 때 막힌 곳은 넷이었다(넷째 Origin 검사는 요청 로그를 더해 찾았다).
+사용자가 같은 서버를 ChatGPT에서도 써 보려 한다. ChatGPT도 CIMD를 지원하고, 서버가 지원하면 CIMD를 먼저 쓴다([OpenAI 인증 문서](https://developers.openai.com/plugins/build/auth)). 처음 연결했을 때 막힌 곳은 셋이었다. 셋을 고친 뒤에도 ChatGPT에서 다시 연결해야 OAuth를 처음부터 다시 했다(요청 로그로 확인, ChatGPT 서버는 `/mcp`에 Origin을 싣지 않는다).
 
 - WAF가 `/mcp`·`/token`을 Anthropic 대역(`160.79.104.0/21`) 밖에서 막는다. ChatGPT 연동이 쓰는 IP는 2026-10-06 기준 283개 대역이고([OpenAI IP 문서](https://developers.openai.com/api/docs/guides/ip-addresses)) 바뀔 수 있어 주기적으로 갱신하라고 한다. 규칙 표현식에 넣기에는 길이 제한을 넘어 Cloudflare IP 목록이 필요하다.
 - CIMD 허용 호스트가 `claude.ai`뿐이다. ChatGPT의 `client_id`는 `https://chatgpt.com/oauth/client.json`이다.
@@ -16,9 +16,8 @@
 
 1. **WAF IP 제한 규칙은 끈다(사용자가 대시보드에서 비활성화).** 누가 부르든 OAuth 액세스 토큰이 없으면 `/mcp`는 401이고, 토큰은 허용 이메일의 구글 로그인과 동의 화면을 거쳐야 나온다. IP 목록을 손으로 갱신하는 일을 지지 않는다. 규칙은 지우지 않고 꺼 두어 다시 켤 수 있다.
 2. **CIMD 허용 호스트 기본값을 `claude.ai,chatgpt.com`으로 한다.** 허용 호스트 제한(SSRF 방지)은 그대로다.
-3. **`/mcp`의 Origin 검사는 받는 클라이언트 호스트도 허용한다.** ChatGPT는 `Origin: https://chatgpt.com`을 실어 보내, 이 검사가 401 대신 403을 줘 OAuth가 시작되지 않았다. 토큰 검사는 그대로 뒤에 있다.
-4. **클라이언트 문서의 기본 방식이 공개 클라이언트가 아니어도 지원 목록에 `none`이 있으면 받는다.** 서버 메타데이터가 `token_endpoint_auth_methods_supported: ["none"]`만 알리므로 클라이언트는 `none`(PKCE)으로 토큰을 받는다.
-5. MCP Apps 퀴즈 카드 시험은 지웠다(커밋 `6eb9c53`에 남김). ChatGPT에서는 채팅 퀴즈가 어떻게 보이는지 본다.
+3. **클라이언트 문서의 기본 방식이 공개 클라이언트가 아니어도 지원 목록에 `none`이 있으면 받는다.** 서버 메타데이터가 `token_endpoint_auth_methods_supported: ["none"]`만 알리므로 클라이언트는 `none`(PKCE)으로 토큰을 받는다.
+4. MCP Apps 퀴즈 카드 시험은 지웠다(커밋 `6eb9c53`에 남김). ChatGPT에서는 채팅 퀴즈가 어떻게 보이는지 본다.
 
 ## 결과
 

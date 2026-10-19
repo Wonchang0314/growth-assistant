@@ -27,16 +27,16 @@ export class McpHttpAppModule implements NestModule {
   constructor(private readonly authSettings: AuthSettings) {}
 
   /**
-   * `/mcp` 앞의 검사. DNS 리바인딩을 막으려고 Host는 localhost와 공개 호스트(터널이 Host를 그대로 넘긴다)만,
-   * Origin은 거기에 받는 클라이언트 호스트(ChatGPT는 `Origin: https://chatgpt.com`을 싣는다)를 더해 받고(아니면 403),
-   * 그다음 Bearer 토큰을 본다(아니면 401). `/healthz`와 OAuth 경로에는 걸지 않는다.
+   * `/mcp` 앞의 검사. DNS 리바인딩을 막으려고 Host·Origin은 localhost와 공개 호스트(터널이 Host를 그대로 넘긴다)만
+   * 받고(아니면 403), 그다음 Bearer 토큰을 본다(아니면 401). `/healthz`와 OAuth 경로에는 걸지 않는다.
+   * Claude·ChatGPT 서버는 Origin을 싣지 않아 이 검사를 지난다(2026-10-20 요청 로그로 확인).
    */
   configure(consumer: MiddlewareConsumer): void {
     const publicHost = new URL(this.authSettings.issuer).hostname;
     consumer
       .apply(
         hostHeaderValidation([...localhostAllowedHostnames(), publicHost]),
-        originValidation([...localhostAllowedOrigins(), publicHost, ...this.authSettings.clientIdHosts]),
+        originValidation([...localhostAllowedOrigins(), publicHost]),
         BearerAuthMiddleware,
       )
       .forRoutes(McpHttpController);
