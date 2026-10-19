@@ -1,35 +1,34 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import type { TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { listenMcpHttp, type McpHttpServer } from '../src/core/mcp/mcp-http.server.js';
 import { McpServerHost } from '../src/core/mcp/mcp-server.host.js';
 import { STUDY_INSTRUCTIONS } from '../src/tutor/study/study-instructions.js';
 import { connectTestDb } from './db/test-db.js';
 import { FixedClock } from './fakes/fixed-clock.js';
-import { startMcpApp } from './mcp-app.js';
+import { createMcpHttpApp } from './mcp-app.js';
 
 const testDb = connectTestDb();
-let app: TestingModule;
-let server: McpHttpServer;
+let app: INestApplication;
+let baseUrl: string;
 let client: Client;
 
 beforeAll(async () => {
   await testDb.truncateAll();
-  app = await startMcpApp(new FixedClock(new Date('2026-10-15T09:00:00+09:00')));
-  server = await listenMcpHttp(app.get(McpServerHost), { hostname: '127.0.0.1', port: 0 });
+  app = await createMcpHttpApp(new FixedClock(new Date('2026-10-15T09:00:00+09:00')));
+  await app.listen(0, '127.0.0.1');
+  baseUrl = await app.getUrl();
   client = new Client({ name: 'test-client', version: '0.0.0' });
-  await client.connect(new StreamableHTTPClientTransport(server.url));
+  await client.connect(new StreamableHTTPClientTransport(new URL('/mcp', baseUrl)));
 });
 afterAll(async () => {
   await client.close();
-  await server.close();
   await app.close();
   await testDb.close();
   vi.unstubAllEnvs();
 });
 
-describe('MCP Streamable HTTP (앱 전체)', () => {
-  it('stdio와 같은 도구와 사용 지침을 HTTP로 준다', async () => {
+describe('MCP HTTP 앱 (앱 전체)', () => {
+  it('stdio와 같은 도구와 사용 지침을 /mcp로 준다', async () => {
     const { tools } = await client.listTools();
 
     expect(tools.map((t) => t.name).sort()).toEqual(app.get(McpServerHost).toolNames.sort());
@@ -44,9 +43,9 @@ describe('MCP Streamable HTTP (앱 전체)', () => {
     expect(result.structuredContent).toMatchObject({ lastSyncedAt: null, documents: 0, chunks: 0 });
   });
 
-  it('/mcp 밖의 경로는 404, 다른 사이트의 Origin은 403으로 거절한다', async () => {
-    const other = await fetch(new URL('/', server.url));
-    const foreign = await fetch(server.url, {
+  it('없는 경로는 404, /mcp에 다른 사이트의 Origin으로 오면 403으로 거절한다', async () => {
+    const other = await fetch(new URL('/', baseUrl));
+    const foreign = await fetch(new URL('/mcp', baseUrl), {
       method: 'POST',
       headers: { origin: 'https://evil.example', 'content-type': 'application/json' },
       body: '{}',
@@ -54,5 +53,12 @@ describe('MCP Streamable HTTP (앱 전체)', () => {
 
     expect(other.status).toBe(404);
     expect(foreign.status).toBe(403);
+  });
+
+  it('/healthz는 DB에 닿으면 200이다', async () => {
+    const res = await fetch(new URL('/healthz', baseUrl));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: 'ok' });
   });
 });

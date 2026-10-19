@@ -18,12 +18,11 @@
    - **좋았던 점:** 순수 규칙(채점, 개념 고르기, 변형 판단, 근본 원인)이 domain에 모여 단위 테스트가 쉬웠다. 여러 레이어를 함께 쓰는 통합 테스트는 모듈 루트에 둔다는 규칙이 필요했다
    - **사용자 학습:** 이 구조는 백엔드 학습용 시도다. 평가할 때 사용자가 레이어를 오가며 읽기 편했는지 직접 묻는다
 3. **4단계 원격 전환 구현 ([ADR-0035](adr/0035-remote-connector.md), 2026-10-20 인터뷰로 정함):** 아래 순서로 PR을 나눈다. 사실 근거는 [원격 전환·예약 작업 조사](research/2026-10-19-remote-and-scheduling.md)(5단계까지 쓰고 지운다)
-   1. **Nest HTTP 앱으로 옮기기:** `mcp-http.ts`를 Nest HTTP 앱(Express)으로 바꾸고 `/mcp`는 `@modelcontextprotocol/express`, `/healthz` 추가. `core/mcp/mcp-http.server.ts`(`node:http`)는 지운다. 인증은 아직 없다
-   2. **OAuth 인가 서버:** 보호 리소스·인가 서버 메타데이터, `/authorize`(CIMD 허용 목록 검사) → 구글 OIDC → 콜백(이메일 허용 목록) → 인가 코드, `/token`(PKCE, 리프레시 회전, 토큰 해시 저장), `/mcp` Bearer 검사와 `401` + `WWW-Authenticate`. 크면 메타데이터·토큰과 구글 로그인으로 둘로 나눈다. 구글 Cloud OAuth 클라이언트는 사용자가 만든다(2026-10-20 안내): 리디렉트 URI `https://<공개 하위 도메인>/oauth/google/callback`과 개발용 `http://localhost:3100/oauth/google/callback`, 범위 `openid email`, 게시 상태 Testing + 테스트 사용자에 본인. 값은 `.env`의 `GOOGLE_OAUTH_CLIENT_ID`·`GOOGLE_OAUTH_CLIENT_SECRET`, 허용 이메일은 `OAUTH_ALLOWED_EMAILS`
-   3. **공개와 커넥터 등록:** `cloudflared` 터널, WAF 사용자 정의 규칙(무료 플랜 규칙 수 확인), 운영 가이드. 첫 연결 로그로 호스팅 앱의 CIMD `client_id`와 MCP 명세 개정을 확인해 허용 목록에 고정한다. Cloudflare 설정·커넥터 추가는 사용자와 함께
-   4. **운영 감시:** `AdminNotifier` ntfy 어댑터, 외부 헬스체크 등록. `KeepAlive`는 횟수 제한 없이 10초마다 다시 띄우므로 알림이 쌓이지 않게 한다(2026-10-20 사용자 우려): 시작·재시작마다 알리지 않고, 같은 종류 알림은 일정 시간 한 번만 보내며, 서버 다운은 외부 헬스체크가 내려감·복구 때 한 번씩만 알린다. 구체 기준(묶는 시간 등)은 구현 전에 묻는다. 상시 실행(LaunchAgent)은 앱이 시작할 때 DB에 연결하지 않아 DB 대기 코드 없이 들였다(로그인 직후 DB가 뜨기 전 요청만 실패). `/healthz`가 DB를 확인하거나 5단계 예약 작업이 시작할 때 DB를 쓰게 되면 시작 시 DB 대기(재시도 뒤 실패하면 종료해 `KeepAlive`에 맡김)를 코드에 넣는다
-   5. **모바일·아이패드 수동 점검** (`docs/manual-check.md`에 4단계 절 추가)
-   - **사용자 학습:** OAuth를 이번에 처음 제대로 익히는 중이다. 학습 기록 10·11번(OAuth 흐름·PKCE, 공개 경로)에 헷갈린 점이 있다. FileVault를 전원 유지 기능으로 알고 있었다(디스크 암호화이고 화면 잠금으로는 서버가 멈추지 않는다). 2번 PR을 리뷰할 때 흐름을 코드와 맞춰 다시 설명한다
+   1. **OAuth 인가 서버:** 보호 리소스·인가 서버 메타데이터, `/authorize`(CIMD 허용 목록 검사) → 구글 OIDC → 콜백(이메일 허용 목록) → 인가 코드, `/token`(PKCE, 리프레시 회전, 토큰 해시 저장), `/mcp` Bearer 검사와 `401` + `WWW-Authenticate`. 크면 메타데이터·토큰과 구글 로그인으로 둘로 나눈다. 구글 Cloud OAuth 클라이언트는 사용자가 만든다(2026-10-20 안내): 리디렉트 URI `https://<공개 하위 도메인>/oauth/google/callback`과 개발용 `http://localhost:3100/oauth/google/callback`, 범위 `openid email`, 게시 상태 Testing + 테스트 사용자에 본인. 값은 `.env`의 `GOOGLE_OAUTH_CLIENT_ID`·`GOOGLE_OAUTH_CLIENT_SECRET`, 허용 이메일은 `OAUTH_ALLOWED_EMAILS`
+   2. **공개와 커넥터 등록:** `cloudflared` 터널, WAF 사용자 정의 규칙(무료 플랜 규칙 수 확인), 운영 가이드. 첫 연결 로그로 호스팅 앱의 CIMD `client_id`와 MCP 명세 개정을 확인해 허용 목록에 고정한다. Cloudflare 설정·커넥터 추가는 사용자와 함께
+   3. **운영 감시:** `AdminNotifier` ntfy 어댑터, 외부 헬스체크 등록. `KeepAlive`는 횟수 제한 없이 10초마다 다시 띄우므로 알림이 쌓이지 않게 한다(2026-10-20 사용자 우려): 시작·재시작마다 알리지 않고, 같은 종류 알림은 일정 시간 한 번만 보내며, 서버 다운은 외부 헬스체크가 내려감·복구 때 한 번씩만 알린다. 구체 기준(묶는 시간 등)은 구현 전에 묻는다. 상시 실행(LaunchAgent)은 앱이 시작할 때 DB에 연결하지 않아 DB 대기 코드 없이 들였다(로그인 직후 DB가 뜨기 전 요청만 실패). 이제 `/healthz`가 DB를 확인하므로(DB가 뜨기 전에는 503) 시작 시 DB 대기(재시도 뒤 실패하면 종료해 `KeepAlive`에 맡김)를 넣을지 사용자에게 묻는다. 5단계 예약 작업이 시작할 때 DB를 쓰게 되면 넣는다
+   4. **모바일·아이패드 수동 점검** (`docs/manual-check.md`에 4단계 절 추가)
+   - **사용자 학습:** OAuth를 이번에 처음 제대로 익히는 중이다. 학습 기록 10·11번(OAuth 흐름·PKCE, 공개 경로)에 헷갈린 점이 있다. FileVault를 전원 유지 기능으로 알고 있었다(디스크 암호화이고 화면 잠금으로는 서버가 멈추지 않는다). 1번 PR(OAuth)을 리뷰할 때 흐름을 코드와 맞춰 다시 설명한다
 4. **5단계 예약 작업 (프로토타입):** 실행 방식(서버 스케줄러, Claude 예약 작업, 알림 경로)을 묻고 새벽 동기화·문제 보충과 아침 복습 알림을 만든다. 프로토타입 확인은 모바일에서 아침 알림을 받고 복습을 풀어 채점 기록이 쌓이는 것
    - **사실 확인 (2026-10-19):** 같은 조사 문서 5절(예약 작업과 알림)·7절(launchd). Cowork 예약 작업은 2026-10-06부터 클라우드에서 돌아 로컬 stdio 서버에 닿지 않는다
 

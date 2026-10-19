@@ -41,7 +41,7 @@ export class McpServerHost implements OnModuleInit {
 
   /**
    * 도구를 모두 등록한 새 MCP 서버. SDK 서버 하나는 연결 하나만 받으므로 연결마다 만든다.
-   * HTTP 진입점(`listenMcpHttp`)은 요청마다 만든다.
+   * HTTP 진입점(`McpHttpController`)은 요청마다 만든다.
    */
   buildServer(): McpServer {
     const server = new McpServer(
