@@ -71,13 +71,13 @@
 - [x] 상시 실행 진입점(LaunchAgent `com.growthassistant.server`, `ops/install.sh`·`ops/uninstall.sh`, 배포 뒤 다시 띄우기). MCP HTTP 서버를 띄운다. 5단계 예약 작업을 같은 프로세스에 둘지는 그때 정한다
 - [x] 운영 감시 (LaunchAgent `KeepAlive`, ntfy 운영 알림·같은 종류 1시간 묶기, UptimeRobot `/healthz` 5분 감시, 2026-10-20)
 - [x] 모바일·아이패드 수동 점검 (2026-10-20, `docs/manual-check.md` 4단계. 맥미니 Desktop은 로컬 stdio 대신 원격 커넥터를 쓴다)
-- [ ] ChatGPT에서 같은 커넥터 시험 (WAF IP 제한 끔, CIMD 허용 호스트에 `chatgpt.com`, ADR-0037). 채팅 퀴즈가 어떻게 보이는지 본다
+- [ ] ChatGPT에서 같은 커넥터 시험 (WAF IP 제한 끔, CIMD 허용 호스트에 `chatgpt.com`, ADR-0037). 2026-10-20 연결·`get_review_set`·퀴즈 카드 표시 확인. Claude 쪽(커넥터·Cowork 예약 작업·Desktop 로컬 등록)은 걷어냈고 아침 알림을 켰다. 남은 것: 카드에서 채점, ChatGPT 예약 작업
 
 ## 5. 예약 작업: 먼저 말 걸기 (프로토타입 2)
 - [x] 결정: HTTP 서버 안의 스케줄러(놓친 실행 DB로 한 번 따라잡기), 새벽 04:00 동기화·추출·추상화·문제 보충, 아침 07:30 Cowork 예약 작업 시험 + ntfy 저녁 21:00, `sync_now` (ADR-0036)
 - [x] 서버 스케줄러, 놓친 실행 복구 (`core/scheduler`, `@nestjs/schedule`, `scheduled_job` 실행 기록으로 그날 한 번 따라잡기, DB advisory 잠금, 실패 운영 알림, 시작 시 DB 대기)
 - [x] 새벽 동기화·문제 보충 (04:00: Notion 증분 동기화 → 경험 카드 추출 → 판단 사례 추상화 → 오늘 복습할 개념의 문제 미리 만들기, 최대 10개 개념)
-- [x] 학습 알림 (ntfy 07:30 아침 "오늘 복습 N개"는 기본 꺼짐·설정으로 켬, 21:00 저녁은 평일에 그날 푼 문제가 없을 때만, 누르면 `https://claude.ai/new`), 운영 알림 중 토큰 재사용만 `urgent`
+- [x] 학습 알림 (ntfy 07:30 아침 "오늘 복습 N개"는 기본 꺼짐·설정으로 켬, 21:00 저녁은 평일에 그날 푼 문제가 없을 때만, 누르면 `https://claude.ai/new`, 2026-10-20 ChatGPT로 옮기며 `https://chatgpt.com/`), 운영 알림 중 토큰 재사용만 `urgent`
 - [x] 알림·새벽 보충·`get_review_set`이 같은 "오늘 복습할 개념"(오늘 Asia/Seoul 안에 때가 되는 개념)을 쓰게 맞춤 (2026-10-20)
 - [ ] 배포 뒤 Cowork 예약 작업(07:30, 원격 커넥터로 `get_review_set`) 하루 시험, 안 되면 ntfy 아침 알림 켜기
 - [ ] 프로토타입 확인: 모바일에서 아침 알림을 받고 복습을 풀어 채점 기록이 쌓임
