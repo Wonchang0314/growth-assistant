@@ -89,7 +89,7 @@
 맥미니에서 실행하는 **NestJS 애플리케이션**(모듈러 모놀리스)과 Docker로 띄우는 **PostgreSQL 16**으로 구성한다. 같은 코드에 진입점을 둘 둔다.
 
 - **MCP 진입점(stdio):** Claude Desktop이 필요할 때 띄운다. 도구 호출을 받아 유스케이스를 실행한다.
-- **상시 실행 진입점:** launchd가 띄운다. 03:00 동기화·문제 풀 보충 같은 서버 예약 작업을 돌린다(원격 서버를 띄우는 4단계에서 만든다, ADR-0034).
+- **상시 실행 진입점:** launchd 사용자 에이전트(`ops/install.sh`)가 띄우고 죽으면 다시 띄운다. 4단계에서는 원격 서버인 MCP HTTP 진입점(`mcp-http.ts`)을 띄운다. 03:00 동기화·문제 풀 보충 같은 서버 예약 작업을 같은 프로세스에 둘지는 5단계에서 정한다(ADR-0034·0035).
 
 ```
 맥미니
@@ -133,7 +133,7 @@
 
 ```
 src/
-├── main.ts          # 상시 실행 진입점 (원격 서버·서버 예약 작업, 4단계에서 만든다)
+├── main.ts          # 서버 예약 작업 진입점 (5단계, mcp-http.ts에 합칠지 그때 정한다)
 ├── mcp-stdio.ts     # MCP 진입점 (Claude Desktop이 띄움)
 ├── mcp-http.ts      # MCP Streamable HTTP 진입점 (원격 커넥터의 바탕, 4단계)
 ├── core
@@ -680,7 +680,7 @@ EMA(x) = 첫 응답이면 x, 그 뒤로 0.4·x + 0.6·이전 값  (최근 4~5번
   - 공개 경로: Cloudflare 이름 있는 터널(사용자 도메인의 하위 도메인).
   - 인증: OAuth 2.1 인가 코드 + PKCE, 클라이언트 식별은 CIMD(Claude 메타데이터 URL 허용 목록). `/authorize`의 본인 확인은 구글 로그인(OIDC) + 이메일 허용 목록. 짧은 액세스 토큰, 회전하는 리프레시 토큰, 토큰은 해시로 저장.
   - IP 제한: Cloudflare WAF 사용자 정의 규칙으로 `/mcp`·`/token`은 Anthropic 외부 요청 대역(`160.79.104.0/21`)만 허용한다. 모든 Claude 사용자가 공유하는 대역이라 인증을 대신하지 못한다. `/authorize`와 구글 콜백은 사용자 브라우저가 열므로 제외한다.
-  - 상시 실행: LaunchAgent, FileVault 유지(재부팅 뒤 로그인해야 뜸).
+  - 상시 실행: LaunchAgent(`com.growthassistant.server`, `ops/install.sh`)가 배포 릴리스의 `dist/mcp-http.js`를 띄운다. `KeepAlive`로 죽으면 10초 간격으로 다시 띄우고, 배포가 새 릴리스로 바꾼 뒤 `kickstart -k`로 다시 띄운다. FileVault 유지(재부팅 뒤 로그인해야 뜸). 운영 방법은 `docs/ops.md` "상시 실행".
   - 알림: 운영 알림(인증 실패, 작업 실패)은 ntfy, 서버 다운은 외부 헬스체크. 학습 알림은 5단계에서 정한다.
   - 화면: MCP Apps는 6단계에서 객관식·확신도 버튼, 숙련도 3단계 색 표시, 응답 시간 측정을 검토한다(iOS는 WKWebView로 지원).
 - **서술형 문제 (ADR-0019로 미룸).** 객관식·빈칸 품질을 확인한 뒤 설계한다.

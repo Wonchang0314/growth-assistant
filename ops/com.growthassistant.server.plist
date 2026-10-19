@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  템플릿이다. ops/install.sh가 __APP_DIR__, __ENV_FILE__, __LOG_DIR__, __HOME__을 채워 ~/Library/LaunchAgents/에 설치한다.
+  node는 app/node 링크, 서버는 current 링크를 가리키므로 ops/deploy.sh로 새로 배포해도(node 버전을 바꿨어도) 다시 설치하지 않는다.
+  배포는 current를 바꾼 뒤 launchctl kickstart -k로 다시 띄운다.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.growthassistant.server</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__APP_DIR__/node</string>
+        <string>__APP_DIR__/current/dist/mcp-http.js</string>
+    </array>
+
+    <!-- 릴리스는 배포마다 바뀌므로 바뀌지 않는 곳에서 실행한다. .env는 GROWTH_ENV_FILE로 읽는다. -->
+    <key>WorkingDirectory</key>
+    <string>__HOME__/.growth-assistant</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>GROWTH_ENV_FILE</key>
+        <string>__ENV_FILE__</string>
+        <!-- 앱 로그는 LOG_DIR/mcp-http의 회전 파일에 쓴다(current.log가 지금 파일). 진입점이 .env보다 먼저 로거를 만들어 여기서 준다. -->
+        <key>LOG_DIR</key>
+        <string>__LOG_DIR__</string>
+        <!-- launchd의 기본 PATH(/usr/bin:/bin:/usr/sbin:/sbin)에는 claude가 없다. 여기에도 없으면 .env에 CLAUDE_EXECUTABLE을 넣는다. -->
+        <key>PATH</key>
+        <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- 로그인하면 시작하고, 어떤 이유로 끝나든 다시 띄운다. 시작 실패가 되풀이돼도 10초에 한 번만 다시 띄운다. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- 로거가 뜨기 전의 오류(node·릴리스를 찾지 못함)와 시작 실패만 남는다. 앱 로그는 LOG_DIR/mcp-http에 있다. -->
+    <key>StandardOutPath</key>
+    <string>__LOG_DIR__/launchd/server.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__LOG_DIR__/launchd/server.err.log</string>
+</dict>
+</plist>
