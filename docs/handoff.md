@@ -19,7 +19,7 @@
    - **사용자 학습:** 이 구조는 백엔드 학습용 시도다. 평가할 때 사용자가 레이어를 오가며 읽기 편했는지 직접 묻는다
 3. **4단계 원격 전환 구현 ([ADR-0035](adr/0035-remote-connector.md), 2026-10-20 인터뷰로 정함):** 아래 순서로 PR을 나눈다. 사실 근거는 [원격 전환·예약 작업 조사](research/2026-10-19-remote-and-scheduling.md)(5단계까지 쓰고 지운다)
    1. **Nest HTTP 앱으로 옮기기:** `mcp-http.ts`를 Nest HTTP 앱(Express)으로 바꾸고 `/mcp`는 `@modelcontextprotocol/express`, `/healthz` 추가. `core/mcp/mcp-http.server.ts`(`node:http`)는 지운다. 인증은 아직 없다
-   2. **OAuth 인가 서버:** 보호 리소스·인가 서버 메타데이터, `/authorize`(CIMD 허용 목록 검사) → 구글 OIDC → 콜백(이메일 허용 목록) → 인가 코드, `/token`(PKCE, 리프레시 회전, 토큰 해시 저장), `/mcp` Bearer 검사와 `401` + `WWW-Authenticate`. 크면 메타데이터·토큰과 구글 로그인으로 둘로 나눈다. 구글 Cloud OAuth 클라이언트 만들기는 사용자가 한다
+   2. **OAuth 인가 서버:** 보호 리소스·인가 서버 메타데이터, `/authorize`(CIMD 허용 목록 검사) → 구글 OIDC → 콜백(이메일 허용 목록) → 인가 코드, `/token`(PKCE, 리프레시 회전, 토큰 해시 저장), `/mcp` Bearer 검사와 `401` + `WWW-Authenticate`. 크면 메타데이터·토큰과 구글 로그인으로 둘로 나눈다. 구글 Cloud OAuth 클라이언트는 사용자가 만든다(2026-10-20 안내): 리디렉트 URI `https://<공개 하위 도메인>/oauth/google/callback`과 개발용 `http://localhost:3100/oauth/google/callback`, 범위 `openid email`, 게시 상태 Testing + 테스트 사용자에 본인. 값은 `.env`의 `GOOGLE_OAUTH_CLIENT_ID`·`GOOGLE_OAUTH_CLIENT_SECRET`, 허용 이메일은 `OAUTH_ALLOWED_EMAILS`
    3. **상시 실행:** LaunchAgent(`ops/install.sh`, `KeepAlive`, 시작 시 DB 대기), 배포 스크립트 연결
    4. **공개와 커넥터 등록:** `cloudflared` 터널, WAF 사용자 정의 규칙(무료 플랜 규칙 수 확인), 운영 가이드. 첫 연결 로그로 호스팅 앱의 CIMD `client_id`와 MCP 명세 개정을 확인해 허용 목록에 고정한다. Cloudflare 설정·커넥터 추가는 사용자와 함께
    5. **운영 감시:** `AdminNotifier` ntfy 어댑터, 외부 헬스체크 등록
