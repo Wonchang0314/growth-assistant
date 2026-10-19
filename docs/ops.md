@@ -164,7 +164,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 |---|---|
 | `LOG_DIR/mcp/growth-assistant.<날짜>.<번호>.log` | MCP 서버 로그 (Claude Desktop 설정에서 `LOG_DIR`를 줬을 때). 하루 또는 10MB마다 새 파일, 최근 30개 보관. `current.log`가 지금 쓰는 파일을 가리킨다 |
 | Claude Desktop의 MCP 로그 (`~/Library/Logs/Claude/mcp-server-growth-assistant.log`) | `LOG_DIR`가 없을 때의 로그와 시작 실패(환경 변수 오류, node를 찾지 못함) |
-| `~/.growth-assistant/logs/mcp-http/growth-assistant.<날짜>.<번호>.log` | 상시 실행 MCP HTTP 서버 로그. 회전·보관은 위와 같고 `current.log`가 지금 파일이다 |
+| `~/.growth-assistant/logs/mcp-http/growth-assistant.<날짜>.<번호>.log` | 상시 실행 MCP HTTP 서버 로그. 회전·보관은 위와 같고 `current.log`가 지금 파일이다. `/healthz`를 뺀 HTTP 요청마다 `[HttpRequest] 메서드 경로 상태 origin= ua=` 한 줄이 남아, 클라이언트 연결이 어느 단계(401·메타데이터·`/authorize`·`/token`)에서 멈췄는지 본다 |
 | `~/.growth-assistant/logs/launchd/server.{out,err}.log` | 상시 실행 서버의 표준출력·표준에러. 로거가 뜨기 전 오류(node·릴리스를 찾지 못함)와 시작 실패만 남는다. 회전하지 않는다 |
 | `llm_call_log` 테이블 | Claude CLI 호출마다 용도·모델·소요 시간·성공 여부·오류 |
 
