@@ -37,7 +37,7 @@ export type ReviewSet =
       readonly preparing: readonly string[];
       /** 최근에 만들어 봤지만 검증을 통과한 문제가 없어 지금은 다시 만들지 않는 개념. */
       readonly failed: readonly string[];
-      /** 오늘 더 풀 수 있는 수. 개념을 골라 달라고 했으면 null(하루 상한을 적용하지 않음). */
+      /** 오늘 더 풀 수 있는 수. 개념을 골라 달라고 했거나 더 풀기 세트면 null(하루 상한을 적용하지 않음). */
       readonly remainingToday: number | null;
     }
   | { readonly kind: 'DAILY_LIMIT_REACHED' }
@@ -67,23 +67,34 @@ export class QuizReviewService {
     @Inject(RANDOM) private readonly random: () => number,
   ) {}
 
-  /** [concept]를 주면 그 개념의 문제를, 아니면 우선순위대로 개념마다 한 문제씩 하루 상한 안에서 낸다. */
-  async reviewSet(input: { concept?: string | undefined; count?: number | undefined }): Promise<ReviewSet> {
+  /**
+   * [concept]를 주면 그 개념의 문제를, 아니면 우선순위대로 개념마다 한 문제씩 하루 상한 안에서 낸다.
+   * [more]면 하루 상한과 상관없이 같은 우선순위로 [DAILY_LIMIT]개 개념까지 내되, 오늘 푼 개념은 뺀다 (ADR-0039).
+   */
+  async reviewSet(input: {
+    concept?: string | undefined;
+    count?: number | undefined;
+    more?: boolean | undefined;
+  }): Promise<ReviewSet> {
     if (input.concept !== undefined) {
       const { resolved } = await this.concepts.resolve([input.concept]);
       const found = resolved[0];
       if (!found) return { kind: 'UNKNOWN_CONCEPT', name: input.concept };
       return this.serve([{ conceptId: found.id, count: input.count ?? CONCEPT_DEFAULT_COUNT }], null);
     }
+    if (input.more) {
+      const date = localDate(this.clock.now(), this.clock.timeZone);
+      const [fresh, solved] = await Promise.all([
+        this.mastery.unscheduled(),
+        this.attempts.conceptIdsOnDate(date, this.clock.timeZone),
+      ]);
+      return this.serve(onePerConcept(await this.pick(date, input.count ?? DAILY_LIMIT, fresh, solved)), null);
+    }
     const { date, answered } = await this.answeredToday();
     const remaining = DAILY_LIMIT - answered;
     if (remaining <= 0) return { kind: 'DAILY_LIMIT_REACHED' };
     const limit = Math.min(input.count ?? remaining, remaining);
-    const conceptIds = await this.pick(date, limit, await this.mastery.unscheduled());
-    return this.serve(
-      conceptIds.map((conceptId) => ({ conceptId, count: 1 })),
-      remaining,
-    );
+    return this.serve(onePerConcept(await this.pick(date, limit, await this.mastery.unscheduled())), remaining);
   }
 
   /**
@@ -105,17 +116,20 @@ export class QuizReviewService {
   /**
    * 오늘 복습할 개념을 우선순위(근본 원인 → [date] 안에 때가 되는 개념 → 헷갈린 개념 → 약점)대로 [limit]개 고르고,
    * 모자라면 [fresh]에서 채운다. 아침에 받은 알림의 개수와 그날 복습 세트가 같은 개념을 세도록 "지금"이 아니라 날짜로 본다.
+   * [exclude]의 개념은 고르지 않으므로 그만큼 더 읽는다.
    */
   private async pick(
     date: string,
     limit: number,
     fresh: readonly { conceptId: number; weight: number }[],
+    exclude: readonly number[] = [],
   ): Promise<number[]> {
+    const n = limit + exclude.length;
     const [rootCauses, due, confused, weak] = await Promise.all([
-      this.weakness.rootCauseIds(limit),
-      this.mastery.dueOn(date, this.clock.timeZone, limit),
-      this.studyNotes.unresolvedConfusedConcepts(limit),
-      this.mastery.weakConcepts(limit),
+      this.weakness.rootCauseIds(n),
+      this.mastery.dueOn(date, this.clock.timeZone, n),
+      this.studyNotes.unresolvedConfusedConcepts(n),
+      this.mastery.weakConcepts(n),
     ]);
     return pickConcepts({
       rootCauses,
@@ -123,6 +137,7 @@ export class QuizReviewService {
       confused,
       weak: weak.map((m) => m.conceptId),
       fresh,
+      exclude,
       limit,
       random: this.random,
     });
@@ -224,6 +239,8 @@ export class QuizReviewService {
     return task;
   }
 }
+
+const onePerConcept = (conceptIds: readonly number[]) => conceptIds.map((conceptId) => ({ conceptId, count: 1 }));
 
 function toServed(q: Question, concept: string): ServedQuestion {
   return {

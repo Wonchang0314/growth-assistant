@@ -44,6 +44,8 @@ export abstract class QuizAttemptRepository {
   abstract countForQuestion(questionId: number): Promise<number>;
   /** [timeZone]의 [date](`2026-10-18`)에 낸 풀이 수. 하루 상한에 쓴다. */
   abstract countOnDate(date: string, timeZone: string): Promise<number>;
+  /** [timeZone]의 [date]에 푼 문제의 개념. 더 풀기 세트가 오늘 푼 개념을 뺄 때 쓴다 (ADR-0039). */
+  abstract conceptIdsOnDate(date: string, timeZone: string): Promise<number[]>;
 }
 
 /**

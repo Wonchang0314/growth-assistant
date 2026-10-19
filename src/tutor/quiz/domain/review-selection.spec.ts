@@ -8,6 +8,7 @@ const pick = (overrides: Partial<Parameters<typeof pickConcepts>[0]>) =>
     confused: [],
     weak: [],
     fresh: [],
+    exclude: [],
     limit: 10,
     random: () => 0.5,
     ...overrides,
@@ -25,6 +26,12 @@ describe('pickConcepts', () => {
         limit: 5,
       }),
     ).toEqual([6, 1, 2, 3, 4]);
+  });
+
+  it('제외한 개념은 어느 우선순위에 있어도 고르지 않고 다음 개념으로 채운다', () => {
+    expect(
+      pick({ due: [1, 2], confused: [3], weak: [4], fresh: [{ conceptId: 5, weight: 1 }], exclude: [1, 3], limit: 3 }),
+    ).toEqual([2, 4, 5]);
   });
 
   it('새 개념은 가중치에 비례해 뽑고, 가중치 0인 트랙은 뽑지 않는다', () => {

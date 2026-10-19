@@ -29,6 +29,17 @@ describe('복습 카드', () => {
     const { handler } = tool({ kind: 'READY', questions: [], preparing: [], failed: [], remainingToday: 10 });
     expect((await handler.handle({})).text).toBe('오늘 복습할 문제가 없어요');
   });
+  it('오늘 몫을 다 풀었으면 카드가 알아볼 상태를 싣고, 모델에게 more로 더 낼 수 있다고 알린다', async () => {
+    const { handler } = tool({ kind: 'DAILY_LIMIT_REACHED' });
+    const result = await handler.handle({});
+    expect(result.data).toEqual({ kind: 'DAILY_LIMIT_REACHED', questions: [] });
+    expect(result.text).toContain('more를 true로 다시 불러');
+  });
+  it('더 풀기 요청은 그대로 복습 서비스에 넘긴다', async () => {
+    const { handler, review } = tool({ kind: 'READY', questions: [], preparing: [], failed: [], remainingToday: null });
+    await handler.handle({ more: true });
+    expect(review.reviewSet).toHaveBeenCalledExactlyOnceWith({ more: true });
+  });
   it('준비 중이거나 실패한 개념은 상태만 반환한다', async () => {
     const { handler } = tool({ kind: 'READY', questions: [], preparing: ['A'], failed: ['B'], remainingToday: 10 });
     const result = await handler.handle({});
