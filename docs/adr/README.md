@@ -17,7 +17,7 @@
 | [0011](0011-documentation-approach.md) | 문서는 C4 + ADR, 작업 계획은 세션 안에서 관리한다 | 채택 |
 | [0012](0012-claude-cli-stream-json.md) | `claude` CLI를 `stream-json` 출력으로 호출한다 | 일부 대체됨(0027) |
 | [0013](0013-feature-packages-pragmatic-hexagonal.md) | 기능별 패키지에 외부 경계만 포트·어댑터로 분리한다 | 대체됨(0015) |
-| [0014](0014-nestjs-typescript.md) | NestJS + TypeScript로 전환한다 | 일부 대체됨(0017·0018) |
+| [0014](0014-nestjs-typescript.md) | NestJS + TypeScript로 전환한다 | 일부 대체됨(0017·0018·0035) |
 | [0015](0015-nest-feature-modules.md) | 기능별 Nest 모듈에 외부 경계만 포트·어댑터로 분리하고, 도메인 규칙은 저장 형식과 떼어 둔다 | 일부 대체됨(0017·0018·0020) |
 | [0016](0016-fsrs-ts-fsrs.md) | FSRS는 ts-fsrs 라이브러리를 쓰고, 복습 단위는 개념으로 유지한다 | 일부 대체됨(0028) |
 | [0017](0017-pwa-http-api.md) | Discord 대신 PWA를 인터페이스로, 앱은 HTTP API 서버로 바꾼다 | 대체됨(0018) |
@@ -38,3 +38,4 @@
 | [0032](0032-scenario-questions.md) | 상황 판단형 문제는 개념 문제와 번갈아 내고, 가정 사례는 코드가 머리말을 붙이며, 경험 카드는 사례 종류에 따라 다른 말로 잇는다 | 일부 대체됨(0033) |
 | [0033](0033-quiz-policy-after-first-trial.md) | 출제에 웹 검색을 쓰고, 근본 원인은 약점 둘 이상이 기댈 때만 고르며, 상황 판단형은 개념 문제 둘마다 하나 내고, 빈칸은 복습에서 뺀다 | 채택 |
 | [0034](0034-prototype-before-quality.md) | 퀴즈 품질 점검보다 원격 전환과 예약 작업으로 프로토타입을 먼저 만들고, 품질은 실제로 쓰면서 올린다 | 채택 |
+| [0035](0035-remote-connector.md) | 원격 커스텀 커넥터는 Cloudflare 터널과 OAuth 2.1(CIMD, 구글 로그인)로 열고, HTTP는 Nest HTTP 어댑터로 띄운다 | 채택 |
