@@ -8,21 +8,22 @@ function tool(set: unknown) {
 }
 
 describe('복습 카드', () => {
-  it('복습 서비스가 고른 순서를 보존하고 첫 문제만 안내한다', async () => {
+  it('복습 서비스가 고른 문제를 순서대로 모두 카드와 글로 넘긴다', async () => {
     const questions = [25, 45].map((questionId) => ({
       questionId,
       concept: '개념',
       type: 'MULTIPLE_CHOICE',
       prompt: `질문 ${questionId}`,
-      choices: ['보기'],
+      choices: [`보기 ${questionId}`],
     }));
     const { handler, review } = tool({ kind: 'READY', questions, preparing: [], failed: [], remainingToday: 7 });
     const result = await handler.handle({});
     expect(review.reviewSet).toHaveBeenCalledExactlyOnceWith({});
     expect(result.data?.questions).toEqual(questions);
-    expect(result.text).toContain('질문 25');
-    expect(result.text).not.toContain('질문 45');
-    expect(handler.view.html).toContain('payload.questions[0]');
+    expect(result.text).toBe(
+      '[문제 25] 개념 (객관식)\n질문 25\n1. 보기 25\n\n[문제 45] 개념 (객관식)\n질문 45\n1. 보기 45',
+    );
+    expect(handler.view.uri).toBe('ui://growth-assistant/review-card.html');
   });
   it('문제가 없으면 지정한 문장만 반환한다', async () => {
     const { handler } = tool({ kind: 'READY', questions: [], preparing: [], failed: [], remainingToday: 10 });

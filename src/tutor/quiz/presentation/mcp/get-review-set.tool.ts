@@ -24,13 +24,15 @@ export class GetReviewSetTool implements McpToolHandler<typeof input> {
   readonly description =
     '복습할 퀴즈 문제(지금은 객관식)를 가져온다. 사용자가 "복습하자", "문제 내줘", "OO 문제 내줘"라고 하면 부른다. ' +
     '개념을 고르지 않으면 복습할 때가 된 개념, 헷갈렸던 개념, 약점, 새 개념 순으로 하루 10문제 안에서 고른다. ' +
-    '첫 복습 문제를 MCP Apps 퀴즈 카드로 표시한다. 정답은 돌려주지 않는다. 카드에서 보기와 확신도를 골라 submit_answer로 채점한다. 시험용 무작위 문제로 대체하지 않는다.';
+    '고른 문제를 모두 MCP Apps 복습 카드로 보여 주고, 사용자는 카드에서 문제마다 보기와 확신도를 골라 제출한다(카드가 submit_answer로 채점). ' +
+    '정답은 돌려주지 않는다.';
   readonly inputSchema = input;
   readonly readOnly = false;
+  /** 빌드할 때 dist로 함께 복사한다 (nest-cli.json). */
   readonly view: McpToolView = {
-    uri: 'ui://growth-assistant/review-quiz-card.html',
-    name: '오늘 복습 퀴즈 카드',
-    html: readFileSync(join(import.meta.dirname, 'views', 'quiz-card.html'), 'utf8'),
+    uri: 'ui://growth-assistant/review-card.html',
+    name: '오늘 복습 카드',
+    html: readFileSync(join(import.meta.dirname, 'views', 'review-card.html'), 'utf8'),
   };
 
   constructor(private readonly review: QuizReviewService) {}
@@ -44,7 +46,7 @@ export class GetReviewSetTool implements McpToolHandler<typeof input> {
         return { text: `오늘 복습 ${DAILY_LIMIT}문제를 다 풀었다. 내일 이어서 한다.`, data: { questions: [] } };
       case 'READY': {
         const lines = [
-          ...(set.questions[0] ? [describe(set.questions[0])] : []),
+          ...set.questions.map(describe),
           ...(set.preparing.length === 0
             ? []
             : [`문제를 만드는 중(1~2분 걸림, 다시 부르면 나옴): ${set.preparing.join(', ')}`]),

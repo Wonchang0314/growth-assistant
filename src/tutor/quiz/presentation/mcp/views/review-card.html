@@ -1,0 +1,648 @@
+<!doctype html>
+<!--
+  get_review_set의 MCP Apps 화면(복습 카드). 빌드 도구 없이 이 파일 하나로 돈다. SDK의 App 클래스 대신 같은 프로토콜
+  (JSON-RPC 2.0 over postMessage, ext-apps 2.0.3, 프로토콜 2026-01-26)을 직접 쓴다. 외부 자원은 쓰지 않는다(기본 CSP).
+  결과의 문제를 모두 슬라이드로 보여 주고, 문제마다 보기·확신도를 골라 제출하면 호스트를 거쳐 서버의 submit_answer로 채점한다.
+  정답은 받지 않는다. 색·글꼴은 호스트가 주는 변수(hostContext.styles)를 쓰고, 없으면 Claude 기본값으로 그린다.
+-->
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>오늘 복습</title>
+    <style>
+      :root {
+        --fg: var(--color-text-primary, light-dark(#141413, #faf9f5));
+        --fg-2: var(--color-text-secondary, light-dark(#3d3d3a, #c2c0b6));
+        --fg-3: var(--color-text-tertiary, light-dark(#73726c, #9c9a92));
+        --line: var(--color-border-tertiary, light-dark(rgb(31 30 29 / 15%), rgb(222 220 209 / 15%)));
+        --line-strong: var(--color-border-primary, light-dark(rgb(31 30 29 / 40%), rgb(222 220 209 / 40%)));
+        --surface: var(--color-background-secondary, light-dark(#f5f4ed, #262624));
+        --primary-bg: var(--color-background-inverse, light-dark(#141413, #faf9f5));
+        --primary-fg: var(--color-text-inverse, light-dark(#ffffff, #141413));
+        --pick-bg: var(--color-background-info, light-dark(#d6e4f6, #253e5f));
+        --pick-line: var(--color-border-info, #4682d5);
+        --ok-bg: var(--color-background-success, light-dark(#e9f1dc, #1b4614));
+        --ok-fg: var(--color-text-success, light-dark(#265b19, #7ab948));
+        --ok-line: var(--color-border-success, light-dark(#437426, #599130));
+        --bad-bg: var(--color-background-danger, light-dark(#f7ecec, #602a28));
+        --bad-fg: var(--color-text-danger, light-dark(#7f2c28, #ee8884));
+        --bad-line: var(--color-border-danger, light-dark(#a73d39, #cd5c58));
+        --ring: var(--color-ring-primary, light-dark(rgb(20 20 19 / 70%), rgb(250 249 245 / 70%)));
+        --radius: var(--border-radius-lg, 10px);
+        --semibold: var(--font-weight-semibold, 600);
+        --small: var(--font-text-sm-size, 14px);
+      }
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+      }
+      body {
+        padding: 12px;
+        color: var(--fg);
+        font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+        font-size: var(--font-text-md-size, 16px);
+        line-height: 1.5;
+        -webkit-text-size-adjust: 100%;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+      p,
+      h2 {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      button {
+        min-height: 44px;
+        padding: 8px 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      button:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+      button:disabled {
+        cursor: default;
+      }
+      .top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        margin-bottom: 12px;
+      }
+      #count {
+        color: var(--fg-2);
+        font-size: var(--small);
+        font-variant-numeric: tabular-nums;
+      }
+      .dots {
+        display: flex;
+        flex: 1;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .dots li {
+        width: 8px;
+        height: 8px;
+        border: 1px solid var(--line-strong);
+        border-radius: 50%;
+      }
+      .dots .ok {
+        border-color: var(--ok-line);
+        background: var(--ok-line);
+      }
+      .dots .bad {
+        border-color: var(--bad-line);
+        background: var(--bad-line);
+      }
+      .dots .current {
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
+      }
+      #fullscreen {
+        margin-left: auto;
+        font-size: var(--small);
+      }
+      .slide {
+        display: grid;
+        gap: 12px;
+      }
+      .concept {
+        color: var(--fg-3);
+        font-size: var(--small);
+      }
+      .prompt {
+        font-weight: var(--semibold);
+        white-space: pre-wrap;
+      }
+      .choices {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .choice {
+        display: flex;
+        gap: 10px;
+        width: 100%;
+        text-align: left;
+        overflow-wrap: anywhere;
+      }
+      .choice b {
+        flex: none;
+      }
+      .choice[aria-pressed='true'],
+      .segmented [aria-pressed='true'] {
+        border-color: var(--pick-line);
+        background: var(--pick-bg);
+      }
+      .choice.ok {
+        border-color: var(--ok-line);
+        background: var(--ok-bg);
+      }
+      .choice.bad {
+        border-color: var(--bad-line);
+        background: var(--bad-bg);
+      }
+      .label {
+        margin-bottom: 6px;
+        color: var(--fg-2);
+        font-size: var(--small);
+      }
+      .segmented {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .segmented button:disabled:not([aria-pressed='true']),
+      .primary:disabled,
+      .nav button:disabled {
+        opacity: 0.45;
+      }
+      .primary {
+        border-color: var(--primary-bg);
+        background: var(--primary-bg);
+        color: var(--primary-fg);
+        font-weight: var(--semibold);
+      }
+      .result {
+        display: grid;
+        gap: 4px;
+        padding: 12px;
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+      .result.ok {
+        background: var(--ok-bg);
+      }
+      .result.bad {
+        background: var(--bad-bg);
+      }
+      .result h2 {
+        font-size: var(--font-heading-md-size, 16px);
+      }
+      .result.ok h2 {
+        color: var(--ok-fg);
+      }
+      .result.bad h2 {
+        color: var(--bad-fg);
+      }
+      .error {
+        color: var(--bad-fg);
+        font-size: var(--small);
+      }
+      .nav {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .pending {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      .pending p {
+        flex: 1;
+      }
+      .note {
+        margin-top: 12px;
+        color: var(--fg-3);
+        font-size: var(--small);
+      }
+      .skeleton {
+        display: grid;
+        gap: 8px;
+      }
+      .skeleton div {
+        height: 44px;
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+      .skeleton div:first-child {
+        width: 70%;
+        height: 20px;
+      }
+      @media (min-width: 600px) {
+        .prompt {
+          font-size: var(--font-heading-lg-size, 20px);
+          line-height: 1.4;
+        }
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="skeleton" id="loading" aria-label="문제를 불러오는 중">
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+      <section id="quiz" hidden>
+        <div class="top">
+          <span id="count"></span>
+          <ol class="dots" id="dots" aria-hidden="true"></ol>
+          <button type="button" id="fullscreen" hidden></button>
+        </div>
+        <div class="slide" id="slide" aria-live="polite"></div>
+        <div class="nav">
+          <button type="button" id="prev">이전</button>
+          <button type="button" id="next">다음</button>
+        </div>
+      </section>
+      <div class="pending" id="pending" hidden>
+        <p id="pending-text"></p>
+        <button type="button" id="refresh">새로고침</button>
+      </div>
+      <p class="note" id="failed" hidden></p>
+      <p class="note" id="status" hidden></p>
+    </main>
+    <script>
+      'use strict';
+      const PROTOCOL_VERSION = '2026-01-26';
+      const CONFIDENCES = [
+        ['SURE', '확실'],
+        ['UNSURE', '애매'],
+        ['GUESS', '찍음'],
+      ];
+      const CONFIDENCE_LABEL = Object.fromEntries(CONFIDENCES);
+      const EXPERIENCE = { LIVED: '이 원칙을 실제로 겪은 경험', SAME_CONCEPT: '같은 개념을 다룬 내 경험' };
+      const $ = (id) => document.getElementById(id);
+      const root = document.documentElement;
+      const host = { serverTools: false, modelContext: false, displayModes: [], displayMode: 'inline' };
+      let toolArgs = {};
+      /** 문제마다 { q, picked, confidence, busy, result, error }. result는 submit_answer의 structuredContent다. */
+      let slides = [];
+      let index = 0;
+      let preparing = [];
+      let failed = [];
+      let refreshing = false;
+      let status = '';
+
+      // JSON-RPC over postMessage. SDK의 PostMessageTransport처럼 부모 창에서 온 메시지만 받는다.
+      let nextId = 1;
+      const pending = new Map();
+      const send = (message) => window.parent.postMessage({ jsonrpc: '2.0', ...message }, '*');
+      const notify = (method, params) => send({ method, params });
+      const request = (method, params) =>
+        new Promise((resolve, reject) => {
+          const id = nextId++;
+          pending.set(id, { resolve, reject });
+          send({ id, method, params });
+        });
+      const callTool = async (name, args) => {
+        const result = await request('tools/call', { name, arguments: args });
+        if (result?.isError) throw new Error(result.content?.[0]?.text ?? '도구 오류');
+        return result;
+      };
+
+      window.addEventListener('message', (event) => {
+        if (event.source !== window.parent) return;
+        const m = event.data;
+        if (!m || m.jsonrpc !== '2.0') return;
+        if (m.method === undefined) {
+          const waiter = pending.get(m.id);
+          pending.delete(m.id);
+          if (m.error) waiter?.reject(new Error(m.error.message));
+          else waiter?.resolve(m.result);
+        } else if (m.id !== undefined) {
+          // 호스트의 요청: ping, ui/resource-teardown은 빈 결과로 답한다.
+          const known = m.method === 'ping' || m.method === 'ui/resource-teardown';
+          send(
+            known
+              ? { id: m.id, result: {} }
+              : { id: m.id, error: { code: -32601, message: `모르는 요청: ${m.method}` } },
+          );
+        } else if (m.method === 'ui/notifications/tool-input') {
+          toolArgs = m.params?.arguments ?? {};
+        } else if (m.method === 'ui/notifications/tool-result') {
+          show(m.params);
+        } else if (m.method === 'ui/notifications/host-context-changed') {
+          applyContext(m.params);
+        }
+      });
+
+      function applyContext(ctx) {
+        if (!ctx) return;
+        if (ctx.theme) {
+          root.dataset.theme = ctx.theme;
+          root.style.colorScheme = ctx.theme;
+        }
+        for (const [name, value] of Object.entries(ctx.styles?.variables ?? {})) {
+          if (value !== undefined) root.style.setProperty(name, value);
+        }
+        const fonts = ctx.styles?.css?.fonts;
+        if (fonts && !$('host-fonts')) {
+          document.head.append(
+            Object.assign(document.createElement('style'), { id: 'host-fonts', textContent: fonts }),
+          );
+        }
+        const inset = ctx.safeAreaInsets;
+        if (inset) {
+          const pad = (n) => `${Math.max(12, n)}px`;
+          document.body.style.padding = [inset.top, inset.right, inset.bottom, inset.left].map(pad).join(' ');
+        }
+        if (ctx.availableDisplayModes) host.displayModes = ctx.availableDisplayModes;
+        if (ctx.displayMode) host.displayMode = ctx.displayMode;
+        render();
+      }
+
+      // 채점한 문제는 다시 띄워져도(호스트가 화면을 새로 그릴 때) 잠긴 채로 보이게 남긴다. 저장소를 못 쓰면 넘어간다.
+      const storageKey = (q) => `review-card:${q.questionId}`;
+      function restore(q) {
+        try {
+          return JSON.parse(localStorage.getItem(storageKey(q)) ?? '{}');
+        } catch {
+          return {};
+        }
+      }
+      function remember(s) {
+        try {
+          const { picked, confidence, result } = s;
+          localStorage.setItem(storageKey(s.q), JSON.stringify({ picked, confidence, result }));
+        } catch {}
+      }
+
+      const toSlide = (q) => ({
+        q,
+        picked: null,
+        confidence: null,
+        busy: false,
+        result: null,
+        error: '',
+        ...restore(q),
+      });
+      // 카드는 보기 버튼만 그린다. 지금 복습에 내는 유형은 객관식뿐이다(ENABLED_TYPES).
+      const multipleChoice = (questions) => (questions ?? []).filter((q) => Array.isArray(q.choices));
+
+      function show(result) {
+        const data = result?.structuredContent ?? {};
+        slides = multipleChoice(data.questions).map(toSlide);
+        index = 0;
+        preparing = data.preparing ?? [];
+        failed = data.failed ?? [];
+        status =
+          slides.length === 0 && preparing.length === 0
+            ? (result?.content?.[0]?.text ?? '오늘 복습할 문제가 없어요')
+            : '';
+        $('loading').hidden = true;
+        render();
+      }
+
+      /**
+       * 만드는 중인 개념의 문제만 받아 뒤에 붙인다. 개념을 고르지 않은 복습을 그대로 다시 부르면 새 개념을 다시 뽑으므로
+       * 만드는 중인 개념마다 한 문제씩 부른다. 개념을 골라 불렀으면 같은 인자로 다시 부른다. 이미 있는 문제는 건너뛴다.
+       */
+      async function refresh() {
+        refreshing = true;
+        render();
+        try {
+          const calls = toolArgs.concept ? [toolArgs] : preparing.map((concept) => ({ concept, count: 1 }));
+          const results = await Promise.all(calls.map((args) => callTool('get_review_set', args)));
+          const waiting = new Set(preparing);
+          const have = new Set(slides.map((s) => s.q.questionId));
+          const sets = results.map((r) => r.structuredContent ?? {});
+          const fresh = [];
+          for (const q of multipleChoice(sets.flatMap((d) => d.questions))) {
+            if (!waiting.has(q.concept) || have.has(q.questionId)) continue;
+            have.add(q.questionId);
+            fresh.push(q);
+          }
+          slides.push(...fresh.map(toSlide));
+          preparing = [...new Set(sets.flatMap((d) => d.preparing ?? []))];
+          failed = [...new Set([...failed, ...sets.flatMap((d) => d.failed ?? [])])];
+          status = fresh.length === 0 && preparing.length > 0 ? '아직 만드는 중이에요. 1~2분 뒤 다시 눌러 주세요.' : '';
+        } catch (e) {
+          status = `새로고침 실패: ${e.message}`;
+        }
+        refreshing = false;
+        render();
+      }
+
+      async function submit(s) {
+        update(s, { busy: true, error: '' });
+        try {
+          const result = await callTool('submit_answer', {
+            questionId: s.q.questionId,
+            answer: String(s.picked),
+            confidence: s.confidence,
+            hintUsed: false,
+          });
+          if (!result?.structuredContent) throw new Error('채점 결과가 없다');
+          s.result = result.structuredContent;
+          remember(s);
+          shareProgress();
+        } catch (e) {
+          s.error = `채점 실패: ${e.message}`;
+        }
+        update(s, { busy: false });
+      }
+
+      // 대화로 이어 갈 수 있게 지금까지 채점한 결과를 모델 맥락으로 넘긴다(다음 사용자 메시지 때 들어간다).
+      function shareProgress() {
+        if (!host.modelContext) return;
+        const graded = slides.filter((s) => s.result);
+        const lines = graded.map(
+          ({ q, picked, confidence, result }) =>
+            `[문제 ${q.questionId}] ${q.concept}: ${result.correct ? '정답' : '오답'} (고른 보기 ${picked}, ${CONFIDENCE_LABEL[confidence]})`,
+        );
+        const text = [`복습 카드: ${slides.length}문제 중 ${graded.length}문제를 카드에서 제출했다.`, ...lines].join(
+          '\n',
+        );
+        request('ui/update-model-context', { content: [{ type: 'text', text }] }).catch(() => {});
+      }
+
+      async function toggleFullscreen() {
+        const mode = host.displayMode === 'fullscreen' ? 'inline' : 'fullscreen';
+        try {
+          host.displayMode = (await request('ui/request-display-mode', { mode }))?.mode ?? host.displayMode;
+        } catch {}
+        render();
+      }
+
+      function update(s, patch) {
+        Object.assign(s, patch);
+        render();
+      }
+
+      function go(step) {
+        const next = index + step;
+        if (next < 0 || next >= slides.length) return;
+        index = next;
+        render();
+        if (host.displayMode === 'fullscreen') $('quiz').scrollIntoView({ block: 'start' });
+      }
+
+      function el(tag, props, ...children) {
+        const node = Object.assign(document.createElement(tag), props);
+        node.append(...children);
+        return node;
+      }
+
+      function button(key, label, onclick, { pressed, ...props } = {}) {
+        const node = el('button', { type: 'button', onclick, ...props }, ...[label].flat());
+        node.dataset.key = key;
+        if (pressed !== undefined) node.setAttribute('aria-pressed', String(pressed));
+        return node;
+      }
+
+      function renderSlide(s) {
+        const g = s.result;
+        const locked = Boolean(g) || s.busy;
+        const right = g ? parseInt(g.correctAnswer, 10) : NaN;
+        const mark = (n) => (n === right ? 'ok' : g && n === s.picked ? 'bad' : '');
+        const choices = s.q.choices.map((text, i) =>
+          el(
+            'li',
+            {},
+            button(
+              `choice-${i + 1}`,
+              [el('b', { textContent: `${i + 1}` }), text],
+              () => update(s, { picked: i + 1 }),
+              {
+                className: `choice ${mark(i + 1)}`,
+                pressed: s.picked === i + 1,
+                disabled: locked,
+              },
+            ),
+          ),
+        );
+        const confidence = CONFIDENCES.map(([value, label]) =>
+          button(`confidence-${value}`, label, () => update(s, { confidence: value }), {
+            pressed: s.confidence === value,
+            disabled: locked,
+          }),
+        );
+        const ready = s.picked !== null && s.confidence !== null && host.serverTools;
+        return [
+          el('p', { className: 'concept', textContent: `${s.q.concept} · 문제 ${s.q.questionId}` }),
+          el('p', { className: 'prompt', textContent: s.q.prompt }),
+          el('ol', { className: 'choices' }, ...choices),
+          el(
+            'div',
+            {},
+            el('p', { className: 'label', textContent: '확신도' }),
+            el('div', { className: 'segmented', role: 'group', ariaLabel: '확신도' }, ...confidence),
+          ),
+          ...(g
+            ? [renderResult(g)]
+            : [
+                button('submit', s.busy ? '채점하는 중' : '제출', () => submit(s), {
+                  className: 'primary',
+                  disabled: locked || !ready,
+                }),
+              ]),
+          ...(s.error ? [el('p', { className: 'error', role: 'alert', textContent: s.error })] : []),
+        ];
+      }
+
+      function renderResult(g) {
+        const lines = [
+          g.correct ? null : `정답: ${g.correctAnswer}`,
+          g.misconception && `고른 보기의 오개념: ${g.misconception}`,
+          `해설: ${g.explanation}`,
+          g.experience && `${EXPERIENCE[g.experience.relation] ?? '관련 경험'}: ${g.experience.title}`,
+          g.nextReview && `다음 복습: ${g.nextReview}`,
+        ];
+        return el(
+          'section',
+          { className: `result ${g.correct ? 'ok' : 'bad'}` },
+          el('h2', { textContent: g.correct ? '정답' : '오답' }),
+          ...lines.filter(Boolean).map((textContent) => el('p', { textContent })),
+        );
+      }
+
+      function render() {
+        const focused = document.activeElement?.dataset?.key;
+        const s = slides[index];
+        $('quiz').hidden = !s;
+        if (s) {
+          const dot = (t, i) => [i === index && 'current', t.result && (t.result.correct ? 'ok' : 'bad')];
+          $('count').textContent = `${index + 1} / ${slides.length}`;
+          $('dots').replaceChildren(
+            ...slides.map((t, i) => el('li', { className: dot(t, i).filter(Boolean).join(' ') })),
+          );
+          $('slide').replaceChildren(...renderSlide(s));
+          $('prev').disabled = index === 0;
+          $('next').disabled = index === slides.length - 1;
+        }
+        const fullscreen = host.displayMode === 'fullscreen';
+        $('fullscreen').hidden = !host.displayModes.includes(fullscreen ? 'inline' : 'fullscreen');
+        $('fullscreen').textContent = fullscreen ? '카드로 보기' : '전체 화면';
+        $('pending').hidden = preparing.length === 0;
+        $('pending-text').textContent = `${preparing.length}개 만드는 중 (${preparing.join(', ')})`;
+        $('refresh').disabled = refreshing || !host.serverTools;
+        $('refresh').textContent = refreshing ? '불러오는 중' : '새로고침';
+        $('failed').hidden = failed.length === 0;
+        $('failed').textContent = `문제를 만들지 못함: ${failed.join(', ')}. 30분 뒤 다시 만든다.`;
+        const note =
+          !host.serverTools && slides.length > 0 ? '이 앱에서는 카드로 제출할 수 없어요. 채팅으로 답해 주세요.' : '';
+        $('status').hidden = !(status || note);
+        $('status').textContent = status || note;
+        if (focused) document.querySelector(`[data-key="${focused}"]`)?.focus();
+      }
+
+      $('prev').onclick = () => go(-1);
+      $('next').onclick = () => go(1);
+      $('refresh').onclick = refresh;
+      $('fullscreen').onclick = toggleFullscreen;
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') go(-1);
+        if (e.key === 'ArrowRight') go(1);
+      });
+
+      // 내용 높이를 호스트에 알린다(SDK의 setupSizeChangedNotifications와 같은 방식).
+      let lastHeight = 0;
+      const reportSize = () => {
+        const saved = root.style.height;
+        root.style.height = 'max-content';
+        const height = Math.ceil(root.getBoundingClientRect().height);
+        root.style.height = saved;
+        if (height === lastHeight) return;
+        lastHeight = height;
+        notify('ui/notifications/size-changed', { width: Math.ceil(window.innerWidth), height });
+      };
+
+      async function connect() {
+        const init = await request('ui/initialize', {
+          appInfo: { name: 'growth-assistant-review-card', version: '0.0.2' },
+          appCapabilities: { availableDisplayModes: ['inline', 'fullscreen'] },
+          protocolVersion: PROTOCOL_VERSION,
+        });
+        host.serverTools = Boolean(init?.hostCapabilities?.serverTools);
+        host.modelContext = Boolean(init?.hostCapabilities?.updateModelContext);
+        applyContext(init?.hostContext);
+        notify('ui/notifications/initialized', {});
+        new ResizeObserver(() => requestAnimationFrame(reportSize)).observe(document.body);
+        reportSize();
+      }
+
+      connect().catch((e) => {
+        status = `호스트 연결 실패: ${e.message}`;
+        $('loading').hidden = true;
+        render();
+      });
+    </script>
+  </body>
+</html>
