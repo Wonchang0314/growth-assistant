@@ -1,6 +1,6 @@
 # 운영 가이드 (Mac mini)
 
-Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md)). 개발 PC는 개발·테스트용이다. 로컬 MCP 서버(stdio)는 Claude Desktop이 배포된 릴리스에서 필요할 때 띄우고 끈다 ([ADR-0018](adr/0018-claude-mcp-server.md)). 원격 커넥터의 바탕인 MCP HTTP 서버는 launchd 사용자 에이전트로 상시 실행한다 ([ADR-0035](adr/0035-remote-connector.md), 아래 "상시 실행").
+Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md)). 개발 PC는 개발·테스트용이다. Claude 앱(웹·Desktop·모바일)은 원격 커스텀 커넥터 `https://mcp.seok.app/mcp`로 붙는다. 그 바탕인 MCP HTTP 서버는 launchd 사용자 에이전트로 상시 실행하고, Cloudflare 터널로 공개한다 ([ADR-0035](adr/0035-remote-connector.md), 아래 "상시 실행"). 로컬 MCP 서버(stdio)는 원격이 안 될 때 Claude Desktop에 대신 붙이는 용도로 남겨 둔다 ([ADR-0018](adr/0018-claude-mcp-server.md), 2026-10-20 Desktop 설정에서 뺐다).
 
 ## 처음 설치
 
@@ -23,7 +23,7 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    ops/deploy.sh
    ```
    검사·테스트·빌드한 릴리스를 `~/.growth-assistant/app/releases/<시각>`에 만들고, DB 마이그레이션과 시드 개념 적재를 한 뒤 `~/.growth-assistant/app/current`를 새 릴리스로 바꾼다.
-6. **Claude Desktop 등록:**
+6. **(선택) Claude Desktop 로컬 등록:** 원격 커넥터를 쓰면 하지 않는다. 같은 도구가 두 번 보이기 때문이다. 원격이 안 될 때만 쓴다(2026-10-20 맥미니 Desktop 설정에서 뺐고, 원래 설정은 `claude_desktop_config.json.bak-20261020-remote`).
    ```bash
    ops/desktop-config.sh
    ```
@@ -46,8 +46,8 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
    - Desktop을 완전히 종료(⌘Q)했다가 다시 연다. Settings → Developer에서 `growth-assistant`가 running이면 연결된 것이다.
    - 경로를 모두 절대 경로로 적는 이유: Desktop은 셸을 거치지 않고 macOS가 띄우므로 터미널의 PATH(nvm이 바꾼 것 포함)와 작업 디렉터리를 물려받지 않는다. `command`는 배포가 바꾸는 `app/node` 링크를, `args`는 `current` 링크를 가리키므로 새로 배포한 뒤에는(node 버전을 바꿨어도) Desktop을 다시 시작하기만 하면 된다.
    - `LOG_DIR`는 `.env`가 아니라 여기서 준다. 진입점이 `.env`를 읽기 전에 로거를 만들기 때문이다.
+7. **상시 실행 서버 등록:** `ops/install.sh`. MCP HTTP 서버를 LaunchAgent로 등록해 바로 띄운다(아래 "상시 실행"). 공개 경로는 아래 "공개 경로 (Cloudflare 터널, WAF)", 커넥터 추가는 "OAuth"의 "커넥터 추가".
    - 튜터링은 Claude 프로젝트를 하나 만들고, 그 지침에 `docs/claude-project-instructions.md`의 본문을 붙여 넣은 뒤 그 안에서 대화한다.
-7. **상시 실행 서버 등록:** `ops/install.sh`. MCP HTTP 서버를 LaunchAgent로 등록해 바로 띄운다(아래 "상시 실행").
 8. **점검:** [수동 점검 체크리스트](manual-check.md)의 1단계 항목을 확인한다.
 
 ## 일상 작업
@@ -55,8 +55,8 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 | 할 일 | 명령 |
 |---|---|
 | 새 코드 배포 | `git pull && ops/deploy.sh` (의존성 설치 → 검사·테스트 → 빌드 → 새 릴리스 → 마이그레이션 → 시드 적재 → `current` 교체 → 상시 실행 서버 다시 띄우기) 후 Claude Desktop 다시 시작. 상시 실행 서버는 등록돼 있을 때만 배포가 다시 띄운다. 릴리스는 최근 3개를 남긴다 |
-| Node 버전 올리기 | `.nvmrc`를 고쳐 머지한 뒤 `git pull && nvm install && ops/deploy.sh` → Claude Desktop 다시 시작. 배포는 `node --version`이 `.nvmrc`와 다르면 멈추고, `app/node` 링크를 새 node로 바꾼다. `package.json`의 `engines`와 `.npmrc`의 `engine-strict` 때문에 범위 밖 버전에서는 `npm ci`가 실패한다 |
-| 이전 릴리스로 되돌리기 | `ls ~/.growth-assistant/app/releases` 후 `ln -sfn ~/.growth-assistant/app/releases/<이전> ~/.growth-assistant/app/current` → `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server`(상시 실행 서버) → Claude Desktop 다시 시작. DB 마이그레이션은 되돌리지 않으므로 스키마가 바뀐 릴리스 사이에서는 쓰지 않는다 |
+| Node 버전 올리기 | `.nvmrc`를 고쳐 머지한 뒤 `git pull && nvm install && ops/deploy.sh` → (로컬 등록을 쓸 때만) Claude Desktop 다시 시작. 배포는 `node --version`이 `.nvmrc`와 다르면 멈추고, `app/node` 링크를 새 node로 바꾼다. `package.json`의 `engines`와 `.npmrc`의 `engine-strict` 때문에 범위 밖 버전에서는 `npm ci`가 실패한다 |
+| 이전 릴리스로 되돌리기 | `ls ~/.growth-assistant/app/releases` 후 `ln -sfn ~/.growth-assistant/app/releases/<이전> ~/.growth-assistant/app/current` → `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server`(상시 실행 서버) → (로컬 등록을 쓸 때만) Claude Desktop 다시 시작. DB 마이그레이션은 되돌리지 않으므로 스키마가 바뀐 릴리스 사이에서는 쓰지 않는다 |
 | 마이그레이션만 적용 | `npm run db:migrate` (작업 트리의 `.env` 기준) |
 | 시드 개념만 적재 | `npm run db:seed` (작업 트리의 `.env` 기준). 시드 YAML을 고친 뒤. 개념은 이름으로 찾아 트랙·별칭·설명을 고치고, 승인 상태는 건드리지 않으며, 시드 개념끼리의 관계는 YAML대로 맞추고, YAML에서 빠진 시드 개념(관계 포함)과 트랙은 지운다. 학습 기록이 연결된 개념을 지우려 하면 적재 전체가 취소된다 |
 | Notion 동기화 | `npm run sync` (작업 트리의 `.env` 기준, `NOTION_TOKEN`과 `NOTION_ROOT_IDS`가 필요하다). 처음 실행은 백필이라 20분 남짓 걸리고, 그 뒤로는 Notion 수정 시각이 바뀐 문서만 읽는다. 실패한 문서는 다음 실행이 다시 읽는다. 상태는 Desktop에서 `sync_status` 도구로 본다 |

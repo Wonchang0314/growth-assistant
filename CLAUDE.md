@@ -14,7 +14,7 @@
 - 테스트: Vitest, Testcontainers
 - 코드 스타일: ESLint(typescript-eslint) + Prettier (`npm run check`에 포함)
 
-**인터페이스 (ADR-0018):** Claude 앱 + MCP 서버. 먼저 맥미니(이 Mac)의 Claude Desktop에 로컬(stdio)로 붙여 기능을 검증했고, 원격 커스텀 커넥터(모바일·아이패드)는 4단계에서 Cloudflare 터널과 OAuth 2.1(CIMD, 구글 로그인)로 붙인다(ADR-0035). 퀴즈 품질은 원격 전환과 예약 작업으로 프로토타입을 만든 뒤 실제로 쓰며 올린다(ADR-0034). 튜터링 대화는 Claude 앱이 하고 서버는 도구를 제공한다. 이전 Discord 봇 구현은 1단계에서 지웠다(지우기 전 커밋 `fb866c4`). 이전 Kotlin 구현은 커밋 `a7bc8c5`에 있다(`git show a7bc8c5:<경로>`).
+**인터페이스 (ADR-0018):** Claude 앱 + MCP 서버. 먼저 맥미니(이 Mac)의 Claude Desktop에 로컬(stdio)로 붙여 기능을 검증했고, 지금은 Claude 앱(웹·Desktop·모바일)이 원격 커스텀 커넥터 `https://mcp.seok.app/mcp`(Cloudflare 터널, OAuth 2.1 CIMD·구글 로그인, ADR-0035)로 붙는다(2026-10-20). 로컬 stdio 등록은 Desktop 설정에서 뺐고, 원격이 안 될 때 대신 쓰는 용도로 남긴다. 퀴즈 품질은 원격 전환과 예약 작업으로 프로토타입을 만든 뒤 실제로 쓰며 올린다(ADR-0034). 튜터링 대화는 Claude 앱이 하고 서버는 도구를 제공한다. 이전 Discord 봇 구현은 1단계에서 지웠다(지우기 전 커밋 `fb866c4`). 이전 Kotlin 구현은 커밋 `a7bc8c5`에 있다(`git show a7bc8c5:<경로>`).
 
 ## 모듈 구조
 
@@ -60,7 +60,7 @@ src/
 - 스타일 자동 수정: `npm run format`, `npx eslint --fix .`
 - MCP 서버: `npm run build && npm run mcp` (stdio. 표준출력은 MCP 메시지 통로라 로그는 표준에러나 `LOG_DIR/mcp`에 쓴다. `.env` 위치는 `GROWTH_ENV_FILE`)
 - MCP HTTP 서버: `npm run build && npm run mcp:http` (Nest HTTP 앱. Streamable HTTP `http://127.0.0.1:3100/mcp`, 헬스체크 `GET /healthz`(DB에 닿으면 200, 아니면 503). 주소는 `MCP_HTTP_HOST`·`MCP_HTTP_PORT`, 로그는 표준에러나 `LOG_DIR/mcp-http`, SIGINT·SIGTERM으로 끝낸다. `/mcp`는 OAuth 액세스 토큰이 있어야 하고, `PUBLIC_BASE_URL`·`GOOGLE_OAUTH_CLIENT_ID`·`GOOGLE_OAUTH_CLIENT_SECRET`·`OAUTH_ALLOWED_EMAILS`가 없으면 시작하지 않는다. 로컬 흐름 시험은 `docs/ops.md` "OAuth")
-- 운영(Mac mini): 배포 `ops/deploy.sh` (검사·빌드·릴리스·마이그레이션·시드 적재, `docs/ops.md`). Claude Desktop은 배포된 릴리스의 MCP 서버를 띄운다. Desktop 설정 항목 출력 `ops/desktop-config.sh`
+- 운영(Mac mini): 배포 `ops/deploy.sh` (검사·빌드·릴리스·마이그레이션·시드 적재, `docs/ops.md`). 상시 실행 MCP HTTP 서버 등록 `ops/install.sh`(해제 `ops/uninstall.sh`), 공개 경로는 Cloudflare 터널(`docs/ops.md`). 로컬 stdio를 Desktop에 대신 붙일 때의 설정 항목 출력 `ops/desktop-config.sh`
 
 ## 문서
 
