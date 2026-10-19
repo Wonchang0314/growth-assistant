@@ -17,9 +17,14 @@
    - **린트(`quizLayer`):** 실제 작업 중에 위반을 잡은 적은 없다(임시 파일로 규칙이 동작하는 것만 확인). domain이 `core/ingestion/case-gate.ts`(패턴·길이 게이트)와 `tutor/mastery`의 타입을 import한다(레이어 규칙은 모듈 안 폴더에만 걸림)
    - **좋았던 점:** 순수 규칙(채점, 개념 고르기, 변형 판단, 근본 원인)이 domain에 모여 단위 테스트가 쉬웠다. 여러 레이어를 함께 쓰는 통합 테스트는 모듈 루트에 둔다는 규칙이 필요했다
    - **사용자 학습:** 이 구조는 백엔드 학습용 시도다. 평가할 때 사용자가 레이어를 오가며 읽기 편했는지 직접 묻는다
-3. **4단계 원격 전환 결정 (사용자 인터뷰 → 새 ADR):** 설계 문서 "원격 전환 (4단계, 새 ADR로 결정)"의 2026-10-14 조사(공개 경로 Tailscale Funnel·Cloudflare Tunnel, OAuth 2.1 최소 구현 또는 고정 헤더, Anthropic 대역 IP 제한, 알림 ntfy, MCP Apps)를 출발점으로, 바뀌었을 수 있는 사실(커스텀 커넥터 인증 방식, Claude 예약 작업의 모바일 푸시)은 웹 검색으로 다시 확인한 뒤 선택지와 추천을 붙여 묻는다. 그다음 Streamable HTTP 진입점·인증·상시 실행 진입점(launchd)·운영 감시를 PR로 나눠 만든다
-   - **사실 확인 (2026-10-19):** [원격 전환·예약 작업 조사](research/2026-10-19-remote-and-scheduling.md). 바뀐 것(CIMD 기본 지원, MCP 2026-07-28 개정, Cowork 예약 작업 클라우드 실행), 선택지·추천 후보, 인터뷰 질문, 실험으로 확인할 것
-   - **인터뷰 진행 (2026-10-20):** 정함 — 인증은 OAuth 2.1 + CIMD, `/authorize`의 본인 확인은 구글 로그인(OIDC) + 이메일 허용 목록(구글 토큰은 버리고 Claude용 토큰은 우리가 발급, 구글 계정 패스키로 Face ID). Apple 로그인은 연 $99(Developer Program)라 뺐다. 기기 단위 제한은 불가능하다(`/mcp`는 Anthropic 서버가 부름). 정함 — 공개 경로는 Cloudflare 이름 있는 터널(사용자 도메인 있음), IP 제한은 WAF 사용자 정의 규칙으로 `/mcp`·`/token`만 Anthropic 대역(`160.79.104.0/21`)에서 받는다(`/authorize`·구글 콜백은 열어 둠). Tailscale Serve + `mcp-remote`는 맥북 Desktop에서만 되고 모바일·클라우드 예약 작업에서 안 돼 쓰지 않는다. 정함 — HTTP 서버는 Nest HTTP 어댑터(Express)로 통일한다. OAuth 엔드포인트는 Nest 컨트롤러로, `/mcp`도 지금의 `node:http` 서버(`core/mcp/mcp-http.server.ts`) 대신 같은 Nest HTTP 앱에 올린다(`@modelcontextprotocol/express` 후보). CLAUDE.md의 "HTTP 없이 애플리케이션 컨텍스트"가 바뀌므로 새 ADR에 적는다. 정함 — 운영 알림은 ntfy(`AdminNotifier` 어댑터) + 외부 헬스체크(`/healthz`), MCP Apps는 ADR에 경로만 남기고 화면은 6단계. 남은 질문: 상시 실행(조사 문서 7절. 사용자가 FileVault를 전원 유지 기능으로 알고 있었다. 실제로는 디스크 암호화이고, 화면 잠금으로는 서버가 멈추지 않으며 재부팅 뒤에만 잠금 해제 전까지 멈춘다). 사용자가 OAuth를 처음 제대로 익히는 중이라 학습 기록 10·11번에 흐름과 헷갈린 점을 남겼다
+3. **4단계 원격 전환 구현 ([ADR-0035](adr/0035-remote-connector.md), 2026-10-20 인터뷰로 정함):** 아래 순서로 PR을 나눈다. 사실 근거는 [원격 전환·예약 작업 조사](research/2026-10-19-remote-and-scheduling.md)(5단계까지 쓰고 지운다)
+   1. **Nest HTTP 앱으로 옮기기:** `mcp-http.ts`를 Nest HTTP 앱(Express)으로 바꾸고 `/mcp`는 `@modelcontextprotocol/express`, `/healthz` 추가. `core/mcp/mcp-http.server.ts`(`node:http`)는 지운다. 인증은 아직 없다
+   2. **OAuth 인가 서버:** 보호 리소스·인가 서버 메타데이터, `/authorize`(CIMD 허용 목록 검사) → 구글 OIDC → 콜백(이메일 허용 목록) → 인가 코드, `/token`(PKCE, 리프레시 회전, 토큰 해시 저장), `/mcp` Bearer 검사와 `401` + `WWW-Authenticate`. 크면 메타데이터·토큰과 구글 로그인으로 둘로 나눈다. 구글 Cloud OAuth 클라이언트 만들기는 사용자가 한다
+   3. **상시 실행:** LaunchAgent(`ops/install.sh`, `KeepAlive`, 시작 시 DB 대기), 배포 스크립트 연결
+   4. **공개와 커넥터 등록:** `cloudflared` 터널, WAF 사용자 정의 규칙(무료 플랜 규칙 수 확인), 운영 가이드. 첫 연결 로그로 호스팅 앱의 CIMD `client_id`와 MCP 명세 개정을 확인해 허용 목록에 고정한다. Cloudflare 설정·커넥터 추가는 사용자와 함께
+   5. **운영 감시:** `AdminNotifier` ntfy 어댑터, 외부 헬스체크 등록
+   6. **모바일·아이패드 수동 점검** (`docs/manual-check.md`에 4단계 절 추가)
+   - **사용자 학습:** OAuth를 이번에 처음 제대로 익히는 중이다. 학습 기록 10·11번(OAuth 흐름·PKCE, 공개 경로)에 헷갈린 점이 있다. FileVault를 전원 유지 기능으로 알고 있었다(디스크 암호화이고 화면 잠금으로는 서버가 멈추지 않는다). 2번 PR을 리뷰할 때 흐름을 코드와 맞춰 다시 설명한다
 4. **5단계 예약 작업 (프로토타입):** 실행 방식(서버 스케줄러, Claude 예약 작업, 알림 경로)을 묻고 새벽 동기화·문제 보충과 아침 복습 알림을 만든다. 프로토타입 확인은 모바일에서 아침 알림을 받고 복습을 풀어 채점 기록이 쌓이는 것
    - **사실 확인 (2026-10-19):** 같은 조사 문서 5절(예약 작업과 알림)·7절(launchd). Cowork 예약 작업은 2026-10-06부터 클라우드에서 돌아 로컬 stdio 서버에 닿지 않는다
 
