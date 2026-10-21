@@ -3,7 +3,7 @@ import { and, asc, count, eq, inArray, notExists, sql } from 'drizzle-orm';
 import { DB, type Db, type Tx } from '../../../core/db/db.module.js';
 import type { ConceptMergeParticipant } from '../../../core/knowledge/concept-merge.js';
 import { type NewQuestion, QuizQuestionRepository } from '../application/ports.js';
-import { ENABLED_TYPES, type Question, type QuestionType } from '../domain/quiz-question.js';
+import { type ConceptAngle, ENABLED_TYPES, type Question, type QuestionType } from '../domain/quiz-question.js';
 import type { QuestionHistory } from '../domain/variant.js';
 import { quizAttempt } from './quiz-attempt.schema.js';
 import { quizQuestion } from './quiz-question.schema.js';
@@ -43,7 +43,7 @@ export class DrizzleQuizQuestionRepository extends QuizQuestionRepository implem
     return row && toQuestion(row);
   }
 
-  async findServable(conceptId: number, limit: number): Promise<Question[]> {
+  async findServable(conceptId: number, angles: readonly ConceptAngle[], limit: number): Promise<Question[]> {
     const answered = this.db.select().from(quizAttempt).where(eq(quizAttempt.questionId, quizQuestion.id));
     const rows = await this.db
       .select()
@@ -52,6 +52,7 @@ export class DrizzleQuizQuestionRepository extends QuizQuestionRepository implem
         and(
           eq(quizQuestion.conceptId, conceptId),
           inArray(quizQuestion.type, [...ENABLED_TYPES]),
+          inArray(quizQuestion.angle, [...angles]),
           eq(quizQuestion.validationStatus, 'VALID'),
           eq(quizQuestion.reported, false),
           notExists(answered),

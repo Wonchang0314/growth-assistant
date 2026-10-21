@@ -108,7 +108,8 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
     await new DrizzleQuizQuestionRepository(testDb.db).add({
       conceptId,
       type: 'MULTIPLE_CHOICE',
-      angle: 'WHY',
+      // 미측정 개념에는 동작 원리 문제를 낸다(ADR-0038·0040).
+      angle: 'MECHANISM',
       keyPoint: '선택도',
       difficulty: 1,
       prompt: '성별 컬럼 인덱스가 느린 이유는?',
