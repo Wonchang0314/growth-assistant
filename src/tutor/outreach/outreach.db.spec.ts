@@ -54,17 +54,21 @@ beforeAll(async () => {
   );
   await app.init();
 });
-beforeEach(async () => {
-  await testDb.truncateAll();
-  notifier.alerts.length = 0;
-  source.listError = undefined;
-  await new ConceptRepository(testDb.db).applySeed(
+const seed = (weight: number) =>
+  new ConceptRepository(testDb.db).applySeed(
     {
-      tracks: [{ key: 'database', name: '관계형 DB', weight: 1, description: 'DB' }],
+      tracks: [{ key: 'database', name: '관계형 DB', weight, description: 'DB' }],
       concepts: [{ name: '인덱스', track: 'database', aliases: [], description: '인덱스', requires: [], related: [] }],
     },
     clock.now(),
   );
+const seedWithoutFresh = () => seed(0);
+
+beforeEach(async () => {
+  await testDb.truncateAll();
+  notifier.alerts.length = 0;
+  source.listError = undefined;
+  await seed(1);
 });
 afterAll(async () => {
   await app.close();
@@ -134,7 +138,8 @@ describe('저녁 알림', () => {
 
   it.each([
     ['오늘 한 문제라도 풀었으면', () => dueToday().then(answerToday), '오늘 1문제를 풀어 보내지 않음'],
-    ['복습할 개념이 없으면', () => Promise.resolve(), '복습할 개념이 없어 보내지 않음'],
+    // 일정이 없는 개념은 트랙 가중치가 0이면 새 개념으로도 뽑지 않는다.
+    ['복습할 개념이 없으면', seedWithoutFresh, '복습할 개념이 없어 보내지 않음'],
     [
       '설정으로 껐으면',
       () => dueToday().then(() => app.get(AppSettingRepository).set(ALERT_SETTINGS.evening, 'off')),
@@ -175,6 +180,6 @@ describe('새벽 작업', () => {
     await expect(run).rejects.toThrow(
       '동기화 실패: Notion 응답 없음 / 추출: 문서 0개, 카드 0장, 실패 0 / 문제 만들기: 문제가 없는 개념 1개 중 1개 만듦',
     );
-    expect(await app.get(QuizQuestionRepository).findServable(1, 1)).toHaveLength(1);
+    expect(await app.get(QuizQuestionRepository).findServable(1, ['MECHANISM'], 1)).toHaveLength(1);
   });
 });

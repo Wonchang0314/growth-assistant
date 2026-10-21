@@ -22,8 +22,10 @@ export abstract class QuizQuestionRepository {
   /** 그 개념에서 이미 낸(검증을 통과한) 문제의 핵심. 새 문제는 다른 핵심을 고른다. */
   abstract keyPoints(conceptId: number): Promise<string[]>;
   abstract find(id: number): Promise<Question | undefined>;
-  /** 낼 수 있는 문제: 검증을 통과했고, 신고되지 않았고, 아직 풀지 않은 문제. 변형 문제 먼저, 오래된 것부터. */
-  abstract findServable(conceptId: number, limit: number): Promise<Question[]>;
+  /**
+   * 낼 수 있는 문제: 검증을 통과했고, 신고되지 않았고, 아직 풀지 않은 [angles] 각도의 문제. 변형 문제 먼저, 오래된 것부터.
+   */
+  abstract findServable(conceptId: number, angles: readonly ConceptAngle[], limit: number): Promise<Question[]>;
   /** 그 개념의 검증 통과·신고 안 된 문제와 마지막 풀이, 변형이 있는지. 오래된 것부터. 다음에 만들 문제를 정할 때 쓴다. */
   abstract findHistory(conceptId: number): Promise<QuestionHistory[]>;
   /** 검증을 통과한 문제 수. 다음에 만들 유형을 고를 때 쓴다. */
@@ -46,6 +48,14 @@ export abstract class QuizAttemptRepository {
   abstract countOnDate(date: string, timeZone: string): Promise<number>;
   /** [timeZone]의 [date]에 푼 문제의 개념. 더 풀기 세트가 오늘 푼 개념을 뺄 때 쓴다 (ADR-0039). */
   abstract conceptIdsOnDate(date: string, timeZone: string): Promise<number[]>;
+}
+
+/** 날짜별 오늘 낼 개념 순서 (ADR-0040). 새벽 작업이나 그날 처음 고를 때 한 번 정하고 그날은 바꾸지 않는다. */
+export abstract class ReviewPlanRepository {
+  /** [date](`2026-10-21`)의 계획. 없으면 빈 배열이다. */
+  abstract find(date: string): Promise<number[]>;
+  /** [date]의 계획이 없으면 [conceptIds]로 저장한다. 이미 있으면(동시에 정했으면) 그대로 두고, 저장된 계획을 돌려준다. */
+  abstract saveIfAbsent(date: string, conceptIds: readonly number[]): Promise<number[]>;
 }
 
 /**

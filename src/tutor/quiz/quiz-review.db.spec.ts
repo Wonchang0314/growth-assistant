@@ -16,11 +16,13 @@ import { StudyNoteService } from '../study/study-note.service.js';
 import { QuizGenerationService } from './application/quiz-generation.service.js';
 import { QuizGradingService } from './application/quiz-grading.service.js';
 import { QuizGuidelineService } from './application/quiz-guideline.service.js';
-import { QuizReviewService, RETRY_AFTER_MS } from './application/quiz-review.service.js';
+import { QuizReviewService, RETRY_AFTER_MS, type ReviewSet } from './application/quiz-review.service.js';
 import { QuizWeaknessService } from './application/quiz-weakness.service.js';
 import { ClaudeQuestionGenerator } from './infrastructure/claude-question.generator.js';
 import { DrizzleQuizAttemptRepository } from './infrastructure/drizzle-quiz-attempt.repository.js';
+import type { ConceptAngle } from './domain/quiz-question.js';
 import { DrizzleQuizQuestionRepository } from './infrastructure/drizzle-quiz-question.repository.js';
+import { DrizzleReviewPlanRepository } from './infrastructure/drizzle-review-plan.repository.js';
 import { quizAttempt } from './infrastructure/quiz-attempt.schema.js';
 import { quizQuestion } from './infrastructure/quiz-question.schema.js';
 
@@ -38,13 +40,18 @@ const grading = new QuizGradingService(questions, attempts, mastery, experiences
 let claude: FakeClaudeClient;
 let review: QuizReviewService;
 
-/** 검증을 통과한 객관식 문제. 정답은 1번 "선택도가 낮아서"다. */
-const addQuestion = (conceptId: number, keyPoint = `핵심 ${conceptId}`, variantOf: number | null = null) => {
+/** 검증을 통과한 객관식 문제. 정답은 1번 "선택도가 낮아서"다. 각도는 미측정 개념에 내는 동작 원리가 기본이다. */
+const addQuestion = (
+  conceptId: number,
+  keyPoint = `핵심 ${conceptId}`,
+  variantOf: number | null = null,
+  angle: ConceptAngle = 'MECHANISM',
+) => {
   clock.advance(1000);
   return questions.add({
     conceptId,
     type: 'MULTIPLE_CHOICE',
-    angle: 'WHY',
+    angle,
     keyPoint,
     difficulty: 1,
     prompt: `개념 ${conceptId} 질문`,
@@ -114,6 +121,7 @@ beforeEach(async () => {
   review = new QuizReviewService(
     questions,
     attempts,
+    new DrizzleReviewPlanRepository(testDb.db),
     generation,
     concepts,
     mastery,
@@ -157,7 +165,7 @@ describe('get_review_set', () => {
     expect((await testDb.db.select().from(quizQuestion)).map((q) => q.usedCount)).toEqual([2, 1]);
   });
 
-  it('고르지 않으면 복습할 때가 된 개념, 새 개념 순으로 개념마다 한 문제씩 내고, 푼 개념은 다음 복습일까지 빠진다', async () => {
+  it('고르지 않으면 복습할 때가 된 개념, 새 개념 순으로 개념마다 한 문제씩 내고, 오늘 푼 개념은 빠진다', async () => {
     await addQuestion(1);
     await addQuestion(2);
     await mastery.introduce([2], clock.now());
@@ -183,6 +191,43 @@ describe('get_review_set', () => {
 
     expect(set.kind === 'READY' && set.questions.map((q) => q.concept)).toEqual(['인덱스']);
     expect(await review.today()).toEqual({ answered: 0, conceptIds: [1] });
+  });
+
+  it('오늘 계획은 그날 처음 고를 때 정해 그날은 바꾸지 않고, 더 풀기는 계획이 모자라면 계획 밖 개념을 더한다', async () => {
+    await addQuestion(1);
+    await addQuestion(2);
+    const first = await review.reviewSet({});
+    // 계획을 정한 뒤 생긴, 지금 복습할 때가 된 개념.
+    const isolation = await addIsolationLevel();
+    await addQuestion(isolation);
+    await mastery.introduce([isolation], clock.now());
+
+    const again = await review.reviewSet({});
+    const more = await review.reviewSet({ more: true });
+    clock.advance(DAY);
+    const tomorrow = await review.reviewSet({});
+
+    const concepts = (set: ReviewSet) => set.kind === 'READY' && set.questions.map((q) => q.concept);
+    expect(concepts(first)).toEqual(['인덱스', '트랜잭션']);
+    expect(concepts(again)).toEqual(['인덱스', '트랜잭션']);
+    expect(concepts(more)).toEqual(['인덱스', '트랜잭션', '격리 수준']);
+    // 낸 뒤 풀지 않은 문제는 다음 날 계획에서 다시 낸다.
+    expect(concepts(tomorrow)).toEqual(['격리 수준', '인덱스', '트랜잭션']);
+  });
+
+  it('미리 만든 문제는 지금 숙련도 단계의 각도일 때만 내고, 맞는 문제가 모자라면 새로 만든다', async () => {
+    // 두 번 확신하고 맞혀 숙련도가 0.8을 넘었다(트레이드오프 단계).
+    const solved = await addQuestion(1);
+    await submit(solved, '1');
+    await submit(solved, '1');
+    await addQuestion(1, '쉬운 핵심');
+    const deep = await addQuestion(1, '깊은 핵심', null, 'TRADEOFF');
+
+    const set = await review.reviewSet({ concept: '인덱스', count: 2 });
+    await review.idle();
+
+    expect(set).toMatchObject({ preparing: ['인덱스'] });
+    expect(set.kind === 'READY' && set.questions.map((q) => q.questionId)).toEqual([deep]);
   });
 
   it('오늘 10문제를 풀었으면 더 내지 않는다', async () => {
@@ -220,27 +265,30 @@ describe('get_review_set', () => {
 });
 
 describe('오늘 복습 (새벽 문제 만들기, 학습 알림)', () => {
-  it('오늘 안에 때가 되는 개념을 고르고 내일 개념과 새 개념은 넣지 않으며, 오늘 푼 수를 함께 준다', async () => {
+  it('오늘 계획 중 아직 풀지 않은 개념(새 개념 포함, 내일 때가 되는 개념 제외)과 오늘 푼 수를 준다', async () => {
+    const isolation = await addIsolationLevel();
     await mastery.introduce([1], new Date(clock.now().getTime() + 60_000));
     await mastery.introduce([2], new Date(clock.now().getTime() + DAY));
 
     const before = await review.today();
     await submit(await addQuestion(1), '1');
 
-    expect(before).toEqual({ answered: 0, conceptIds: [1] });
-    expect(await review.today()).toMatchObject({ answered: 1 });
+    expect(before).toEqual({ answered: 0, conceptIds: [1, isolation] });
+    expect(await review.today()).toEqual({ answered: 1, conceptIds: [isolation] });
   });
 
-  it('낼 문제가 없는 개념만 상한까지 하나씩 만든다', async () => {
-    await mastery.introduce([1, 2, await addIsolationLevel()], clock.now());
+  it('오늘 계획을 정하고, 지금 각도로 낼 문제가 없는 개념만 하나씩 만든다', async () => {
     await addQuestion(1);
+    // 미측정 개념에는 트레이드오프 문제를 내지 않는다.
+    await addQuestion(2, '핵심 2', null, 'TRADEOFF');
     claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
 
-    const result = await review.prepareToday(1);
+    const result = await review.prepareToday();
 
     expect(result).toEqual({ concepts: 1, ready: 1 });
     expect(claude.requestsFor('QUIZ_GENERATION')).toHaveLength(1);
-    expect(await questions.findServable(2, 1)).toHaveLength(1);
+    expect(await questions.findServable(2, ['MECHANISM'], 2)).toHaveLength(1);
+    expect(await review.today()).toEqual({ answered: 0, conceptIds: [1, 2] });
   });
 });
 
@@ -499,6 +547,8 @@ describe('get_weakness', () => {
       await submit(weak, '2');
       await submit(weak, '2');
     }
+    // 오늘 푼 개념은 오늘 계획에서 빠지므로 약점은 어제 생겼다.
+    clock.advance(DAY);
     const cause = await addQuestion(1);
 
     const first = await review.reviewSet({ count: 1 });

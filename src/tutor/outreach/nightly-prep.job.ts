@@ -3,11 +3,9 @@ import { IngestionPipeline, INGESTION_LOCK } from '../../core/ingestion/ingestio
 import { type DailyJob, runStage, ScheduledJob, stagesText } from '../../core/scheduler/daily-job.js';
 import { QuizReviewService } from '../quiz/application/quiz-review.service.js';
 
-/** 하룻밤에 문제를 미리 만드는 개념 수의 상한. 개념마다 출제·검증으로 `claude -p`를 두세 번 부른다. */
-export const NIGHTLY_PREPARE_LIMIT = 10;
-
 /**
- * 04:00 새벽 작업 (ADR-0036): Notion 동기화 → 경험 카드 추출 → 오늘 복습할 개념 중 낼 문제가 없는 개념의 문제 미리 만들기.
+ * 04:00 새벽 작업 (ADR-0036): Notion 동기화 → 경험 카드 추출 → 오늘 계획(20개 개념, ADR-0040)을 정하고 지금 각도로 낼 문제가
+ * 없는 개념의 문제 미리 만들기. 개념마다 출제·검증으로 `claude -p`를 두세 번 부른다.
  * 판단 사례 추상화는 문제에 쓰지 않게 돼 하지 않는다(ADR-0038). 앞 단계가 실패해도 뒤 단계는 하고, 하나라도 실패하면 끝에 던져
  * 실패로 기록·알린다. `sync_now`와 같은 잠금을 써서 겹치지 않는다.
  */
@@ -27,7 +25,7 @@ export class NightlyPrepJob implements DailyJob {
     const results = [
       ...(await this.pipeline.run()),
       await runStage('문제 만들기', async () => {
-        const r = await this.review.prepareToday(NIGHTLY_PREPARE_LIMIT);
+        const r = await this.review.prepareToday();
         return `문제가 없는 개념 ${r.concepts}개 중 ${r.ready}개 만듦`;
       }),
     ];

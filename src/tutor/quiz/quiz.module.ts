@@ -6,7 +6,12 @@ import { MemoryModule } from '../../core/memory/memory.module.js';
 import { SettingModule } from '../../core/setting/setting.module.js';
 import { MasteryModule } from '../mastery/mastery.module.js';
 import { StudyModule } from '../study/study.module.js';
-import { QuestionGenerator, QuizAttemptRepository, QuizQuestionRepository } from './application/ports.js';
+import {
+  QuestionGenerator,
+  QuizAttemptRepository,
+  QuizQuestionRepository,
+  ReviewPlanRepository,
+} from './application/ports.js';
 import { QuizGenerationService, RANDOM } from './application/quiz-generation.service.js';
 import { QuizGradingService } from './application/quiz-grading.service.js';
 import { QuizGuidelineService } from './application/quiz-guideline.service.js';
@@ -15,6 +20,7 @@ import { QuizWeaknessService } from './application/quiz-weakness.service.js';
 import { ClaudeQuestionGenerator } from './infrastructure/claude-question.generator.js';
 import { DrizzleQuizAttemptRepository } from './infrastructure/drizzle-quiz-attempt.repository.js';
 import { DrizzleQuizQuestionRepository } from './infrastructure/drizzle-quiz-question.repository.js';
+import { DrizzleReviewPlanRepository } from './infrastructure/drizzle-review-plan.repository.js';
 import { GetReviewSetTool } from './presentation/mcp/get-review-set.tool.js';
 import { GetWeaknessTool } from './presentation/mcp/get-weakness.tool.js';
 import { ReportQuestionTool } from './presentation/mcp/report-question.tool.js';
@@ -31,6 +37,7 @@ import { UpdateQuizGuidelineTool } from './presentation/mcp/update-quiz-guidelin
     DrizzleQuizQuestionRepository,
     { provide: QuizQuestionRepository, useExisting: DrizzleQuizQuestionRepository },
     { provide: QuizAttemptRepository, useClass: DrizzleQuizAttemptRepository },
+    { provide: ReviewPlanRepository, useClass: DrizzleReviewPlanRepository },
     { provide: QuestionGenerator, useClass: ClaudeQuestionGenerator },
     { provide: RANDOM, useValue: Math.random },
     QuizGenerationService,

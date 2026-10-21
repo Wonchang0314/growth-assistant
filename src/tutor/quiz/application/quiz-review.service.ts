@@ -6,13 +6,15 @@ import { MasteryService } from '../../mastery/mastery.service.js';
 import { StudyNoteService } from '../../study/study-note.service.js';
 import { DAILY_LIMIT, pickConcepts } from '../domain/review-selection.js';
 import { ENABLED_TYPES, type Question, type QuestionType } from '../domain/quiz-question.js';
-import { nextQuestion } from '../domain/variant.js';
-import { QuizAttemptRepository, QuizQuestionRepository } from './ports.js';
+import { nextQuestion, tierAngles } from '../domain/variant.js';
+import { QuizAttemptRepository, QuizQuestionRepository, ReviewPlanRepository } from './ports.js';
 import { QuizGenerationService, RANDOM } from './quiz-generation.service.js';
 import { QuizWeaknessService } from './quiz-weakness.service.js';
 
 /** 개념 하나를 골라 달라고 했을 때 기본으로 내는 문제 수. */
 const CONCEPT_DEFAULT_COUNT = 3;
+/** 하루 계획의 개념 수. 기본 세트와 더 풀기 한 번 몫이다 (ADR-0040). */
+export const PLAN_SIZE = 2 * DAILY_LIMIT;
 /**
  * 뒤에서 만들기가 검증을 하나도 통과하지 못한 개념은 이만큼 다시 만들지 않는다. 부를 때마다 다시 만들면
  * 사용량만 쓰고 계속 "만드는 중"으로 보인다(2026-10-18 Desktop 시험).
@@ -58,6 +60,7 @@ export class QuizReviewService {
   constructor(
     private readonly questions: QuizQuestionRepository,
     private readonly attempts: QuizAttemptRepository,
+    private readonly plans: ReviewPlanRepository,
     private readonly generation: QuizGenerationService,
     private readonly concepts: ConceptService,
     private readonly mastery: MasteryService,
@@ -68,8 +71,9 @@ export class QuizReviewService {
   ) {}
 
   /**
-   * [concept]를 주면 그 개념의 문제를, 아니면 우선순위대로 개념마다 한 문제씩 하루 상한 안에서 낸다.
-   * [more]면 하루 상한과 상관없이 같은 우선순위로 [DAILY_LIMIT]개 개념까지 내되, 오늘 푼 개념은 뺀다 (ADR-0039).
+   * [concept]를 주면 그 개념의 문제를, 아니면 오늘 계획의 아직 풀지 않은 개념을 순서대로 한 문제씩 하루 상한 안에서 낸다.
+   * [more]면 하루 상한과 상관없이 [DAILY_LIMIT]개 개념까지 이어서 내고, 계획이 모자라면 계획 밖 개념을 우선순위로 더한다
+   * (ADR-0039·0040).
    */
   async reviewSet(input: {
     concept?: string | undefined;
@@ -82,39 +86,50 @@ export class QuizReviewService {
       if (!found) return { kind: 'UNKNOWN_CONCEPT', name: input.concept };
       return this.serve([{ conceptId: found.id, count: input.count ?? CONCEPT_DEFAULT_COUNT }], null);
     }
+    const { date, answered, solved, open } = await this.todayPlan();
     if (input.more) {
-      const date = localDate(this.clock.now(), this.clock.timeZone);
-      const [fresh, solved] = await Promise.all([
-        this.mastery.unscheduled(),
-        this.attempts.conceptIdsOnDate(date, this.clock.timeZone),
-      ]);
-      return this.serve(onePerConcept(await this.pick(date, input.count ?? DAILY_LIMIT, fresh, solved)), null);
+      const limit = input.count ?? DAILY_LIMIT;
+      const planned = open.slice(0, limit);
+      const extra =
+        planned.length < limit
+          ? await this.pick(date, limit - planned.length, await this.mastery.unscheduled(), [...solved, ...planned])
+          : [];
+      return this.serve(onePerConcept([...planned, ...extra]), null);
     }
-    const { date, answered } = await this.answeredToday();
     const remaining = DAILY_LIMIT - answered;
     if (remaining <= 0) return { kind: 'DAILY_LIMIT_REACHED' };
-    const limit = Math.min(input.count ?? remaining, remaining);
-    return this.serve(onePerConcept(await this.pick(date, limit, await this.mastery.unscheduled())), remaining);
+    return this.serve(onePerConcept(open.slice(0, Math.min(input.count ?? remaining, remaining))), remaining);
   }
 
-  /**
-   * 오늘([Clock.timeZone]) 푼 수와 오늘 더 복습할 개념. 학습 알림과 새벽 문제 만들기가 쓴다.
-   * 개념은 복습 세트와 같은 우선순위로 오늘 남은 수까지이고, 새 개념(복습 세트가 그때그때 무작위로 뽑음)은 넣지 않는다.
-   */
+  /** 오늘([Clock.timeZone]) 푼 수와 오늘 더 복습할 개념(계획의 아직 풀지 않은 개념, 오늘 남은 수까지). 학습 알림이 쓴다. */
   async today(): Promise<{ answered: number; conceptIds: number[] }> {
-    const { date, answered } = await this.answeredToday();
-    const limit = DAILY_LIMIT - answered;
-    if (limit <= 0) return { answered, conceptIds: [] };
-    return { answered, conceptIds: await this.pick(date, limit, []) };
+    const { answered, open } = await this.todayPlan();
+    return { answered, conceptIds: open.slice(0, Math.max(DAILY_LIMIT - answered, 0)) };
   }
 
-  private async answeredToday(): Promise<{ date: string; answered: number }> {
+  /** 오늘 푼 수·개념과 오늘 계획 중 아직 풀지 않은 개념([open], 계획 순서). */
+  private async todayPlan() {
     const date = localDate(this.clock.now(), this.clock.timeZone);
-    return { date, answered: await this.attempts.countOnDate(date, this.clock.timeZone) };
+    const [planned, answered, solved] = await Promise.all([
+      this.plan(date),
+      this.attempts.countOnDate(date, this.clock.timeZone),
+      this.attempts.conceptIdsOnDate(date, this.clock.timeZone),
+    ]);
+    return { date, answered, solved, open: planned.filter((id) => !solved.includes(id)) };
   }
 
   /**
-   * 오늘 복습할 개념을 우선순위(근본 원인 → [date] 안에 때가 되는 개념 → 헷갈린 개념 → 약점)대로 [limit]개 고르고,
+   * [date]의 계획. 없으면 지금 우선순위로 [PLAN_SIZE]개를 골라 저장한다. 새 개념의 무작위 순서도 이때 정해져
+   * 새벽에 만든 문제와 그날 내는 개념이 같다 (ADR-0040).
+   */
+  private async plan(date: string): Promise<number[]> {
+    const saved = await this.plans.find(date);
+    if (saved.length > 0) return saved;
+    return this.plans.saveIfAbsent(date, await this.pick(date, PLAN_SIZE, await this.mastery.unscheduled()));
+  }
+
+  /**
+   * 개념을 우선순위(근본 원인 → [date] 안에 때가 되는 개념 → 헷갈린 개념 → 약점)대로 [limit]개 고르고,
    * 모자라면 [fresh]에서 채운다. 아침에 받은 알림의 개수와 그날 복습 세트가 같은 개념을 세도록 "지금"이 아니라 날짜로 본다.
    * [exclude]의 개념은 고르지 않으므로 그만큼 더 읽는다.
    */
@@ -144,13 +159,13 @@ export class QuizReviewService {
   }
 
   /**
-   * 오늘 복습할 개념 중 낼 문제가 없는 개념의 문제를 [limit]개 개념까지 하나씩 만들고 끝날 때까지 기다린다.
-   * 새벽 예약 작업이 불러 아침 복습의 "만드는 중" 대기를 줄인다 (ADR-0036).
+   * 오늘 계획의 아직 풀지 않은 개념 중 지금 각도로 낼 문제가 없는 개념의 문제를 하나씩 만들고 끝날 때까지 기다린다.
+   * 계획이 없으면 정한다. 새벽 예약 작업이 불러 복습의 "만드는 중" 대기를 없앤다 (ADR-0036·0040).
    */
-  async prepareToday(limit: number): Promise<{ concepts: number; ready: number }> {
-    const { conceptIds } = await this.today();
-    const servable = await Promise.all(conceptIds.map((id) => this.questions.findServable(id, 1)));
-    const missing = conceptIds.filter((_, i) => servable[i]?.length === 0).slice(0, limit);
+  async prepareToday(): Promise<{ concepts: number; ready: number }> {
+    const { open } = await this.todayPlan();
+    const found = await this.servable(onePerConcept(open));
+    const missing = open.filter((_, i) => found[i]?.length === 0);
     let ready = 0;
     for (const conceptId of missing) if ((await this.prepare(conceptId, 1)) > 0) ready += 1;
     return { concepts: missing.length, ready };
@@ -161,10 +176,19 @@ export class QuizReviewService {
     await Promise.all(this.preparing.values());
   }
 
-  private async serve(wanted: readonly { conceptId: number; count: number }[], remainingToday: number | null) {
+  /** [wanted]의 개념마다 지금 숙련도 단계의 각도로 낼 수 있는 문제 (ADR-0040). */
+  private async servable(wanted: readonly Wanted[]): Promise<Question[][]> {
+    const masteries = await this.mastery.findMany(wanted.map((w) => w.conceptId));
+    const byConcept = new Map(masteries.map((m) => [m.conceptId, m]));
+    return Promise.all(
+      wanted.map((w) => this.questions.findServable(w.conceptId, tierAngles(byConcept.get(w.conceptId)), w.count)),
+    );
+  }
+
+  private async serve(wanted: readonly Wanted[], remainingToday: number | null) {
     const [summaries, found] = await Promise.all([
       this.concepts.summaries(wanted.map((w) => w.conceptId)),
-      Promise.all(wanted.map((w) => this.questions.findServable(w.conceptId, w.count))),
+      this.servable(wanted),
     ]);
     const names = new Map(summaries.map((c) => [c.id, c.name]));
     const nameOf = (conceptId: number) => names.get(conceptId) ?? `개념 ${conceptId}`;
@@ -240,7 +264,13 @@ export class QuizReviewService {
   }
 }
 
-const onePerConcept = (conceptIds: readonly number[]) => conceptIds.map((conceptId) => ({ conceptId, count: 1 }));
+interface Wanted {
+  readonly conceptId: number;
+  readonly count: number;
+}
+
+const onePerConcept = (conceptIds: readonly number[]): Wanted[] =>
+  conceptIds.map((conceptId) => ({ conceptId, count: 1 }));
 
 function toServed(q: Question, concept: string): ServedQuestion {
   return {

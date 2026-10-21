@@ -6,6 +6,7 @@ import {
   nextAngle,
   nextQuestion,
   type QuestionHistory,
+  tierAngles,
   variantCheckProblems,
   variantProblems,
 } from './variant.js';
@@ -107,6 +108,13 @@ describe('nextAngle', () => {
     const medium = mastery(3, 0.3, 0.7);
     expect(nextAngle(medium, asked('MECHANISM', 'WHY'))).toBe('WHEN');
     expect(nextAngle(medium, asked('WHY', 'WHEN'))).toBe('WHY');
+  });
+});
+
+describe('tierAngles', () => {
+  it('중간 숙련도에서는 왜·언제 쓰나를 같은 단계로 본다', () => {
+    expect(tierAngles({ gradedAttempts: 3, weaknessScore: 0.3, masteryScore: 0.7 })).toEqual(['WHY', 'WHEN']);
+    expect(tierAngles(undefined)).toEqual(['MECHANISM']);
   });
 });
 

@@ -48,20 +48,28 @@ export function nextQuestion(history: readonly QuestionHistory[]): NextQuestion 
 /** 이 숙련도 점수부터 트레이드오프·설계 판단을 묻는다. */
 export const DEEP_MASTERY = 0.8;
 
+type AngleMastery = Pick<ConceptMastery, 'gradedAttempts' | 'weaknessScore' | 'masteryScore'> | undefined;
+
 /**
- * 숙련도에 맞춰 다음 문제의 각도를 정한다. 가볍게 시작해서 깊이 들어간다 (ADR-0038).
+ * 숙련도 단계마다 묻는 각도. 가볍게 시작해서 깊이 들어간다 (ADR-0038).
  * - 일정이 없거나 미측정·약점 → 동작 원리(MECHANISM): 짧은 정의·원리 확인
- * - 양호하고 숙련도 [DEEP_MASTERY] 미만 → 왜(WHY)·언제 쓰나(WHEN) 중 지금까지 덜 낸 쪽(같으면 WHY)
+ * - 양호하고 숙련도 [DEEP_MASTERY] 미만 → 왜(WHY)·언제 쓰나(WHEN)
  * - 숙련도 [DEEP_MASTERY] 이상 → 트레이드오프(TRADEOFF)
+ *
+ * 미리 만들어 둔 문제는 지금 단계의 각도일 때만 낸다 (ADR-0040).
  */
-export function nextAngle(
-  mastery: Pick<ConceptMastery, 'gradedAttempts' | 'weaknessScore' | 'masteryScore'> | undefined,
-  history: readonly QuestionHistory[],
-): ConceptAngle {
-  if (mastery === undefined || weaknessLevel(mastery) !== 'OK') return 'MECHANISM';
-  if (mastery.masteryScore >= DEEP_MASTERY) return 'TRADEOFF';
+export function tierAngles(mastery: AngleMastery): readonly [ConceptAngle] | readonly [ConceptAngle, ConceptAngle] {
+  if (mastery === undefined || weaknessLevel(mastery) !== 'OK') return ['MECHANISM'];
+  if (mastery.masteryScore >= DEEP_MASTERY) return ['TRADEOFF'];
+  return ['WHY', 'WHEN'];
+}
+
+/** 새로 만들 문제의 각도. 단계에 각도가 둘이면 지금까지 덜 낸 쪽(같으면 앞쪽)이다. */
+export function nextAngle(mastery: AngleMastery, history: readonly QuestionHistory[]): ConceptAngle {
+  const [first, second] = tierAngles(mastery);
+  if (second === undefined) return first;
   const asked = (angle: ConceptAngle) => history.filter((h) => h.question.angle === angle).length;
-  return asked('WHEN') < asked('WHY') ? 'WHEN' : 'WHY';
+  return asked(second) < asked(first) ? second : first;
 }
 
 /** 변형 문제가 원래 문제와 같은 핵심을 묻고, 원래 답을 외워서는 풀 수 없는지 본 결과 (설계 문서 7.3 "검증 단계"). */
