@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { publishNtfy } from '../../core/logging/ntfy.js';
 
-/** 학습 알림을 누르면 여는 주소. 휴대폰에서 Claude 앱의 새 대화로 열리길 기대한다(iOS는 사용자가 확인, `docs/ops.md`). */
-const OPEN_CHAT = 'https://claude.ai/new';
+/** 학습 알림을 누르면 여는 주소. 휴대폰에서 ChatGPT 앱이 열리길 기대한다(ADR-0037, iOS는 사용자가 확인, `docs/ops.md`). */
+const OPEN_CHAT = 'https://chatgpt.com/';
 
 /** 휴대폰 학습 알림 하나. ntfy 서버를 평문으로 지나가므로 개수 정도만 싣고 개념 이름·문제 본문은 싣지 않는다. */
 export interface StudyAlert {
