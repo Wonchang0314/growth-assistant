@@ -8,7 +8,7 @@ import { StudyNotifier } from './study-notifier.js';
 /** 학습 알림을 켜고 끄는 `app_setting` 키. 값은 `on`·`off`이고, 없으면 알림마다 정한 기본값을 쓴다. */
 export const ALERT_SETTINGS = { morning: 'outreach.morning_alert', evening: 'outreach.evening_alert' } as const;
 
-const HOW_TO_START = 'Claude 앱에서 "복습하자"라고 말하면 시작한다.';
+const HOW_TO_START = 'ChatGPT에서 "복습하자"라고 말하면 시작한다.';
 
 async function enabled(settings: AppSettingRepository, key: string, fallback: boolean): Promise<boolean> {
   const value = await settings.get(key);

@@ -119,9 +119,7 @@ describe('아침 알림', () => {
 
     await app.get(MorningAlertJob).run();
 
-    expect(notifier.alerts).toEqual([
-      { title: '오늘 복습 1개', body: 'Claude 앱에서 "복습하자"라고 말하면 시작한다.' },
-    ]);
+    expect(notifier.alerts).toEqual([{ title: '오늘 복습 1개', body: 'ChatGPT에서 "복습하자"라고 말하면 시작한다.' }]);
   });
 });
 
