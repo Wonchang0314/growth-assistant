@@ -7,7 +7,6 @@ import {
   nextQuestion,
   type QuestionHistory,
   tierAngles,
-  variantCheckProblems,
   variantProblems,
 } from './variant.js';
 
@@ -138,14 +137,5 @@ describe('variantProblems', () => {
     });
 
     expect(variantProblems(question(1), variant)).toEqual([]);
-  });
-});
-
-describe('variantCheckProblems', () => {
-  it('다른 핵심이거나 외워서 풀 수 있으면 이유를 남긴다', () => {
-    expect(
-      variantCheckProblems({ sameKeyPoint: false, solvableByMemory: true, problems: ['정답 문장이 같다'] }),
-    ).toEqual(['원래 문제와 다른 핵심을 묻는다', '원래 문제의 답을 기억하면 그대로 풀 수 있다', '정답 문장이 같다']);
-    expect(variantCheckProblems({ sameKeyPoint: true, solvableByMemory: false, problems: [] })).toEqual([]);
   });
 });

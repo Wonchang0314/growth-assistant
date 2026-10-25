@@ -6,7 +6,7 @@ import { FakeClaudeClient } from '../../../test/fakes/fake-claude.client.js';
 import { FakeDocumentSource } from '../../../test/fakes/fake-document-source.js';
 import { FakeStudyNotifier } from '../../../test/fakes/fake-study-notifier.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
-import { multipleChoiceReply, solvedReply } from '../../../test/fixtures/quiz.js';
+import { guessReply, multipleChoiceReply } from '../../../test/fixtures/quiz.js';
 import { compileMcpRoot } from '../../../test/mcp-app.js';
 import { DocumentSource } from '../../core/ingestion/document-source.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
@@ -171,7 +171,7 @@ describe('새벽 작업', () => {
   it('동기화가 실패해도 뒤 단계를 하고 오늘 복습할 개념의 문제를 미리 만든 뒤, 실패로 끝낸다', async () => {
     await dueToday();
     source.listError = new Error('Notion 응답 없음');
-    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+    claude.reply(multipleChoiceReply()).reply(guessReply());
 
     const run = app.get(NightlyPrepJob).run();
 

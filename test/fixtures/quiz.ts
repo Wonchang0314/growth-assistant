@@ -1,4 +1,4 @@
-/** 출제(QUIZ_GENERATION)·풀이 검증(QUIZ_VERIFICATION) 가짜 응답. `FakeClaudeClient.reply`에 넘긴다. */
+/** 출제(QUIZ_GENERATION)·보기만 보고 풀기(QUIZ_VERIFICATION) 가짜 응답. `FakeClaudeClient.reply`에 넘긴다. */
 
 export const multipleChoiceReply = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({
@@ -27,9 +27,6 @@ export const fillBlankReply = JSON.stringify({
   referenceMaterial: '근거',
 });
 
-export const solvedReply = (answer: Record<string, unknown>) =>
-  JSON.stringify({ singleAnswer: true, problems: [], ...answer });
-
-/** 변형 비교 검증 응답. 기본은 통과다. */
-export const variantCheckReply = (overrides: Record<string, unknown> = {}) =>
-  JSON.stringify({ sameKeyPoint: true, solvableByMemory: false, problems: [], ...overrides });
+/** 보기만 보고 풀기 응답. 기본은 1번(섞기를 고정하면 정답)을 단서 없이 짐작한 것이라 통과다. */
+export const guessReply = (overrides: Record<string, unknown> = {}) =>
+  JSON.stringify({ choice: 1, cue: null, ...overrides });

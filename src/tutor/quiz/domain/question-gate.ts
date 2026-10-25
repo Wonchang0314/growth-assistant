@@ -1,18 +1,23 @@
-import { findLeaks, findLengthCue } from '../../../core/ingestion/case-gate.js';
+import { findLengthCue } from '../../../core/ingestion/case-gate.js';
 import { BLANK, CHOICE_COUNT, type Choice, normalizeAnswer, type QuestionDraft } from './quiz-question.js';
 
 /**
  * 출제 직후 코드가 보는 모양 검사. 걸린 이유를 돌려주고, 통과하면 빈 배열이다.
- * 내용(정답이 하나뿐인지, 풀 수 있는지)은 정답을 숨긴 검증 호출이 본다.
+ * 출제에 경험을 싣지 않아 회사 맥락이 샐 곳이 없으므로 조직 문자열은 보지 않는다 (ADR-0041).
  */
 export function draftProblems(draft: QuestionDraft): string[] {
-  const leaks = findLeaks(questionText(draft));
-  return [
-    ...typeProblems(draft),
-    ...lengthProblems(draft),
-    ...(leaks.length === 0 ? [] : [`특정 조직을 가리킬 수 있는 문자열이 있다: ${leaks.join(', ')}`]),
-  ];
+  return [...typeProblems(draft), ...lengthProblems(draft)];
 }
+
+/** 질문 없이 보기만 본 검토자가 고른 보기와 그렇게 고른 단서. 단서 없이 짐작했으면 [cue]는 null이다. */
+export interface ChoiceGuess {
+  readonly answer: string;
+  readonly cue: string | null;
+}
+
+/** 보기만 보고 단서로 정답을 골랐으면 걸린 이유. 짐작으로 맞힌 것은 넘긴다(보기 4개면 넷에 하나는 맞는다, ADR-0041). */
+export const choiceGuessProblems = (answer: string, guess: ChoiceGuess): string[] =>
+  guess.answer === answer && guess.cue !== null ? [`질문 없이 보기만 보고 정답을 고를 수 있다: ${guess.cue}`] : [];
 
 /** 문제 길이 상한 (ADR-0038). 가볍게 풀 수 있게 질문은 두 문장, 보기는 한 줄로 둔다. 출제 프롬프트에도 싣는다. */
 export const LENGTH_LIMITS = { promptChars: 150, promptSentences: 2, choiceChars: 40 } as const;
@@ -58,17 +63,6 @@ function typeProblems(draft: QuestionDraft): string[] {
   }
 }
 
-/** 사용자에게 보이는 모든 글. 경험 카드의 회사 맥락이 새지 않았는지 패턴 게이트(ADR-0024)로 본다. */
-const questionText = (draft: QuestionDraft) =>
-  [
-    draft.prompt,
-    draft.explanation,
-    draft.referenceMaterial,
-    ...(draft.type === 'MULTIPLE_CHOICE'
-      ? draft.choices.flatMap((c) => [c.text, c.misconception ?? ''])
-      : [draft.answer, ...draft.acceptedAnswers]),
-  ].join('\n');
-
 function choiceProblems(choices: readonly Choice[], answer: string): string[] {
   const problems: string[] = [];
   if (choices.length !== CHOICE_COUNT) problems.push(`보기는 ${CHOICE_COUNT}개여야 한다(지금 ${choices.length}개)`);
@@ -101,7 +95,7 @@ function blankProblems(prompt: string, answer: string): string[] {
 
 /**
  * 숫자 답. 문장에 조건으로 나온 숫자("4코어", "60초")와 계산한 답이 같기 쉬워 글자 비교로는 드러났는지 알 수 없다.
- * 이때는 풀이 검증에 맡긴다 (2026-10-18 시험에서 빈칸 2개가 이렇게 걸렸다).
+ * 이때는 보지 않는다 (2026-10-18 시험에서 빈칸 2개가 이렇게 걸렸다).
  */
 const NUMBER = /^\s*[\d.,]+\s*$/;
 

@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { FakeClaudeClient } from '../../../test/fakes/fake-claude.client.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
-import { fillBlankReply, multipleChoiceReply, solvedReply } from '../../../test/fixtures/quiz.js';
+import { fillBlankReply, guessReply, multipleChoiceReply } from '../../../test/fixtures/quiz.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { ExperienceRepository } from '../../core/memory/experience.repository.js';
@@ -32,7 +32,7 @@ let service: QuizGenerationService;
 
 const multipleChoice = multipleChoiceReply;
 const fillBlank = fillBlankReply;
-const solved = solvedReply;
+const guess = guessReply;
 
 beforeEach(async () => {
   await testDb.truncateAll();
@@ -87,7 +87,7 @@ beforeEach(async () => {
 afterAll(() => testDb.close());
 
 describe('QuizGenerationService', () => {
-  it('헷갈린 점·출제 지침을 넣어 출제하고, 정답을 숨긴 풀이가 맞으면 VALID로 저장한다', async () => {
+  it('헷갈린 점·출제 지침을 넣어 출제하고, 보기만 보고 단서를 찾지 못하면 VALID로 저장한다', async () => {
     await studyNotes.record({
       topic: '인덱스',
       summary: '요약',
@@ -96,7 +96,7 @@ describe('QuizGenerationService', () => {
       concepts: [{ name: '인덱스', signal: 'CONFUSED' }],
     });
     await guideline.edit({ add: ['보기에 코드 조각을 넣지 않는다'], remove: [] });
-    claude.reply(multipleChoice()).reply(solved({ choice: 1 }));
+    claude.reply(multipleChoice()).reply(guess());
 
     const result = await service.generate({ conceptId: 1, type: 'MULTIPLE_CHOICE' });
 
@@ -109,10 +109,10 @@ describe('QuizGenerationService', () => {
     expect(generation?.prompt).toContain('질문은 2문장, 150자 안으로 쓴다. 보기는 하나에 40자 안으로 쓴다.');
     // 경험 카드는 출제에 싣지 않는다. 문제에는 그 개념의 카드를 코드가 잇는다 (ADR-0038).
     expect(generation?.prompt).not.toMatch(/성별 인덱스가 안 탐|성별에 인덱스를 걸었다|선택도를 먼저 본다/);
-    // 검증 호출에는 정답 표시·오개념·해설이 가지 않는다.
+    // 검증 호출에는 보기만 가고 질문·정답 표시·오개념·해설은 가지 않는다.
     const [verification] = claude.requestsFor('QUIZ_VERIFICATION');
     expect(verification?.prompt).toContain('1. 선택도가 낮아서');
-    expect(verification?.prompt).not.toMatch(/믿음|해설|근거/);
+    expect(verification?.prompt).not.toMatch(/성별 컬럼|믿음|해설|근거/);
     expect(await testDb.db.select().from(quizQuestion)).toEqual([
       expect.objectContaining({
         conceptId: 1,
@@ -132,7 +132,7 @@ describe('QuizGenerationService', () => {
     claude
       .reply(multipleChoice({ answer: '컬럼이 짧아서', prompt: `${'긴 사연. '.repeat(3)}왜 느린가?` }))
       .reply(multipleChoice())
-      .reply(solved({ choice: 1 }));
+      .reply(guess());
 
     const result = await service.generate({ conceptId: 1, type: 'MULTIPLE_CHOICE' });
 
@@ -154,7 +154,7 @@ describe('QuizGenerationService', () => {
       weaknessScore: 0.2,
       gradedAttempts: 3,
     });
-    claude.reply(multipleChoice()).reply(solved({ choice: 1 }));
+    claude.reply(multipleChoice()).reply(guess());
 
     const result = await service.generate({ conceptId: 1, type: 'MULTIPLE_CHOICE' });
 
@@ -162,26 +162,33 @@ describe('QuizGenerationService', () => {
     expect(claude.requestsFor('QUIZ_GENERATION')[0]?.prompt).toContain(section);
   });
 
-  it('두 번 다 검증에 걸리면 걸린 이유와 함께 INVALID로 저장한다', async () => {
+  it('두 번 다 보기만 보고 정답을 골라내면 단서와 함께 INVALID로 저장한다', async () => {
     claude
-      .reply(fillBlank)
-      .reply(solved({ answer: '카디널리티' }))
-      .reply(fillBlank)
-      .reply(solved({ answer: 'SELECTIVITY', singleAnswer: false }));
+      .reply(multipleChoice())
+      .reply(guess({ cue: '1번만 이유가 짧다' }))
+      .reply(multipleChoice())
+      .reply(guess({ cue: '1번만 결론이 다르다' }));
+
+    const result = await service.generate({ conceptId: 1, type: 'MULTIPLE_CHOICE' });
+
+    const note = '질문 없이 보기만 보고 정답을 고를 수 있다: 1번만 결론이 다르다';
+    expect(result).toMatchObject({ status: 'INVALID', problems: [note] });
+    expect(claude.requestsFor('QUIZ_GENERATION')[1]?.prompt).toContain('1번만 이유가 짧다');
+    expect(await testDb.db.select().from(quizQuestion)).toEqual([
+      expect.objectContaining({ validationStatus: 'INVALID', validationNote: note }),
+    ]);
+    expect(await repository.keyPoints(1)).toEqual([]);
+  });
+
+  it('빈칸은 보기가 없어 모양 검사만 하고 VALID로 저장한다', async () => {
+    claude.reply(fillBlank);
 
     const result = await service.generate({ conceptId: 1, type: 'FILL_BLANK' });
 
-    expect(result).toMatchObject({ status: 'INVALID', problems: ['정답이 하나로 정해지지 않는다'] });
-    expect(claude.requestsFor('QUIZ_GENERATION')[1]?.prompt).toContain('"카디널리티"라고 답했다');
+    expect(result.status).toBe('VALID');
+    expect(claude.requestsFor('QUIZ_VERIFICATION')).toEqual([]);
     expect(await testDb.db.select().from(quizQuestion)).toEqual([
-      expect.objectContaining({
-        type: 'FILL_BLANK',
-        choices: null,
-        acceptedAnswers: ['selectivity'],
-        validationStatus: 'INVALID',
-        validationNote: '정답이 하나로 정해지지 않는다',
-      }),
+      expect.objectContaining({ type: 'FILL_BLANK', choices: null, acceptedAnswers: ['selectivity'] }),
     ]);
-    expect(await repository.keyPoints(1)).toEqual([]);
   });
 });
