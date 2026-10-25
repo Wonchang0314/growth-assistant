@@ -4,10 +4,9 @@ import { ConceptService } from '../../../core/knowledge/concept.service.js';
 import { ExperienceRepository } from '../../../core/memory/experience.repository.js';
 import { MasteryService } from '../../mastery/mastery.service.js';
 import { StudyNoteService } from '../../study/study-note.service.js';
-import { draftProblems, shuffled } from '../domain/question-gate.js';
-import { solutionProblems } from '../domain/question-solution.js';
+import { choiceGuessProblems, draftProblems, shuffled } from '../domain/question-gate.js';
 import type { QuestionDraft, QuestionType, ValidationStatus } from '../domain/quiz-question.js';
-import { nextAngle, type QuestionHistory, variantCheckProblems, variantProblems } from '../domain/variant.js';
+import { nextAngle, type QuestionHistory, variantProblems } from '../domain/variant.js';
 import { type GenerationContext, QuestionGenerator, QuizQuestionRepository } from './ports.js';
 import { QuizGuidelineService } from './quiz-guideline.service.js';
 
@@ -27,7 +26,7 @@ export interface GeneratedQuestion {
 
 /**
  * 개념 하나로 객관식·빈칸 문제를 만든다 (설계 문서 7.3).
- * 출제(Sonnet) → 모양·길이 검사(코드) → 보기 섞기 → 정답을 숨긴 풀이 검증(Opus) → 변형이면 원래 문제와 비교(Opus).
+ * 출제(Sonnet) → 모양·길이 검사(코드) → 보기 섞기 → 객관식이면 보기만 보고 풀기(Haiku, ADR-0041).
  * 걸리면 이유를 붙여 한 번 다시 쓰고, 그래도 걸리면 INVALID로 남긴다. 통과한 문제만 VALID가 되어 출제에 쓰인다.
  */
 @Injectable()
@@ -79,15 +78,12 @@ export class QuizGenerationService {
     return { id, status, question, problems };
   }
 
-  /**
-   * 모양 검사(코드) → 정답을 숨긴 풀이 → 변형이면 원래 문제와 비교. 앞 단계에서 걸리면 뒤 단계(LLM 호출)는 건너뛴다.
-   */
+  /** 모양 검사(코드) → 객관식이면 보기만 보고 풀기. 모양에서 걸리면 LLM 호출은 건너뛴다. */
   private async problemsOf(question: QuestionDraft, variantOf: QuestionHistory | null): Promise<string[]> {
     const shape = [...draftProblems(question), ...(variantOf ? variantProblems(variantOf.question, question) : [])];
-    if (shape.length > 0) return shape;
-    const solved = solutionProblems(question, await this.generator.solve(question));
-    if (solved.length > 0 || !variantOf) return solved;
-    return variantCheckProblems(await this.generator.compareVariant(variantOf.question, question));
+    if (shape.length > 0 || question.type !== 'MULTIPLE_CHOICE') return shape;
+    const guess = await this.generator.guessFromChoices(question.choices.map((c) => c.text));
+    return choiceGuessProblems(question.answer, guess);
   }
 
   private async context(

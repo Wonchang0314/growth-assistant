@@ -72,24 +72,11 @@ export function nextAngle(mastery: AngleMastery, history: readonly QuestionHisto
   return asked(second) < asked(first) ? second : first;
 }
 
-/** 변형 문제가 원래 문제와 같은 핵심을 묻고, 원래 답을 외워서는 풀 수 없는지 본 결과 (설계 문서 7.3 "검증 단계"). */
-export interface VariantCheck {
-  readonly sameKeyPoint: boolean;
-  readonly solvableByMemory: boolean;
-  readonly problems: readonly string[];
-}
-
-export const variantCheckProblems = (check: VariantCheck): string[] => [
-  ...(check.sameKeyPoint ? [] : ['원래 문제와 다른 핵심을 묻는다']),
-  ...(check.solvableByMemory ? ['원래 문제의 답을 기억하면 그대로 풀 수 있다'] : []),
-  ...check.problems,
-];
-
 /** 변형 문제의 모양 검사. 원래 문제의 질문이나 보기를 그대로 쓰면 답을 외워서 풀 수 있다. */
 export function variantProblems(original: Question, draft: QuestionDraft): string[] {
   const problems: string[] = [];
   if (normalizeAnswer(original.prompt) === normalizeAnswer(draft.prompt)) problems.push('질문이 원래 문제와 같다');
-  // 빈칸은 같은 핵심이면 같은 용어가 답일 수 있어, 외워서 풀 수 있는지는 비교 검증이 본다.
+  // 빈칸은 같은 핵심이면 같은 용어가 답일 수 있어 정답이 같아도 걸지 않는다.
   if (original.type === 'MULTIPLE_CHOICE' && draft.type === 'MULTIPLE_CHOICE') {
     const before = new Set(original.choices.map((c) => normalizeAnswer(c.text)));
     if (draft.choices.every((c) => before.has(normalizeAnswer(c.text)))) problems.push('보기가 원래 문제와 같다');

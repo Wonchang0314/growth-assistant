@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { FakeClaudeClient } from '../../../test/fakes/fake-claude.client.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
-import { multipleChoiceReply, solvedReply, variantCheckReply } from '../../../test/fixtures/quiz.js';
+import { guessReply, multipleChoiceReply } from '../../../test/fixtures/quiz.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { DecisionCaseRepository } from '../../core/memory/decision-case.repository.js';
@@ -136,7 +136,7 @@ afterAll(() => testDb.close());
 describe('get_review_set', () => {
   it('개념을 고르면 풀지 않은 문제를 정답 없이 내고, 모자라면 뒤에서 만들어 다음에 낸다', async () => {
     await addQuestion(1);
-    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+    claude.reply(multipleChoiceReply()).reply(guessReply());
 
     const first = await review.reviewSet({ concept: '인덱스', count: 2 });
     await review.idle();
@@ -281,7 +281,7 @@ describe('오늘 복습 (새벽 문제 만들기, 학습 알림)', () => {
     await addQuestion(1);
     // 미측정 개념에는 트레이드오프 문제를 내지 않는다.
     await addQuestion(2, '핵심 2', null, 'TRADEOFF');
-    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+    claude.reply(multipleChoiceReply()).reply(guessReply());
 
     const result = await review.prepareToday();
 
@@ -345,10 +345,7 @@ describe('변형 문제', () => {
   it('틀린 문제는 뒤에서 그 변형(같은 핵심, 원래 문제 연결)을 만들고, 그때의 오답과 오개념을 출제에 넣는다', async () => {
     const original = await addQuestion(1);
     await submit(original, '2');
-    claude
-      .reply(variantReply)
-      .reply(solvedReply({ choice: 1 }))
-      .reply(variantCheckReply());
+    claude.reply(variantReply).reply(guessReply());
 
     await review.reviewSet({ concept: '인덱스', count: 1 });
     await review.idle();
@@ -359,20 +356,14 @@ describe('변형 문제', () => {
     expect(prompt).toContain('## 변형할 원래 문제');
     expect(prompt).toContain('그때 고른 오개념: 짧으면 안 된다고 믿음');
     expect(prompt).not.toContain('이미 낸 핵심');
-    expect(claude.requestsFor('QUIZ_VERIFICATION')).toHaveLength(2);
+    expect(claude.requestsFor('QUIZ_VERIFICATION')).toHaveLength(1);
   });
 
-  it('원래 답을 외워서 풀 수 있다고 두 번 걸리면 INVALID로 남기고 다음에 다시 만든다', async () => {
+  it('두 번 다 검증에 걸린 변형은 INVALID로 남기고 다음에 다시 만든다', async () => {
     const original = await addQuestion(1);
     await submit(original, '2');
-    const memorizable = variantCheckReply({ solvableByMemory: true });
-    claude
-      .reply(variantReply)
-      .reply(solvedReply({ choice: 1 }))
-      .reply(memorizable)
-      .reply(variantReply)
-      .reply(solvedReply({ choice: 1 }))
-      .reply(memorizable);
+    const cued = guessReply({ cue: '1번만 이유가 붙어 있다' });
+    claude.reply(variantReply).reply(cued).reply(variantReply).reply(cued);
 
     await review.reviewSet({ concept: '인덱스', count: 1 });
     await review.idle();
@@ -381,7 +372,7 @@ describe('변형 문제', () => {
       expect.objectContaining({
         variantOf: original,
         validationStatus: 'INVALID',
-        validationNote: '원래 문제의 답을 기억하면 그대로 풀 수 있다',
+        validationNote: '질문 없이 보기만 보고 정답을 고를 수 있다: 1번만 이유가 붙어 있다',
       }),
     );
     expect((await questions.findHistory(1)).map((h) => h.hasVariant)).toEqual([false]);
@@ -450,7 +441,7 @@ describe('경험과 판단 사례 (ADR-0038)', () => {
 
   it('승인된 판단 사례가 있어도 개념 문제만 만들고, 사례·경험 카드는 출제에 싣지 않는다', async () => {
     await seedCases();
-    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+    claude.reply(multipleChoiceReply()).reply(guessReply());
 
     await review.reviewSet({ concept: '인덱스', count: 1 });
     await review.idle();
@@ -463,7 +454,7 @@ describe('경험과 판단 사례 (ADR-0038)', () => {
 
   it('문제에 그 개념의 경험 카드를 잇고, 채점 결과에서는 "같은 개념을 다룬 경험"으로 보여 준다', async () => {
     await seedCases();
-    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+    claude.reply(multipleChoiceReply()).reply(guessReply());
 
     await review.reviewSet({ concept: '인덱스', count: 1 });
     await review.idle();
@@ -518,7 +509,7 @@ describe('get_weakness', () => {
 
   it('뒤에서 만든 문제가 모두 검증에 걸리면 그 개념은 잠시 다시 만들지 않고 만들지 못했다고 알린다', async () => {
     // 풀이 비어 있으면 객관식부터 만든다.
-    const rejected = solvedReply({ choice: 1, singleAnswer: false, problems: ['정답이 둘이다'] });
+    const rejected = guessReply({ cue: '1번만 이유가 붙어 있다' });
     claude.reply(multipleChoiceReply()).reply(rejected).reply(multipleChoiceReply()).reply(rejected);
 
     await review.reviewSet({ concept: '인덱스', count: 1 });
@@ -529,7 +520,7 @@ describe('get_weakness', () => {
     expect(claude.requests).toHaveLength(4);
 
     clock.advance(RETRY_AFTER_MS);
-    claude.reply(multipleChoiceReply()).reply(solvedReply({ choice: 1 }));
+    claude.reply(multipleChoiceReply()).reply(guessReply());
     const later = await review.reviewSet({ concept: '인덱스', count: 1 });
     await review.idle();
     const ready = await review.reviewSet({ concept: '인덱스', count: 1 });

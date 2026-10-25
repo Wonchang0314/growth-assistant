@@ -1,8 +1,8 @@
 import type { RelatedConcept } from '../../../core/knowledge/concept.js';
 import type { AttemptRecord } from '../domain/grading.js';
-import type { Solution } from '../domain/question-solution.js';
+import type { ChoiceGuess } from '../domain/question-gate.js';
 import type { ConceptAngle, Question, QuestionDraft, QuestionType, ValidationStatus } from '../domain/quiz-question.js';
-import type { QuestionHistory, VariantCheck } from '../domain/variant.js';
+import type { QuestionHistory } from '../domain/variant.js';
 
 /*
  * application이 infrastructure 구현을 부르는 출력 포트 (ADR-0029). 레이어 방향(infrastructure → application)을 지키려면
@@ -78,7 +78,6 @@ export interface GenerationContext {
 export abstract class QuestionGenerator {
   /** [problems]는 지난 문제가 걸린 이유다. 처음이면 비어 있다. */
   abstract write(context: GenerationContext, problems: readonly string[]): Promise<QuestionDraft>;
-  /** 정답을 숨기고 문제만 보여 줘서 풀게 한다. */
-  abstract solve(draft: QuestionDraft): Promise<Solution>;
-  abstract compareVariant(original: Question, variant: QuestionDraft): Promise<VariantCheck>;
+  /** 질문과 정답을 숨기고 객관식 보기만 보여 줘서 정답을 짐작하게 한다 (ADR-0041). */
+  abstract guessFromChoices(choices: readonly string[]): Promise<ChoiceGuess>;
 }

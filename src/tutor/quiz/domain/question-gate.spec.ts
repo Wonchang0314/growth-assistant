@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { draftProblems, shuffled } from './question-gate.js';
-import { solutionProblems } from './question-solution.js';
+import { choiceGuessProblems, draftProblems, shuffled } from './question-gate.js';
 import type { QuestionDraft } from './quiz-question.js';
 
 const base = {
@@ -44,7 +43,7 @@ describe('draftProblems', () => {
   });
 
   it('숫자 답은 문장의 다른 숫자에 들어 있어도 드러났다고 보지 않는다', () => {
-    // "4코어"의 4와 계산한 답 4는 다른 값이다. 답이 드러났는지는 풀이 검증이 본다.
+    // "4코어"의 4와 계산한 답 4는 다른 값이다.
     expect(draftProblems(blank('4코어 호스트에서 스레드 8개가 돌면 약 ____ 코어를 쓴다', '4'))).toEqual([]);
   });
 
@@ -73,7 +72,6 @@ describe('draftProblems', () => {
       }),
       /정답 보기만 눈에 띄게 길다/,
     ],
-    ['회사 테이블 이름', multiple({ prompt: 'CUSTOMER_EXT 테이블에서 성별로 찾을 때 느린 이유는?' }), /CUSTOMER_EXT/],
     ['빈칸 없음', blank('인덱스가 효과 있으려면 선택도가 높아야 한다', '높아야'), /빈칸\(____\)/],
     ['빈칸 둘', blank('____가 높으면 ____가 빨라진다'), /정확히 하나/],
     ['정답이 문장에 드러남', blank('선택도는 ____ 비율이다. 선택도가 높아야 한다'), /정답이 그대로/],
@@ -101,30 +99,18 @@ describe('draftProblems', () => {
   });
 });
 
-describe('solutionProblems', () => {
-  it('검토자가 정답을 고르고 문제를 말하지 않으면 통과한다', () => {
-    expect(solutionProblems(multiple(), { answer: '선택도가 낮아서', singleAnswer: true, problems: [] })).toEqual([]);
-  });
-
-  it('빈칸은 허용 답과 표기 차이(대소문자·공백·전각)를 무시하고 비교한다', () => {
-    const draft = blank('인덱스가 효과 있으려면 ____가 높아야 한다');
-
-    expect(solutionProblems(draft, { answer: 'ＳＥＬＥＣＴＩＶＩＴＹ ', singleAnswer: true, problems: [] })).toEqual(
-      [],
-    );
-    expect(solutionProblems(draft, { answer: '카디널리티', singleAnswer: true, problems: [] })[0]).toMatch(
-      /"카디널리티"라고 답했다/,
-    );
-  });
-
-  it('다른 답, 정답이 여럿, 검토자가 말한 문제를 모두 이유로 남긴다', () => {
-    expect(
-      solutionProblems(multiple(), { answer: '컬럼이 짧아서', singleAnswer: false, problems: ['조건이 모자라다'] }),
-    ).toEqual([
-      '정답을 모르고 푼 검토자가 "컬럼이 짧아서"를 골랐다',
-      '정답이 하나로 정해지지 않는다',
-      '조건이 모자라다',
+describe('choiceGuessProblems', () => {
+  it('보기만 보고 단서로 정답을 고르면 그 단서를 이유로 남긴다', () => {
+    expect(choiceGuessProblems('선택도가 낮아서', { answer: '선택도가 낮아서', cue: '1번만 이유가 다르다' })).toEqual([
+      '질문 없이 보기만 보고 정답을 고를 수 있다: 1번만 이유가 다르다',
     ]);
+  });
+
+  it.each([
+    ['단서 없이 짐작해 맞힘', { answer: '선택도가 낮아서', cue: null }],
+    ['단서를 댔지만 오답을 고름', { answer: '컬럼이 짧아서', cue: '2번만 짧다' }],
+  ])('%s → 통과한다', (_, guess) => {
+    expect(choiceGuessProblems('선택도가 낮아서', guess)).toEqual([]);
   });
 });
 
