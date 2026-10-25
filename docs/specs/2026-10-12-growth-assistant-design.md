@@ -394,7 +394,7 @@ claude -p --output-format stream-json --verbose --model <용도별 설정>
 - 동시 실행은 최대 5개(세마포어, ADR-0027). 판단 사례 추상화는 카드를 그 수만큼 함께 처리한다. 용도별 타임아웃을 두고, 타임아웃이 나면 1회 재시도한다.
 - JSON 형식이 깨지면 오류 내용을 붙여 1회 재요청한다.
 - 모든 호출을 `llm_call_log`에 기록한다.
-- 용도별 모델은 `claude.settings.ts`에서 지정한다. 2026-10-17 결정: 경험 카드 추출과 판단 사례 선별·치환은 Sonnet, 판단 사례의 독립 검증은 Opus(사용량과 품질의 절충). 2026-10-18 결정(ADR-0026): 가정 사례 생성은 Sonnet(`CASE_HYPOTHETICAL`), 정답을 숨긴 풀이 검증은 Opus(`CASE_HYPOTHETICAL_VERIFICATION`). 출제는 Sonnet(웹 검색 허용, ADR-0033), 출제 검증은 Opus(웹 없이 정답을 모른 채 풂, ADR-0029). 채점은 코드가 한다.
+- 용도별 모델은 `claude.settings.ts`에서 지정한다. 2026-10-17 결정: 경험 카드 추출과 판단 사례 선별·치환은 Sonnet, 판단 사례의 독립 검증은 Opus(사용량과 품질의 절충). 2026-10-18 결정(ADR-0026): 가정 사례 생성은 Sonnet(`CASE_HYPOTHETICAL`), 정답을 숨긴 풀이 검증은 Opus(`CASE_HYPOTHETICAL_VERIFICATION`). 출제는 Sonnet(웹 검색 허용, ADR-0033), 출제 검증은 Opus(웹 없이 정답을 모른 채 풂, ADR-0029)였다가 Haiku(질문 없이 보기만 보고 모양 단서를 찾음, ADR-0041)로 바꿨다. 채점은 코드가 한다.
 
 ### 7.1 수집 (백필, 증분 동기화)
 
