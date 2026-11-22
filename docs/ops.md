@@ -123,6 +123,8 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 
 운영 문제는 [ntfy](https://ntfy.sh)로 휴대폰에 알리고, 서버가 죽은 것은 외부 헬스체크(UptimeRobot)가 `/healthz`를 보고 알린다.
 
+> **지금은 ntfy 전송을 꺼 두었다(2026-11-22).** `NTFY_TOPIC`이 있어도 운영 알림·학습 알림 모두 로그(`[관리 알림]`·`[학습 알림]`)만 남는다. 다시 켜려면 `src/core/logging/admin-notifier.module.ts`와 `src/tutor/outreach/outreach.module.ts`의 팩토리 주석을 풀고 배포한다.
+
 | 환경 변수 | 값 |
 |---|---|
 | `NTFY_TOPIC` | 알림을 보낼 토픽 이름. 토픽을 아는 사람은 누구나 구독·발행할 수 있으니 추측하기 어렵게 짓고 남에게 보이지 않는다. 없으면 알림 없이 로그(`[관리 알림]`)만 남긴다(stdio 서버, CLI, 테스트) |

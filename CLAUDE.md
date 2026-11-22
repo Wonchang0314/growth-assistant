@@ -27,7 +27,7 @@ src/
 │   ├── config           # 환경 변수 검증 (zod)
 │   ├── db               # PostgreSQL 연결, 마이그레이션 (migrations/)
 │   ├── health           # GET /healthz (HTTP 진입점, DB 쿼리 확인)
-│   ├── logging          # 회전 파일 로거 (LOG_DIR), 표준에러 로거, 운영 알림 포트 (AdminNotifier, ntfy·같은 종류 1시간 묶기, NTFY_TOPIC 없으면 로그), ntfy 전송
+│   ├── logging          # 회전 파일 로거 (LOG_DIR), 표준에러 로거, 운영 알림 포트 (AdminNotifier, ntfy·같은 종류 1시간 묶기, NTFY_TOPIC 없으면 로그. 지금은 ntfy 전송을 주석으로 꺼 두어 늘 로그만, `docs/ops.md`), ntfy 전송
 │   ├── mcp              # MCP 서버, @McpTool() 처리기 탐색·등록, /mcp 컨트롤러(Streamable HTTP)
 │   ├── llm              # ClaudeClient, ClaudeCliClient, 프롬프트, 호출 로그
 │   ├── memory           # 원문 문서·청크, 경험 카드(STAR+L), 판단 사례(회사 맥락을 걷어낸 버전, ADR-0021)
@@ -39,7 +39,7 @@ src/
     ├── study            # 학습 맥락 조회·경험 카드 검색·학습 기록 MCP 도구, 서버 instructions
     ├── quiz             # 출제·검증, 복습 문제 고르기·채점·신고·약점 보고·출제 지침 MCP 도구, MCP Apps 복습 카드(오늘 문제 슬라이드, 문제마다 제출) (레이어 폴더와 출력 포트, ADR-0020·0029·0030·0031)
     ├── mastery          # 개념별 FSRS 복습 일정(ts-fsrs 어댑터), 숙련도·약점
-    └── outreach         # 서버가 먼저 하는 일: 새벽 준비(04:00), 학습 알림(07:30 아침·21:00 저녁, ntfy). 저녁 주제·주간 리포트는 6단계
+    └── outreach         # 서버가 먼저 하는 일: 새벽 준비(04:00), 학습 알림(07:30 아침·21:00 저녁, ntfy. 지금은 꺼 두어 로그만). 저녁 주제·주간 리포트는 6단계
 ```
 
 기능 폴더마다 Nest 모듈 하나를 두고, 그 안에 도메인 규칙(순수 함수), 테이블 정의(`*.schema.ts`), Drizzle 저장소, 유스케이스(서비스)를 둔다. MCP 도구 처리기는 그 기능의 `mcp/` 폴더에 둔다. 예외로 `quiz` 모듈은 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나누고, application이 저장소·출제 어댑터를 포트로 둬 infrastructure가 구현한다(ADR-0020·0029, 방향은 `eslint.config.js`의 `quizLayer`가 검사). 여러 레이어를 함께 쓰는 테스트는 모듈 루트에 둔다. MCP 진입점은 `mcp-stdio.ts`(Claude Desktop이 띄움, 루트 `McpAppModule`을 애플리케이션 컨텍스트로)와 `mcp-http.ts`(Nest HTTP 앱, 원격 커넥터의 바탕)이고, 로거와 시작 실패 처리는 `mcp-entry.ts`가 함께 맡는다. HTTP 앱의 루트 `McpHttpAppModule`은 `McpAppModule`에 `/mcp`(`McpHttpController`)와 `/healthz`(`HealthModule`)를 얹는다. HTTP 경로를 더할 때는 그 기능 모듈에 컨트롤러를 두고 모듈을 이 루트 모듈에 import한다. 상시 실행 서버(`mcp-http.ts`)의 루트 `McpHttpServerModule`은 여기에 스케줄러(`SchedulerHostModule`)와 예약 작업(`OutreachModule`)을 더한다(ADR-0036). 테스트는 `McpHttpAppModule`을 띄워 예약 작업이 돌지 않는다. 예약 작업은 `DailyJob`을 구현하고 `@ScheduledJob()`을 붙인 provider로 둔다. 유스케이스는 MCP SDK·`child_process` 같은 외부 기술 타입을 모르고 `ClaudeClient` 같은 포트에만 의존한다 (ADR-0015). 테스트는 대상 옆에 `*.spec.ts`로 두고, DB가 필요한 테스트는 `*.db.spec.ts`(Testcontainers 컨테이너 하나를 함께 쓰고 차례로 실행)로 둔다. 여러 모듈에 걸친 테스트와 고정 데이터는 `test/`에 둔다. 상대 경로 import에는 `.js` 확장자를 붙인다(ESM).
