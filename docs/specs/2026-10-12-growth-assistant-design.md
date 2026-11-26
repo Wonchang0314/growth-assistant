@@ -155,7 +155,7 @@ src/
     └── outreach
 ```
 
-`quiz` 모듈은 안을 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나눠 시도한다(ADR-0020). 다른 모듈은 파일 이름 접미사로 역할을 구분한다(ADR-0015).
+`quiz` 모듈은 안을 `domain/`·`application/`·`infrastructure/`·`presentation/` 레이어 폴더로 나눈다(ADR-0020, 3단계 끝 평가 뒤 그대로 둠 ADR-0043). 다른 모듈과 새 모듈은 파일 이름 접미사로 역할을 구분한다(ADR-0015).
 
 기능 모듈의 MCP 도구 처리기는 그 기능의 `mcp/` 폴더(`quiz`는 `presentation/mcp/`)에 두고, `core/mcp`가 데코레이터 탐색으로 모아 등록한다(`core`는 `tutor`를 import하지 않는다).
 
