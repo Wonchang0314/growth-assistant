@@ -40,7 +40,7 @@ const grading = new QuizGradingService(questions, attempts, mastery, experiences
 let claude: FakeClaudeClient;
 let review: QuizReviewService;
 
-/** 검증을 통과한 객관식 문제. 정답은 1번 "선택도가 낮아서"다. 각도는 미측정 개념에 내는 동작 원리가 기본이다. */
+/** 검증을 통과한 객관식 문제. 정답은 1번 "선택도가 낮아서"다. 각도는 미측정 개념에 내는 원리가 기본이다. */
 const addQuestion = (
   conceptId: number,
   keyPoint = `핵심 ${conceptId}`,

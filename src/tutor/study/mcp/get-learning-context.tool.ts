@@ -8,7 +8,7 @@ import { StudyNoteService } from '../study-note.service.js';
 import { experienceHeading } from './experience-text.js';
 
 const input = z.object({
-  topic: z.string().trim().min(1).max(200).describe('사용자가 배우거나 묻는 주제. 예: "트랜잭션 격리 수준"'),
+  topic: z.string().trim().min(1).max(200).describe('사용자가 배우거나 묻는 주제. 예: "가용재고 계산"'),
 });
 
 @McpTool()

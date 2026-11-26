@@ -5,7 +5,7 @@ import { StudyNoteService } from '../study-note.service.js';
 import { STUDY_SIGNALS } from '../study-note.js';
 
 const input = z.object({
-  topic: z.string().trim().min(1).max(200).describe('학습한 주제. 예: "PostgreSQL 인덱스와 선택도"'),
+  topic: z.string().trim().min(1).max(200).describe('학습한 주제. 예: "선수금과 매출 인식 시점"'),
   summary: z
     .string()
     .trim()

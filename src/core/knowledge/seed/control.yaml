@@ -1,0 +1,81 @@
+# 시드 개념: 기준정보와 내부통제 (ADR-0042). 형식은 accounting.yaml 머리말
+
+track:
+  key: control
+  name: 기준정보와 내부통제
+  weight: 0.2
+  description: 마스터 데이터, 품목·거래처 마스터, 번호 체계, 결재·직무분리, 접근 권한, 감사 추적, 대사, 마감 통제, 시스템 전환과 병행 운영
+
+concepts:
+  - name: 기준정보와 내부통제
+    aliases: [내부통제, internal control, 내부회계관리제도, 통제 활동, 예방 통제, 적발 통제]
+    description: 기록이 믿을 만하도록 기준정보를 한곳에서 관리하고 오류·부정을 막거나(예방) 찾아내는(적발) 통제의 틀
+
+  # 기준정보
+  - name: 마스터 데이터와 거래 데이터
+    parent: 기준정보와 내부통제
+    aliases: [마스터 데이터, master data, 기준정보, MDM, 기준정보 관리, 거래 데이터, transaction data]
+    description: 품목·거래처처럼 오래 쓰는 기준정보와 주문·전표 같은 거래 데이터의 구분, 기준정보를 누가 만들고 고치는지
+
+  - name: 품목 마스터
+    parent: 기준정보와 내부통제
+    aliases: [item master, 품목코드, 품목 코드 체계, 품목 유형, 품목 기준정보, GTIN, 상품 바코드]
+    description: 품목코드 체계와 품목 유형(원재료·부재료·반제품·제품·상품), 단위·바코드(GTIN) 같은 품목 속성
+    requires: [마스터 데이터와 거래 데이터]
+    related: [BOM, 세트 상품]
+
+  - name: 거래처 마스터와 시스템 간 매핑
+    parent: 기준정보와 내부통제
+    aliases: [거래처 마스터, 거래처 코드, customer master, vendor master, 거래처 매핑, 미매핑 거래처, 사업자등록번호]
+    description: 거래처 코드와 사업자등록번호 같은 식별 속성, 영업 시스템과 회계 시스템의 거래처를 잇는 매핑과 미매핑 거래처 처리
+    requires: [마스터 데이터와 거래 데이터]
+
+  - name: 번호 체계
+    parent: 기준정보와 내부통제
+    aliases: [채번, 채번 규칙, 문서 번호, numbering, 번호 연속성, 결번, 업무 번호]
+    description: 전표·문서 번호를 매기는 규칙과 번호의 연속성(결번 확인), 업무에서 자연 키로 쓰는 번호
+    requires: [마스터 데이터와 거래 데이터]
+
+  # 통제 활동
+  - name: 결재와 전결
+    parent: 기준정보와 내부통제
+    aliases: [결재선, 전결 규정, 위임전결, 위임전결 규정, 승인 절차, approval workflow, 기안·검토·승인]
+    description: 기안·검토·승인으로 이어지는 결재선과 금액·사안별로 승인권을 아래에 맡기는 전결 규정
+
+  - name: 직무분리
+    parent: 기준정보와 내부통제
+    aliases: [SoD, segregation of duties, 업무 분장, 입력자와 승인자 분리, 상충 업무]
+    description: 한 사람이 거래의 입력·승인·보관·기록을 함께 맡지 않게 나누는 예방 통제
+    requires: [결재와 전결]
+
+  - name: 접근 권한 원칙
+    parent: 기준정보와 내부통제
+    aliases: [최소 권한, least privilege, 접근 통제, access control, 열람 권한, 권한 부여, 기본 차단]
+    description: 업무에 필요한 만큼만 권한을 주는 최소 권한, 부서·개인 단위 권한 지정, 지정되지 않은 접근은 막는 원칙
+    related: [직무분리]
+
+  - name: 감사 추적
+    parent: 기준정보와 내부통제
+    aliases: [audit trail, 변경 이력, 감사 로그, 접근 기록, 거부된 접근 기록]
+    description: 누가 언제 무엇을 바꾸고 열람했는지, 거부된 시도까지 남겨 사후에 확인할 수 있게 하는 기록
+    related: [접근 권한 원칙]
+
+  # 확인과 마감
+  - name: 대사와 차이 분석
+    parent: 기준정보와 내부통제
+    aliases: [reconciliation, 계정 대사, 대사 차이, 차이 원인 분석, Top-down 대사, Bottom-up 대사, 매출·세금계산서 대사]
+    description: 두 원장의 금액을 맞춰 보고 차이를 시차·누락·오류로 나누는 일, 정본 합계부터 보는 Top-down과 원천 전표부터 보는 Bottom-up
+    related: [거래처 원장 대사, 입고 검수와 3자 대사]
+
+  - name: 마감 통제
+    parent: 기준정보와 내부통제
+    aliases: [마감 잠금, period lock, 마감 후 수정 금지, 마감 재오픈, 재오픈 승인, 마감 스냅샷]
+    description: 마감한 기간의 수정을 잠그고, 다시 열 때는 승인과 기록을 남기며, 마감 시점 스냅샷과 비교해 변동을 찾는 통제
+    requires: [기간 귀속과 마감]
+    related: [감사 추적]
+
+  - name: 시스템 전환과 병행 운영
+    parent: 기준정보와 내부통제
+    aliases: [시스템 전환, 병행 운영, parallel run, 병행 대사, 데이터 이관, 컷오버, cutover, 기준 정본]
+    description: 옛 시스템과 새 시스템을 함께 돌리며 건수·금액을 대사하는 기간, 어느 쪽을 정본으로 볼지와 되돌릴 기준
+    requires: [대사와 차이 분석]

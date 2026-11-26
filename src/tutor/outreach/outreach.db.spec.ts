@@ -3,12 +3,10 @@ import type { TestingModule } from '@nestjs/testing';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { FakeClaudeClient } from '../../../test/fakes/fake-claude.client.js';
-import { FakeDocumentSource } from '../../../test/fakes/fake-document-source.js';
 import { FakeStudyNotifier } from '../../../test/fakes/fake-study-notifier.js';
 import { FixedClock } from '../../../test/fakes/fixed-clock.js';
 import { guessReply, multipleChoiceReply } from '../../../test/fixtures/quiz.js';
 import { compileMcpRoot } from '../../../test/mcp-app.js';
-import { DocumentSource } from '../../core/ingestion/document-source.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import { ClaudeClient } from '../../core/llm/claude.client.js';
 import { AppSettingRepository } from '../../core/setting/app-setting.repository.js';
@@ -24,7 +22,6 @@ const testDb = connectTestDb();
 const DAY = 24 * 60 * 60 * 1000;
 const clock = new FixedClock(new Date('2026-10-20T21:00:00+09:00'));
 const notifier = new FakeStudyNotifier();
-const source = new FakeDocumentSource();
 const claude = new FakeClaudeClient();
 let app: TestingModule;
 
@@ -44,8 +41,6 @@ beforeAll(async () => {
       builder
         .overrideProvider(StudyNotifier)
         .useValue(notifier)
-        .overrideProvider(DocumentSource)
-        .useValue(source)
         .overrideProvider(ClaudeClient)
         .useValue(claude)
         // 보기를 섞지 않아 정답이 1번에 남는다(가짜 풀이 응답이 1번을 고른다).
@@ -67,7 +62,6 @@ const seedWithoutFresh = () => seed(0);
 beforeEach(async () => {
   await testDb.truncateAll();
   notifier.alerts.length = 0;
-  source.listError = undefined;
   await seed(1);
 });
 afterAll(async () => {
@@ -168,16 +162,11 @@ describe('저녁 알림', () => {
 });
 
 describe('새벽 작업', () => {
-  it('동기화가 실패해도 뒤 단계를 하고 오늘 복습할 개념의 문제를 미리 만든 뒤, 실패로 끝낸다', async () => {
+  it('오늘 복습할 개념의 문제를 미리 만든다', async () => {
     await dueToday();
-    source.listError = new Error('Notion 응답 없음');
     claude.reply(multipleChoiceReply()).reply(guessReply());
 
-    const run = app.get(NightlyPrepJob).run();
-
-    await expect(run).rejects.toThrow(
-      '동기화 실패: Notion 응답 없음 / 추출: 문서 0개, 카드 0장, 실패 0 / 문제 만들기: 문제가 없는 개념 1개 중 1개 만듦',
-    );
+    expect(await app.get(NightlyPrepJob).run()).toBe('문제 만들기: 문제가 없는 개념 1개 중 1개 만듦');
     expect(await app.get(QuizQuestionRepository).findServable(1, ['MECHANISM'], 1)).toHaveLength(1);
   });
 });

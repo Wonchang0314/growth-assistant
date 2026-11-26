@@ -9,10 +9,10 @@ import type { QuestionHistory } from '../domain/variant.js';
 
 /** 각도는 코드가 숙련도로 정한다 (ADR-0038). 프롬프트에 싣는 설명이다. */
 const ANGLE_TEXT: Record<ConceptAngle, string> = {
-  MECHANISM: '동작 원리(MECHANISM): 개념이 무엇이고 어떻게 동작하는지 짧게 확인한다. 처음 보거나 약한 개념이다',
-  WHY: '왜(WHY): 그렇게 동작하거나 그렇게 설계한 이유를 묻는다',
+  MECHANISM: '원리(MECHANISM): 개념이 무엇이고 어떻게 처리되는지 짧게 확인한다. 처음 보거나 약한 개념이다',
+  WHY: '왜(WHY): 그렇게 처리하거나 그렇게 정한 이유를 묻는다',
   WHEN: '언제 쓰나(WHEN): 어떤 조건에서 쓰고 어떤 조건에서 피하는지 묻는다',
-  TRADEOFF: '트레이드오프(TRADEOFF): 무엇을 얻고 잃는지, 조건이 부딪칠 때 어느 쪽을 고를지 설계 판단을 묻는다',
+  TRADEOFF: '트레이드오프(TRADEOFF): 무엇을 얻고 잃는지, 조건이 부딪칠 때 어느 쪽을 고를지 판단을 묻는다',
 };
 
 const common = {

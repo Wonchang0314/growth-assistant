@@ -1,0 +1,104 @@
+# 시드 개념: 무역·외환 (ADR-0042). 형식은 accounting.yaml 머리말
+
+track:
+  key: trade
+  name: 무역·외환
+  weight: 0.2
+  description: 인코텀즈, B/L·선적 일정, 수입 통관·보세구역·검역, 관세·HS 코드, 수출 신고, 무역 대금 결제, 환율, 수입 원가, 외국환거래 신고
+
+concepts:
+  - name: 무역 거래
+    aliases: [국제 거래, 수출입, 수출입 업무, 무역 계약, international trade]
+    description: 계약→선적→통관→대금 결제로 이어지는 국경을 넘는 매매의 흐름
+
+  # 계약 조건과 운송
+  - name: 인코텀즈
+    parent: 무역 거래
+    aliases: [Incoterms, Incoterms 2020, 인코텀스, 무역 조건, 가격 조건, FOB, CIF, CFR, EXW, FCA, DAP, DDP, 위험 이전]
+    description: 매도인과 매수인 사이에 비용과 위험이 넘어가는 지점을 정하는 국제상업회의소의 거래 조건
+    related: [인도기준과 진행기준]
+
+  - name: 선하증권
+    parent: 무역 거래
+    aliases:
+      [B/L, Bill of Lading, Master B/L, House B/L, MBL, HBL, 서렌더, Surrendered B/L, 해상화물운송장, Sea Waybill]
+    description: 운송인이 화물을 받았다는 증거이자 화물을 인도받을 권리를 나타내는 증권, 원본·서렌더·운송장의 차이
+
+  - name: 선적과 입항 일정
+    parent: 무역 거래
+    aliases: [ETD, ETA, 선적 일정, 입항 일정, 선적 스케줄, 도착 예정일]
+    description: 출항·도착 예정일이 바뀔 때 입고·납기 답변이 어떻게 따라 바뀌는지
+
+  - name: 미착품
+    parent: 무역 거래
+    aliases: [미착 재고, 미착 상품, 운송 중 매입품, goods in transit, 미착 정산]
+    description: 선적됐지만 아직 도착하지 않은 매입 물품, 거래 조건에 따른 소유권 이전 시점과 재고 계상
+    requires: [인코텀즈]
+    related: [창고 간 재고 이동, 선하증권]
+
+  # 수입 통관
+  - name: 수입 통관
+    parent: 무역 거래
+    aliases: [수입신고, 수입신고필증, 수입면장, 신고수리, 수입신고 수리, customs clearance, UNI-PASS]
+    description: 수입신고와 세관의 신고수리, 관세·수입 부가세 납부를 거쳐 물품을 내국물품으로 반출하는 절차
+    related: [선하증권]
+
+  - name: 보세구역과 보세창고
+    parent: 수입 통관
+    aliases: [보세구역, 보세창고, 지정장치장, 특허보세구역, 종합보세구역, 보세 운송, 외국물품, bonded warehouse]
+    description: 통관 전 외국물품을 관세를 내지 않은 채 두는 구역의 종류와 반출 제한
+    requires: [수입 통관]
+
+  - name: 수입 검사와 검역
+    parent: 수입 통관
+    aliases: [수입식품 신고, 수입식품 검사, 정밀검사, 검역 보류, 동식물 검역, quarantine]
+    description: 수입식품은 식약처에 따로 수입신고하고 검사·검역을 마칠 때까지 판매할 수 없는 보류 상태
+    requires: [수입 통관]
+    related: [재고 상태]
+
+  - name: 관세와 품목분류
+    parent: 무역 거래
+    aliases: [HS 코드, HS code, HSK, 품목분류, 관세율, 과세가격, FTA, 원산지증명서, 협정세율]
+    description: 국제 공통 6자리(한국은 HSK 10자리) 품목분류로 세율을 정하고, FTA 원산지로 협정세율을 받는 법
+
+  # 수출과 대금
+  - name: 수출 신고
+    parent: 무역 거래
+    aliases: [수출신고, 수출신고필증, 수출면장, 수출신고수리, 적재 기한, export declaration]
+    description: 수출신고 수리 뒤 정해진 기간(원칙 30일) 안에 선적해야 하고, 넘기면 수리가 취소될 수 있는 절차
+
+  - name: 무역 대금 결제
+    parent: 무역 거래
+    aliases: [T/T, 전신송금, 신용장, L/C, Letter of Credit, D/P, D/A, 추심 결제, UCP 600, 선적서류]
+    description: 송금·신용장·추심 방식이 수출자와 수입자의 대금 위험을 어떻게 나누는지
+
+  - name: 환율
+    parent: 무역 거래
+    aliases: [환율 고시, 매매기준율, 전신환매도율, 전신환매입률, TTS, TTB, 현찰 환율, 과세환율, exchange rate]
+    description: 은행이 고시하는 매매기준율과 살 때·팔 때 환율, 관세 과세환율, 어느 시점의 환율을 적용하는지
+    related: [외화 거래와 환산]
+
+  - name: 수입 원가
+    parent: 무역 거래
+    aliases: [도착 원가, landed cost, 수입 부대비용, 수입 원가 계산, 부대비용 배부, 수입 정산]
+    description: 물품대에 운임·보험료·관세·통관 부대비용을 더한 도착 원가. 수입 부가세는 매입세액이라 원가에 넣지 않는다
+    requires: [인코텀즈, 관세와 품목분류]
+    related: [미착품, 부가가치세]
+
+  # 외국환거래
+  - name: 외국환거래 신고
+    parent: 무역 거래
+    aliases: [외국환거래법, 외환 신고, 자본거래 신고, 사전신고, 사후보고, 지정거래외국환은행]
+    description: 외국환거래법이 거래 유형에 따라 사전신고·사후보고와 신고 기관(외국환은행·한국은행 등)을 정하는 구조
+
+  - name: 해외직접투자
+    parent: 외국환거래 신고
+    aliases: [해외직접투자 신고, overseas direct investment, ODI, 해외 현지법인 투자, 해외직접투자 사후관리]
+    description: 외국법인 지분을 10% 이상 취득하는 등 경영에 참여하는 투자의 사전 신고와 투자 뒤 보고 의무
+    requires: [외국환거래 신고]
+
+  - name: 해외 금전대차와 증권취득 신고
+    parent: 외국환거래 신고
+    aliases: [해외 금전대차, 금전대차 신고, 해외 차입, 해외 대출, 외화 차입, 해외 증권취득, 증권취득 신고]
+    description: 비거주자와 돈을 빌려주고 빌리거나 외국 증권을 취득하는 자본거래의 신고 대상과 신고 기관
+    requires: [외국환거래 신고]

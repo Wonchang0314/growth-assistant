@@ -4,32 +4,25 @@ import type { Env } from '../config/env.js';
 import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { LlmModule } from '../llm/llm.module.js';
 import { MemoryModule } from '../memory/memory.module.js';
-import { SchedulerModule } from '../scheduler/scheduler.module.js';
 import { CaseAbstractionService } from './case-abstraction.service.js';
-import { CaseReviewService } from './case-review.service.js';
 import { ConceptReviewRepository } from './concept-review.repository.js';
 import { ConceptReviewService } from './concept-review.service.js';
 import { DocumentSource } from './document-source.js';
 import { ExtractionService } from './extraction.service.js';
-import { IngestionPipeline } from './ingestion-pipeline.js';
-import { ListPendingCasesTool } from './mcp/list-pending-cases.tool.js';
 import { ListPendingConceptsTool } from './mcp/list-pending-concepts.tool.js';
-import { ReviewCaseTool } from './mcp/review-case.tool.js';
 import { ReviewConceptTool } from './mcp/review-concept.tool.js';
-import { SyncNowTool } from './mcp/sync-now.tool.js';
-import { SyncStatusTool } from './mcp/sync-status.tool.js';
 import { NotionApi } from './notion/notion-api.js';
 import { NotionSource } from './notion/notion.source.js';
 import { SyncService } from './sync.service.js';
 
 /**
- * Notion 수집과 증분 동기화, 경험 카드 추출, 판단 사례 추상화, 수집에서 생긴 개념·판단 사례 검토 (설계 문서 6장, 7.1).
- * 동기화·추출은 `npm run sync`·`npm run extract`와 새벽 예약 작업(`IngestionPipeline`)이, 추상화는 `npm run abstract`만 돌린다
- * (판단 사례를 문제에 쓰지 않게 돼 새벽 작업에서 뺐다, ADR-0038).
- * MCP에는 상태 조회, 바로 동기화(`sync_now`, 뒤에서 돌림), 검토를 연다.
+ * Notion 수집과 증분 동기화, 경험 카드 추출, 판단 사례 추상화, 개념 검토 (설계 문서 6장, 7.1).
+ * 수집은 꺼 두어(ADR-0042) 동기화·추출·추상화는 `npm run sync`·`extract`·`abstract`로 손으로만 돌린다.
+ * MCP에는 승인 대기 개념 검토만 연다. 수집 상태·바로 동기화(`sync_now`, `IngestionPipeline`)와 판단 사례 검토 도구는
+ * 등록에서 뺐고 코드는 남긴다.
  */
 @Module({
-  imports: [MemoryModule, KnowledgeModule, LlmModule, SchedulerModule],
+  imports: [MemoryModule, KnowledgeModule, LlmModule],
   providers: [
     {
       provide: DocumentSource,
@@ -46,15 +39,9 @@ import { SyncService } from './sync.service.js';
     CaseAbstractionService,
     ConceptReviewRepository,
     ConceptReviewService,
-    CaseReviewService,
-    IngestionPipeline,
-    SyncStatusTool,
-    SyncNowTool,
     ListPendingConceptsTool,
     ReviewConceptTool,
-    ListPendingCasesTool,
-    ReviewCaseTool,
   ],
-  exports: [SyncService, ExtractionService, CaseAbstractionService, IngestionPipeline],
+  exports: [SyncService, ExtractionService, CaseAbstractionService],
 })
 export class IngestionModule {}

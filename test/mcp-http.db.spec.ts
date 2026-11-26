@@ -39,10 +39,10 @@ describe('MCP HTTP 앱 (앱 전체)', () => {
   });
 
   it('도구를 불러 DB에서 읽은 결과를 돌려준다', async () => {
-    const result = await client.callTool({ name: 'sync_status', arguments: {} });
+    const result = await client.callTool({ name: 'get_learning_context', arguments: { topic: '선수금' } });
 
     expect(result.isError).toBeFalsy();
-    expect(result.structuredContent).toMatchObject({ lastSyncedAt: null, documents: 0, chunks: 0 });
+    expect(result.structuredContent).toMatchObject({ topic: '선수금', concepts: [], recentNotes: [] });
   });
 
   it('없는 경로는 404, /mcp에 다른 사이트의 Origin으로 오면 403으로 거절한다', async () => {

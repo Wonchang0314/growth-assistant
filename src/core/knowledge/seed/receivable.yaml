@@ -1,0 +1,111 @@
+# 시드 개념: 채권·채무와 여신 (ADR-0042). 형식은 accounting.yaml 머리말
+
+track:
+  key: receivable
+  name: 채권·채무와 여신
+  weight: 0.2
+  description: 외상매출금·미수금·선수금, 입금 반제와 반제 순서, 연령분석·대손, 여신한도, 반품 크레딧·과입금, 매입채무·선급금, 상계와 거래처 대사
+
+concepts:
+  - name: 채권·채무 관리
+    aliases: [채권 관리, 채무 관리, 거래처 잔액 관리, credit management]
+    description: 거래처별로 받을 돈과 줄 돈을 기록하고 회수·지급·잔액 확인까지 관리하는 일
+
+  # 받을 돈
+  - name: 매출채권
+    parent: 채권·채무 관리
+    aliases: [외상매출금, 받을어음, accounts receivable, 매출채권 잔액]
+    description: 일반 상거래(상품·제품 판매, 용역 제공)에서 생긴 외상매출금과 받을어음
+    requires: [복식부기]
+
+  - name: 미수금과 매출채권의 구분
+    parent: 채권·채무 관리
+    aliases: [미수금, 비매출채권, other receivables]
+    description: 자산 처분처럼 일반 상거래 밖에서 생긴 미수금과 매출채권을 나누는 기준, 현장에서 "미수"를 섞어 쓰는 데서 오는 혼동
+    requires: [매출채권]
+
+  - name: 선수금
+    parent: 채권·채무 관리
+    aliases: [계약금, 중도금, 계약부채, contract liability, advance from customers, 선수금 정산]
+    description: 재화·용역을 넘기기 전에 받은 계약금·중도금·잔금을 부채로 잡고, 인도 때 매출로 바꾸는 처리
+    requires: [복식부기]
+    related: [수익 인식]
+
+  - name: 거래처 잔액의 부호와 재분류
+    parent: 채권·채무 관리
+    aliases: [대변 잔액 채권, 음수 채권, 마이너스 채권, 잔액 재분류, 계정 재분류]
+    description: 거래처 수금이 출고 매출을 넘을 때 음수 채권으로 두지 않고 선수금으로 재분류하는 기준
+    requires: [선수금, 매출채권]
+
+  # 회수
+  - name: 입금 반제
+    parent: 채권·채무 관리
+    aliases: [채권 반제, clearing, 입금 매칭, 수금 매칭, 미결제 항목, open item, 미반제 잔액]
+    description: 들어온 입금을 어느 채권 전표와 맞춰 지울지 정하는 반제와, 남은 미결제 항목 관리
+    requires: [매출채권]
+
+  - name: 반제 순서
+    parent: 채권·채무 관리
+    aliases: [FIFO 반제, 선입선출 반제, 지정 반제, 오래된 채권부터 반제, 반제 규칙]
+    description: 입금 지정이 없을 때 오래된 채권부터 지우는 FIFO 반제와 고객이 지정한 건을 지우는 지정 반제
+    requires: [입금 반제]
+
+  - name: 매출채권 연령분석
+    parent: 채권·채무 관리
+    aliases: [aging, 에이징, 채권 연령, 연령분석표, aging bucket, 경과일수 구간]
+    description: 채권을 발생·만기 후 경과일(당월·30·60·90일 초과)로 나눠 회수 위험을 보는 표
+    requires: [반제 순서]
+    related: [대손과 대손충당금]
+
+  - name: 대손과 대손충당금
+    parent: 채권·채무 관리
+    aliases: [대손충당금, 대손상각비, 대손 추정, 연령분석법, 기대신용손실, ECL, expected credit loss, bad debt]
+    description: 회수하지 못할 채권을 추정해 충당금을 쌓고 확정되면 상각하는 처리, K-IFRS 1109의 기대신용손실 모형
+    requires: [매출채권]
+
+  - name: 여신한도
+    parent: 채권·채무 관리
+    aliases: [신용한도, credit limit, 여신 관리, 여신 사용액, 여신 초과, 출고 보류, credit hold]
+    description: 거래처별 외상 허용 한도, 여신 사용액에 넣을 범위(미수 채권·미출고 수주), 한도를 넘을 때의 출고 보류와 승인
+    requires: [매출채권]
+
+  - name: 반품 크레딧
+    parent: 채권·채무 관리
+    aliases: [credit memo, 크레딧 메모, 반품 채권 차감, 대변 메모]
+    description: 반품으로 생긴 금액을 거래처 채권에서 빼는 크레딧과 매출환입·반품 전표와의 관계
+    requires: [매출 차감 항목, 매출채권]
+
+  - name: 과입금
+    parent: 채권·채무 관리
+    aliases: [초과 입금, overpayment, 이중 입금, 과오입금, 환불 대기 입금]
+    description: 채권보다 많이 들어온 입금을 선수금·반품 크레딧과 섞지 않고 따로 두어 환불하거나 다음 거래에 쓰는 처리
+    requires: [입금 반제]
+    related: [선수금, 반품 크레딧]
+
+  # 줄 돈
+  - name: 매입채무
+    parent: 채권·채무 관리
+    aliases: [외상매입금, 지급어음, accounts payable, 미지급금, 지급 관리]
+    description: 일반 상거래의 매입에서 생긴 외상매입금·지급어음과, 상거래 밖의 미지급금을 나누는 기준
+    requires: [복식부기]
+
+  - name: 선급금
+    parent: 채권·채무 관리
+    aliases: [advance payment, 선지급, 선급금 정산, 매입 선급]
+    description: 물품·용역을 받기 전에 공급사에 미리 준 돈을 자산으로 잡고 입고 때 매입채무와 정산하는 처리
+    requires: [매입채무]
+    related: [무역 대금 결제]
+
+  # 정리와 확인
+  - name: 채권·채무 상계
+    parent: 채권·채무 관리
+    aliases: [상계 처리, offset, netting, 채권채무 상계 약정, 관계사 상계]
+    description: 같은 거래처나 관계사에 대한 받을 돈과 줄 돈을 서로 지우는 상계와 그 근거(합의·약정)
+    requires: [매출채권, 매입채무]
+
+  - name: 거래처 원장 대사
+    parent: 채권·채무 관리
+    aliases: [잔액 확인서, 채권 조회서, 채권채무 조회서, balance confirmation, 거래처 대사]
+    description: 우리 장부의 거래처 잔액을 상대방 잔액과 맞춰 보고 차이를 시차·누락·오류로 나누는 확인
+    requires: [매출채권, 매입채무]
+    related: [대사와 차이 분석]
