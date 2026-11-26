@@ -29,7 +29,7 @@ export class ConceptService {
       this.repository.findSummaries(ids),
       this.repository.findPrerequisites(ids, PREREQUISITE_DEPTH),
     ]);
-    return summaries.map((s) => ({ ...s, prerequisites: (prerequisites.get(s.id) ?? []).map((p) => p.name) }));
+    return summaries.map((s) => ({ ...s, prerequisites: prerequisites.get(s.id) ?? [] }));
   }
 
   /** 개념마다 먼저 알아야 하는 개념을 [maxDepth]단계까지, 가까운 것부터. 근본 원인을 찾을 때 쓴다 (설계 문서 8장). */

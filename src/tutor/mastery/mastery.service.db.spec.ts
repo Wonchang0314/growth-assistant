@@ -1,12 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
+import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { MasteryRepository } from './mastery.repository.js';
 import { MasteryService } from './mastery.service.js';
 
 const testDb = connectTestDb();
 const repository = new MasteryRepository(testDb.db);
-const service = new MasteryService(repository);
+const service = new MasteryService(repository, new ConceptService(new ConceptRepository(testDb.db)));
 const t0 = new Date('2026-10-18T00:00:00Z');
 const DAY = 24 * 60 * 60 * 1000;
 

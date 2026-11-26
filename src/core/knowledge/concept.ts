@@ -32,8 +32,8 @@ export interface RelatedConcept {
   readonly description: string;
   /** 상위 개념 이름 (PART_OF). */
   readonly parent: string | null;
-  /** 먼저 알아야 하는 개념 이름. 가까운 것부터. */
-  readonly prerequisites: readonly string[];
+  /** 먼저 알아야 하는 개념. 가까운 것부터. */
+  readonly prerequisites: readonly ConceptRef[];
 }
 
 /**

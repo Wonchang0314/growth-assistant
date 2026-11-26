@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
+import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { MasteryRepository } from './mastery.repository.js';
-import { applyAnswer, newMastery, replay, type ConceptMastery, type GradedAnswer } from './mastery.js';
+import { applyAnswer, levelsOf, newMastery, replay, type ConceptMastery, type GradedAnswer } from './mastery.js';
+import { type RootCause, rootCauses } from './root-cause.js';
 
-/** 개념별 복습 일정과 숙련도·약점 갱신 (설계 문서 5.3·8장). */
+/** 근본 원인을 찾을 때 살펴보는 약점 개념 수와 선수 관계 깊이. */
+const WEAK_SCAN_LIMIT = 30;
+const ROOT_CAUSE_DEPTH = 3;
+
+/** 개념별 복습 일정과 숙련도·약점 갱신, 근본 원인 후보 (설계 문서 5.3·8장). */
 @Injectable()
 export class MasteryService {
-  constructor(private readonly repository: MasteryRepository) {}
+  constructor(
+    private readonly repository: MasteryRepository,
+    private readonly concepts: ConceptService,
+  ) {}
 
   find(conceptId: number): Promise<ConceptMastery | undefined> {
     return this.repository.find(conceptId);
@@ -23,6 +32,19 @@ export class MasteryService {
   /** [timeZone]의 [date] 안에 복습할 때가 되는 개념. 예정일이 이른 것부터. */
   dueOn(date: string, timeZone: string, limit: number): Promise<number[]> {
     return this.repository.findDueOn(date, timeZone, limit);
+  }
+
+  /** 근본 원인 후보 (설계 문서 8장). 약점 개념 [WEAK_SCAN_LIMIT]개의 선수 개념을 [ROOT_CAUSE_DEPTH]단계까지 거슬러 올라간다. */
+  async rootCauses(): Promise<RootCause[]> {
+    const ids = (await this.repository.findWeak(WEAK_SCAN_LIMIT)).map((m) => m.conceptId);
+    if (ids.length === 0) return [];
+    const [summaries, prerequisites] = await Promise.all([
+      this.concepts.summaries(ids),
+      this.concepts.prerequisites(ids, ROOT_CAUSE_DEPTH),
+    ]);
+    const prerequisiteIds = [...new Set([...prerequisites.values()].flat().map((c) => c.id))];
+    const levels = levelsOf(await this.repository.findMany(prerequisiteIds));
+    return rootCauses({ weak: summaries, prerequisites, levels });
   }
 
   countUnmeasured(): Promise<number> {

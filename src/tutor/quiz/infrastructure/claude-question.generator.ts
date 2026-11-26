@@ -114,7 +114,9 @@ function conceptSection({ concept }: GenerationContext): string {
     `트랙: ${concept.track}`,
     `설명: ${concept.description}`,
     ...(concept.parent === null ? [] : [`상위 개념: ${concept.parent}`]),
-    ...(concept.prerequisites.length === 0 ? [] : [`선수 개념: ${concept.prerequisites.join(', ')}`]),
+    ...(concept.prerequisites.length === 0
+      ? []
+      : [`선수 개념: ${concept.prerequisites.map((p) => p.name).join(', ')}`]),
   ].join('\n');
 }
 

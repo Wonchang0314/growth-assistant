@@ -3,7 +3,9 @@ import { Clock } from '../../core/clock/clock.js';
 import type { RelatedConcept } from '../../core/knowledge/concept.js';
 import { ConceptService } from '../../core/knowledge/concept.service.js';
 import { ExperienceRepository, type FoundExperience } from '../../core/memory/experience.repository.js';
+import { type ConceptMastery, levelsOf } from '../mastery/mastery.js';
 import { MasteryService } from '../mastery/mastery.service.js';
+import { weakPrerequisites, type WeakPrerequisite } from '../mastery/root-cause.js';
 import { StudyNoteRepository } from './study-note.repository.js';
 import { mergeConceptLinks, searchTermsOf, type StudyNote, type StudySignal } from './study-note.js';
 
@@ -12,10 +14,18 @@ const RECENT_LIMIT = 3;
 /** 학습 맥락에 싣는 경험 카드 수. 대화 맥락이 길어지지 않게 적게 둔다. */
 const EXPERIENCE_LIMIT = 3;
 
+/** 학습 맥락에 싣는 개념과 그 숙련도·약한 선수 개념. */
+export interface ContextConcept extends RelatedConcept {
+  /** 복습 일정과 숙련도. 일정이 없으면(다룬 적 없음) 없다. */
+  readonly mastery: ConceptMastery | undefined;
+  /** 선수 개념(2단계까지) 중 약하거나 확인하지 않은 것. 근본 원인 후보가 먼저다. */
+  readonly weakPrerequisites: readonly WeakPrerequisite[];
+}
+
 export interface LearningContext {
   readonly topic: string;
   /** 주제와 관련 있는 개념(이름·별칭 매칭)과 그 상위·선수 개념. */
-  readonly concepts: readonly RelatedConcept[];
+  readonly concepts: readonly ContextConcept[];
   /** 관련 개념에 연결된 경험 카드. 맞은 개념이 많은 것부터. */
   readonly experiences: readonly FoundExperience[];
   /** 주제와 겹치거나 관련 개념에 연결된 지난 학습 기록. 최근 것부터. */
@@ -34,7 +44,6 @@ export interface RecordedNote {
 
 /**
  * 대화에서 쓰는 학습 맥락 조회, 경험 카드 검색, 학습 기록 (설계 문서 7.2). 학습 기록에서 다룬 개념은 복습 일정에 넣는다.
- * 숙련도는 3단계에서 맥락에 더한다.
  */
 @Injectable()
 export class StudyNoteService {
@@ -106,12 +115,13 @@ export class StudyNoteService {
   }
 
   async learningContext(topic: string): Promise<LearningContext> {
-    const concepts = await this.concepts.relatedConcepts(topic);
-    const conceptIds = concepts.map((c) => c.id);
-    const [byText, byConcept, experiences] = await Promise.all([
+    const related = await this.concepts.relatedConcepts(topic);
+    const conceptIds = related.map((c) => c.id);
+    const [byText, byConcept, experiences, concepts] = await Promise.all([
       this.repository.search(searchTermsOf(topic), RELATED_LIMIT),
       this.repository.findByConcepts(conceptIds, RELATED_LIMIT),
       this.experiences.findByConcepts(conceptIds, EXPERIENCE_LIMIT),
+      this.withMastery(related),
     ]);
     const relatedNotes = newestFirst([...byText, ...byConcept]).slice(0, RELATED_LIMIT);
     const recentNotes = await this.repository.findRecent(
@@ -119,6 +129,20 @@ export class StudyNoteService {
       relatedNotes.map((n) => n.id),
     );
     return { topic, concepts, experiences, relatedNotes, recentNotes };
+  }
+
+  /** 개념마다 숙련도와 약한 선수 개념을 붙인다. Claude가 "먼저 ○○를 아는지" 확인하는 데 쓴다 (설계 문서 8장). */
+  private async withMastery(concepts: readonly RelatedConcept[]): Promise<ContextConcept[]> {
+    if (concepts.length === 0) return [];
+    const ids = [...new Set(concepts.flatMap((c) => [c.id, ...c.prerequisites.map((p) => p.id)]))];
+    const [masteries, causes] = await Promise.all([this.mastery.findMany(ids), this.mastery.rootCauses()]);
+    const byId = new Map(masteries.map((m) => [m.conceptId, m]));
+    const levels = levelsOf(masteries);
+    return concepts.map((c) => ({
+      ...c,
+      mastery: byId.get(c.id),
+      weakPrerequisites: weakPrerequisites(c.prerequisites, levels, causes),
+    }));
   }
 }
 

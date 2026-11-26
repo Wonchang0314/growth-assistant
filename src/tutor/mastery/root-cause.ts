@@ -1,8 +1,13 @@
-import type { ConceptRef } from '../../../core/knowledge/concept.js';
-import type { WeaknessLevel } from '../../mastery/mastery.js';
+import type { ConceptRef } from '../../core/knowledge/concept.js';
+import type { WeaknessLevel } from './mastery.js';
 
 /** 선수 개념의 상태. 일정이 없으면(대화·퀴즈에서 다룬 적 없음) UNSTUDIED다. */
 export type PrerequisiteLevel = WeaknessLevel | 'UNSTUDIED';
+
+export const PREREQUISITE_LEVEL_TEXT = { WEAK: '약점', UNMEASURED: '미측정', UNSTUDIED: '다룬 적 없음' } as const;
+
+/** 일정이 있는 개념의 상태([levels]) → 선수 개념의 상태. */
+const levelOf = (levels: ReadonlyMap<number, PrerequisiteLevel>, id: number) => levels.get(id) ?? 'UNSTUDIED';
 
 export interface RootCause {
   readonly concept: ConceptRef;
@@ -36,7 +41,7 @@ export function rootCauses(input: {
   }
   return [...candidates.values()]
     .flatMap(({ concept, dependents }) => {
-      const level = input.levels.get(concept.id) ?? 'UNSTUDIED';
+      const level = levelOf(input.levels, concept.id);
       return level === 'OK' || dependents.length < MIN_DEPENDENTS ? [] : [{ concept, level, dependents }];
     })
     .sort(
@@ -45,4 +50,27 @@ export function rootCauses(input: {
         LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level] ||
         a.concept.id - b.concept.id,
     );
+}
+
+/** 약점·미측정·다룬 적 없음인 선수 개념. [dependents]가 비어 있지 않으면 근본 원인 후보다. */
+export type WeakPrerequisite = RootCause;
+
+/**
+ * 개념 하나의 선수 개념 중 약하거나 아직 확인하지 않은 것 (학습 맥락, 사용자 결정 2026-11-27).
+ * 근본 원인 후보([causes])는 후보 순서대로 앞에 두고, 나머지는 가까운 선수 개념부터 둔다.
+ * 이 개념의 선수 개념이 아닌 근본 원인 후보는 더하지 않는다.
+ */
+export function weakPrerequisites(
+  prerequisites: readonly ConceptRef[],
+  levels: ReadonlyMap<number, PrerequisiteLevel>,
+  causes: readonly RootCause[],
+): WeakPrerequisite[] {
+  const rank = new Map(causes.map((c, i) => [c.concept.id, i]));
+  const dependents = new Map(causes.map((c) => [c.concept.id, c.dependents]));
+  return prerequisites
+    .flatMap((concept) => {
+      const level = levelOf(levels, concept.id);
+      return level === 'OK' ? [] : [{ concept, level, dependents: dependents.get(concept.id) ?? [] }];
+    })
+    .sort((a, b) => (rank.get(a.concept.id) ?? causes.length) - (rank.get(b.concept.id) ?? causes.length));
 }
