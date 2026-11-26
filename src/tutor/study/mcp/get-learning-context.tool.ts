@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { Clock, localDate } from '../../../core/clock/clock.js';
-import type { RelatedConcept } from '../../../core/knowledge/concept.js';
 import { McpTool, type McpToolHandler, type McpToolResult } from '../../../core/mcp/mcp-tool.js';
+import { MASTERY_TIER_TEXT, masteryTier } from '../../mastery/mastery.js';
+import { PREREQUISITE_LEVEL_TEXT, type WeakPrerequisite } from '../../mastery/root-cause.js';
 import type { StudyNote } from '../study-note.js';
-import { StudyNoteService } from '../study-note.service.js';
+import { type ContextConcept, StudyNoteService } from '../study-note.service.js';
 import { experienceHeading } from './experience-text.js';
 
 const input = z.object({
@@ -16,7 +17,8 @@ const input = z.object({
 export class GetLearningContextTool implements McpToolHandler<typeof input> {
   readonly name = 'get_learning_context';
   readonly description =
-    '주제와 관련된 개념(상위 개념, 먼저 알아야 할 개념), 그 개념을 실무에서 겪은 사용자의 경험 카드(제목, 교훈), ' +
+    '주제와 관련된 개념(상위 개념, 먼저 알아야 할 개념, 숙련도 약함·보통·높음·미측정과 다음 복습일, ' +
+    '약하거나 아직 확인하지 않은 선수 개념과 그중 근본 원인 후보), 그 개념을 실무에서 겪은 사용자의 경험 카드(제목, 교훈), ' +
     '사용자의 지난 학습 기록(요약, 헷갈렸던 점), 최근 학습 기록을 가져온다. ' +
     '튜터링 대화에서 새 주제를 시작할 때, 설명하기 전에 먼저 부른다. 지난번에 헷갈린 점이 있으면 그 지점부터 확인한다.';
   readonly inputSchema = input;
@@ -48,7 +50,14 @@ export class GetLearningContextTool implements McpToolHandler<typeof input> {
           track: c.track,
           description: c.description,
           parent: c.parent,
-          prerequisites: c.prerequisites,
+          prerequisites: c.prerequisites.map((p) => p.name),
+          mastery: masteryTier(c.mastery),
+          nextReview: c.mastery ? this.localDate(c.mastery.dueAt) : null,
+          weakPrerequisites: c.weakPrerequisites.map((w) => ({
+            name: w.concept.name,
+            level: w.level,
+            rootCauseOf: w.dependents.map((d) => d.name),
+          })),
         })),
         experiences: context.experiences.map((e) => ({
           id: e.id,
@@ -65,11 +74,21 @@ export class GetLearningContextTool implements McpToolHandler<typeof input> {
     };
   }
 
-  private describeConcept(concept: RelatedConcept): string {
+  private describeConcept(concept: ContextConcept): string {
     const parent = concept.parent ? ` (상위: ${concept.parent})` : '';
     const prerequisites =
-      concept.prerequisites.length > 0 ? ` / 먼저 알아야 할 개념: ${concept.prerequisites.join(', ')}` : '';
-    return `${concept.name} [${concept.track}]${parent}: ${concept.description}${prerequisites}`;
+      concept.prerequisites.length > 0
+        ? ` / 먼저 알아야 할 개념: ${concept.prerequisites.map((p) => p.name).join(', ')}`
+        : '';
+    const review = concept.mastery ? `, 다음 복습 ${this.localDate(concept.mastery.dueAt)}` : '';
+    const weak =
+      concept.weakPrerequisites.length > 0
+        ? ` / 약한 선수 개념: ${concept.weakPrerequisites.map(describeWeak).join(', ')}`
+        : '';
+    return (
+      `${concept.name} [${concept.track}]${parent}: ${concept.description}${prerequisites}` +
+      ` / 숙련도 ${MASTERY_TIER_TEXT[masteryTier(concept.mastery)]}${review}${weak}`
+    );
   }
 
   private describe(note: StudyNote): string {
@@ -92,4 +111,10 @@ export class GetLearningContextTool implements McpToolHandler<typeof input> {
   private localDate(date: Date): string {
     return localDate(date, this.clock.timeZone);
   }
+}
+
+/** "이름(미측정)", 근본 원인 후보면 "이름(다룬 적 없음) 근본 원인 후보(기대는 약점 2개)". */
+function describeWeak(w: WeakPrerequisite): string {
+  const cause = w.dependents.length > 0 ? ` 근본 원인 후보(기대는 약점 ${w.dependents.length}개)` : '';
+  return `${w.concept.name}(${PREREQUISITE_LEVEL_TEXT[w.level]})${cause}`;
 }

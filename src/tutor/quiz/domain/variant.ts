@@ -1,4 +1,4 @@
-import { type ConceptMastery, type Confidence, weaknessLevel } from '../../mastery/mastery.js';
+import { type Confidence, type MasteryTier, masteryTier } from '../../mastery/mastery.js';
 import { type ConceptAngle, normalizeAnswer, type Question, type QuestionDraft } from './quiz-question.js';
 
 /**
@@ -45,24 +45,27 @@ export function nextQuestion(history: readonly QuestionHistory[]): NextQuestion 
   return { kind: 'NEW' };
 }
 
-/** 이 숙련도 점수부터 트레이드오프·판단을 묻는다. */
-export const DEEP_MASTERY = 0.8;
-
-type AngleMastery = Pick<ConceptMastery, 'gradedAttempts' | 'weaknessScore' | 'masteryScore'> | undefined;
+type AngleMastery = Parameters<typeof masteryTier>[0];
+type TierAngles = readonly [ConceptAngle] | readonly [ConceptAngle, ConceptAngle];
 
 /**
- * 숙련도 단계마다 묻는 각도. 가볍게 시작해서 깊이 들어간다 (ADR-0038).
- * - 일정이 없거나 미측정·약점 → 원리(MECHANISM): 짧은 정의·원리 확인
- * - 양호하고 숙련도 [DEEP_MASTERY] 미만 → 왜(WHY)·언제 쓰나(WHEN)
- * - 숙련도 [DEEP_MASTERY] 이상 → 트레이드오프(TRADEOFF)
+ * 숙련도 단계([masteryTier])마다 묻는 각도. 가볍게 시작해서 깊이 들어간다 (ADR-0038).
+ * - 미측정·약함 → 원리(MECHANISM): 짧은 정의·원리 확인
+ * - 보통 → 왜(WHY)·언제 쓰나(WHEN)
+ * - 높음 → 트레이드오프(TRADEOFF)
  *
  * 미리 만들어 둔 문제는 지금 단계의 각도일 때만 낸다 (ADR-0040).
  */
-export function tierAngles(mastery: AngleMastery): readonly [ConceptAngle] | readonly [ConceptAngle, ConceptAngle] {
-  if (mastery === undefined || weaknessLevel(mastery) !== 'OK') return ['MECHANISM'];
-  if (mastery.masteryScore >= DEEP_MASTERY) return ['TRADEOFF'];
-  return ['WHY', 'WHEN'];
+export function tierAngles(mastery: AngleMastery): TierAngles {
+  return TIER_ANGLES[masteryTier(mastery)];
 }
+
+const TIER_ANGLES: Record<MasteryTier, TierAngles> = {
+  UNMEASURED: ['MECHANISM'],
+  WEAK: ['MECHANISM'],
+  MEDIUM: ['WHY', 'WHEN'],
+  HIGH: ['TRADEOFF'],
+};
 
 /** 새로 만들 문제의 각도. 단계에 각도가 둘이면 지금까지 덜 낸 쪽(같으면 앞쪽)이다. */
 export function nextAngle(mastery: AngleMastery, history: readonly QuestionHistory[]): ConceptAngle {

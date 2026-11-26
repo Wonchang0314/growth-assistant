@@ -19,7 +19,7 @@ flowchart TB
     subgraph tutor
         study["study<br/>학습 맥락 조회, 학습 기록"]
         quiz["quiz<br/>출제·검증·채점"]
-        mastery["mastery<br/>FSRS, 숙련도·약점"]
+        mastery["mastery<br/>FSRS, 숙련도·약점, 근본 원인"]
         outreach["outreach<br/>새벽 준비, 학습 알림 (StudyNotifier → ntfy)"]
     end
 
@@ -61,7 +61,7 @@ flowchart TB
 - 외부 시스템과 닿는 경계만 포트·어댑터로 분리한다 ([ADR-0015](../adr/0015-nest-feature-modules.md)). 유스케이스는 `ClaudeClient`·`AdminNotifier`·`StudyNotifier`·`DocumentSource`(Notion 어댑터)·`GoogleLogin`·`ClientMetadataSource` 같은 포트에만 의존하고, 기능 모듈의 MCP 도구 처리기는 그 모듈의 `mcp/` 폴더에 둔다. `quiz` 모듈만 모듈 안을 레이어 폴더로 나누고 폴더별 린트로 의존 방향을 강제한다 ([ADR-0020](../adr/0020-quiz-layered-folders.md)).
 - 도메인 규칙은 순수 함수로 두고, 저장소는 기능 모듈 안에서 Drizzle을 직접 써서 행과 도메인 타입을 변환한다.
 - `core`가 `tutor`를 가져오지 못하게 ESLint `no-restricted-imports`로 막는다.
-- `quiz` 안에서는 application이 출력 포트(`QuizQuestionRepository`, `QuestionGenerator`)를 두고 infrastructure가 구현한다(ADR-0029). `quiz`는 학습 기록의 헷갈린 점을 `study`에서, 경험 카드를 `memory`에서, 개념 요약을 `knowledge`에서 읽어 출제에 넣고, 정답만 긴 보기 검사는 `ingestion`의 순수 함수(`case-gate.ts`)를 함께 쓴다(조직 문자열 패턴 게이트는 판단 사례에만, ADR-0041). 복습 개념은 `mastery`(예정일·약점·일정 없는 개념)와 `study`(아직 확인하지 않은 CONFUSED)에서 고르고, 채점 결과는 `mastery`에 넘긴다. 풀에 없는 문제는 MCP 서버 프로세스 안에서 뒤에서 만든다(ADR-0030). 약점 보고(`get_weakness`)도 풀이 기록을 가진 `quiz`에 두고, 근본 원인은 `knowledge`의 선수 관계와 `mastery`의 점수로 찾는다(ADR-0031).
+- `quiz` 안에서는 application이 출력 포트(`QuizQuestionRepository`, `QuestionGenerator`)를 두고 infrastructure가 구현한다(ADR-0029). `quiz`는 학습 기록의 헷갈린 점을 `study`에서, 경험 카드를 `memory`에서, 개념 요약을 `knowledge`에서 읽어 출제에 넣고, 정답만 긴 보기 검사는 `ingestion`의 순수 함수(`case-gate.ts`)를 함께 쓴다(조직 문자열 패턴 게이트는 판단 사례에만, ADR-0041). 복습 개념은 `mastery`(예정일·약점·일정 없는 개념)와 `study`(아직 확인하지 않은 CONFUSED)에서 고르고, 채점 결과는 `mastery`에 넘긴다. 풀에 없는 문제는 MCP 서버 프로세스 안에서 뒤에서 만든다(ADR-0030). 약점 보고(`get_weakness`)도 풀이 기록을 가진 `quiz`에 둔다(ADR-0031). 근본 원인 후보는 `mastery`가 `knowledge`의 선수 관계와 자기 점수로 찾고(`MasteryService.rootCauses`), `quiz`(약점 보고·출제 우선순위)와 `study`(학습 맥락의 약한 선수 개념)가 함께 쓴다. 숙련도 3단계(`masteryTier`)도 `mastery`에 두어 출제 각도와 학습 맥락이 같은 경계를 쓴다.
 - 예약 작업은 기능 모듈이 `DailyJob`(이름, `HH:MM`, 잠금, `run`)을 구현하고 `@ScheduledJob()`을 붙여 provider로 둔다. `core/scheduler`의 `SchedulerHost`가 `DiscoveryService`로 모아 `@nestjs/schedule`의 `SchedulerRegistry`에 크론(`Asia/Seoul`)으로 걸고, 서버가 뜰 때 DB를 기다린 뒤 오늘 놓친 몫을 한 번씩 따라잡는다. 실행은 `JobRunner`가 한다: DB advisory 잠금(`JobLock`, 프로세스가 달라도 겹치지 않음) → 실행 기록(`scheduled_job`)으로 오늘 몫을 돌렸는지 확인 → 실행 → 실패면 `AdminNotifier`. 스케줄러(`SchedulerHostModule`)와 작업 모듈(`outreach`)은 상시 실행 HTTP 진입점의 루트 `McpHttpServerModule`만 import하므로 stdio 서버·CLI·테스트 앱에서는 돌지 않는다(ADR-0036).
 - `outreach`의 새벽 작업은 `quiz`의 `QuizReviewService.prepareToday`(오늘 계획(`review_plan`, 개념 20개)을 정하고 지금 각도로 낼 문제가 없는 개념의 문제를 미리 만듦, ADR-0040)만 부른다. Notion 수집은 ADR-0042로 새벽 작업에서 뺐다. 동기화 → 추출을 묶던 `IngestionPipeline`은 코드만 남기고 모듈에 연결하지 않으며, 수집은 CLI(`npm run sync`·`extract`)로만 돈다. 학습 알림은 `QuizReviewService.today`(오늘 푼 수와 계획 중 오늘 풀지 않은 개념, `get_review_set`과 같은 계획)를 보고 `StudyNotifier` 포트(ntfy 어댑터, 운영 알림과 같은 토픽, 묶지 않음)로 보낸다. 수집·경험 카드·판단 사례 도구(`sync_now`, `sync_status`, `search_experience`, `list_pending_cases`, `review_case`)는 처리기 파일을 남기고 모듈 provider 등록에서 뺐다(ADR-0042).
 - 숙련도·약점 점수와 복습 일정은 `mastery`의 코드가 결정적으로 계산한다. `llm`은 생성과 채점만 한다. `ts-fsrs`는 `mastery/fsrs.ts` 어댑터에서만 부른다(ADR-0016). `study`는 학습 기록에서 다룬 개념을 `MasteryService.introduce`로 복습 일정에 넣고, `quiz`는 채점 결과를 `recordAnswer`로 넘긴다(ADR-0028).

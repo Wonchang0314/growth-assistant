@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyAnswer,
   gradeOf,
+  masteryTier,
   newMastery,
   replay,
   weaknessLevel,
@@ -107,5 +108,17 @@ describe('weaknessLevel', () => {
     [2, 0.49, 'OK'],
   ] as const)('채점 %i회, 약점 %d → %s', (gradedAttempts, weaknessScore, level) => {
     expect(weaknessLevel({ gradedAttempts, weaknessScore })).toBe(level);
+  });
+});
+
+describe('masteryTier', () => {
+  it.each([
+    [undefined, 'UNMEASURED'],
+    [{ gradedAttempts: 1, weaknessScore: 0, masteryScore: 1 }, 'UNMEASURED'],
+    [{ gradedAttempts: 2, weaknessScore: 0.5, masteryScore: 0.9 }, 'WEAK'],
+    [{ gradedAttempts: 2, weaknessScore: 0.2, masteryScore: 0.79 }, 'MEDIUM'],
+    [{ gradedAttempts: 2, weaknessScore: 0.2, masteryScore: 0.8 }, 'HIGH'],
+  ] as const)('%o → %s', (mastery, tier) => {
+    expect(masteryTier(mastery)).toBe(tier);
   });
 });

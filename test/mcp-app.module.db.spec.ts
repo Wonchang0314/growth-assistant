@@ -7,6 +7,8 @@ import type { ConceptSeed } from '../src/core/knowledge/concept-seed.js';
 import { McpServerHost } from '../src/core/mcp/mcp-server.host.js';
 import { ExperienceRepository } from '../src/core/memory/experience.repository.js';
 import { SourceDocumentRepository } from '../src/core/memory/source-document.repository.js';
+import { type ConceptMastery, newMastery } from '../src/tutor/mastery/mastery.js';
+import { MasteryRepository } from '../src/tutor/mastery/mastery.repository.js';
 import { conceptMastery } from '../src/tutor/mastery/mastery.schema.js';
 import { DrizzleQuizQuestionRepository } from '../src/tutor/quiz/infrastructure/drizzle-quiz-question.repository.js';
 import { STUDY_INSTRUCTIONS } from '../src/tutor/study/study-instructions.js';
@@ -181,18 +183,94 @@ describe('McpAppModule (MCP 클라이언트로 도구 호출)', () => {
   it('주제와 관련된 개념을 상위 개념·선수 개념과 함께 돌려준다', async () => {
     const result = await client.callTool({ name: 'get_learning_context', arguments: { topic: '복합 인덱스' } });
 
+    const unmeasured = { mastery: 'UNMEASURED', nextReview: null, weakPrerequisites: [] };
     expect((result.structuredContent as { concepts: unknown }).concepts).toEqual([
-      { name: '인덱스 원리', track: 'CS 기초', description: '인덱스 구조', parent: null, prerequisites: [] },
+      {
+        name: '인덱스 원리',
+        track: 'CS 기초',
+        description: '인덱스 구조',
+        parent: null,
+        prerequisites: [],
+        ...unmeasured,
+      },
       {
         name: '복합 인덱스 설계',
         track: '백엔드',
         description: '선두 컬럼',
         parent: null,
         prerequisites: ['B-tree 인덱스'],
+        ...unmeasured,
+        weakPrerequisites: [{ name: 'B-tree 인덱스', level: 'UNSTUDIED', rootCauseOf: [] }],
       },
-      { name: 'B-tree 인덱스', track: 'CS 기초', description: '정렬 트리', parent: '인덱스 원리', prerequisites: [] },
+      {
+        name: 'B-tree 인덱스',
+        track: 'CS 기초',
+        description: '정렬 트리',
+        parent: '인덱스 원리',
+        prerequisites: [],
+        ...unmeasured,
+      },
     ]);
-    expect(JSON.stringify(result.content)).toContain('먼저 알아야 할 개념: B-tree 인덱스');
+    expect(JSON.stringify(result.content)).toContain(
+      '먼저 알아야 할 개념: B-tree 인덱스 / 숙련도 미측정 / 약한 선수 개념: B-tree 인덱스(다룬 적 없음)',
+    );
+  });
+
+  it('개념의 숙련도·다음 복습일과, 2단계까지의 약한 선수 개념을 근본 원인 후보 먼저 돌려준다', async () => {
+    // 수익 인식 → 수행의무(미측정) → 계약 식별(다룬 적 없음), 수익 인식 → 거래가격(높음).
+    // 약점인 수익 인식·계약 변경이 함께 기대는 계약 식별이 근본 원인 후보다.
+    const requires = (name: string, prerequisites: string[]) => ({
+      name,
+      track: 'backend',
+      aliases: [],
+      description: name,
+      requires: prerequisites,
+      related: [],
+    });
+    await new ConceptRepository(testDb.db).applySeed(
+      {
+        ...seed,
+        concepts: [
+          ...seed.concepts,
+          requires('수익 인식', ['수행의무', '거래가격']),
+          requires('수행의무', ['계약 식별']),
+          requires('거래가격', []),
+          requires('계약 식별', []),
+          requires('계약 변경', ['계약 식별']),
+        ],
+      },
+      clock.now(),
+    );
+    const ids = new Map((await testDb.db.select().from(concept)).map((c) => [c.name, c.id]));
+    const masteries = new MasteryRepository(testDb.db);
+    const save = (name: string, scores: Pick<ConceptMastery, 'gradedAttempts' | 'weaknessScore' | 'masteryScore'>) =>
+      masteries.save({
+        ...newMastery(ids.get(name) ?? -1, clock.now()),
+        ...scores,
+        dueAt: new Date('2026-10-20T09:00:00+09:00'),
+      });
+    await save('수익 인식', { gradedAttempts: 3, weaknessScore: 0.7, masteryScore: 0.3 });
+    await save('계약 변경', { gradedAttempts: 3, weaknessScore: 0.6, masteryScore: 0.4 });
+    await save('수행의무', { gradedAttempts: 1, weaknessScore: 0, masteryScore: 1 });
+    await save('거래가격', { gradedAttempts: 4, weaknessScore: 0.1, masteryScore: 0.9 });
+
+    const result = await client.callTool({ name: 'get_learning_context', arguments: { topic: '수익 인식' } });
+
+    expect((result.structuredContent as { concepts: unknown }).concepts).toEqual([
+      expect.objectContaining({
+        name: '수익 인식',
+        prerequisites: ['수행의무', '거래가격', '계약 식별'],
+        mastery: 'WEAK',
+        nextReview: '2026-10-20',
+        weakPrerequisites: [
+          { name: '계약 식별', level: 'UNSTUDIED', rootCauseOf: ['수익 인식', '계약 변경'] },
+          { name: '수행의무', level: 'UNMEASURED', rootCauseOf: [] },
+        ],
+      }),
+    ]);
+    expect(JSON.stringify(result.content)).toContain(
+      '/ 숙련도 약함, 다음 복습 2026-10-20 / 약한 선수 개념: 계약 식별(다룬 적 없음) 근본 원인 후보(기대는 약점 2개), 수행의무(미측정)',
+    );
   });
 
   it('record_study_note가 기록을 개념에 연결하고, get_learning_context가 주제 글자나 개념으로 찾는다', async () => {

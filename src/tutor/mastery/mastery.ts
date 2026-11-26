@@ -92,3 +92,28 @@ export function weaknessLevel(m: Pick<ConceptMastery, 'gradedAttempts' | 'weakne
   if (m.gradedAttempts < MIN_GRADED_ATTEMPTS) return 'UNMEASURED';
   return m.weaknessScore >= WEAK_THRESHOLD ? 'WEAK' : 'OK';
 }
+
+/** 개념 id → 약점 상태. 일정이 없는 개념은 키가 없다(다룬 적 없음). */
+export function levelsOf(masteries: readonly ConceptMastery[]): Map<number, WeaknessLevel> {
+  return new Map(masteries.map((m) => [m.conceptId, weaknessLevel(m)]));
+}
+
+/** 이 숙련도 점수부터 "높음"이다. 출제는 이 단계부터 트레이드오프·판단을 묻는다. */
+export const HIGH_MASTERY = 0.8;
+
+export type MasteryTier = 'UNMEASURED' | 'WEAK' | 'MEDIUM' | 'HIGH';
+
+export const MASTERY_TIER_TEXT = { UNMEASURED: '미측정', WEAK: '약함', MEDIUM: '보통', HIGH: '높음' } as const;
+
+/**
+ * 숙련도 3단계(약함·보통·높음)와 미측정 (사용자 결정 2026-10-20). 일정이 없거나 채점 2회 미만이면 미측정,
+ * 약점이면 약함, 양호하면 숙련도 [HIGH_MASTERY] 이상이 높음이고 나머지는 보통이다.
+ */
+export function masteryTier(
+  m: Pick<ConceptMastery, 'gradedAttempts' | 'weaknessScore' | 'masteryScore'> | undefined,
+): MasteryTier {
+  if (m === undefined) return 'UNMEASURED';
+  const level = weaknessLevel(m);
+  if (level !== 'OK') return level;
+  return m.masteryScore >= HIGH_MASTERY ? 'HIGH' : 'MEDIUM';
+}

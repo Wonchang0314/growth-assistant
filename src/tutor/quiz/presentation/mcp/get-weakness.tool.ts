@@ -3,11 +3,9 @@ import { z } from 'zod';
 import { Clock, localDate } from '../../../../core/clock/clock.js';
 import { McpTool, type McpToolHandler, type McpToolResult } from '../../../../core/mcp/mcp-tool.js';
 import { QuizWeaknessService, type WeakConcept } from '../../application/quiz-weakness.service.js';
-import type { RootCause } from '../../domain/root-cause.js';
+import { PREREQUISITE_LEVEL_TEXT, type RootCause } from '../../../mastery/root-cause.js';
 
 const input = z.object({});
-
-const LEVEL_TEXT = { WEAK: '약점', UNMEASURED: '미측정', UNSTUDIED: '다룬 적 없음' } as const;
 
 @McpTool()
 @Injectable()
@@ -75,4 +73,4 @@ export class GetWeaknessTool implements McpToolHandler<typeof input> {
 }
 
 const describeCause = (c: RootCause) =>
-  `${c.concept.name} [${LEVEL_TEXT[c.level]}] ← ${c.dependents.map((d) => d.name).join(', ')}의 선수 개념`;
+  `${c.concept.name} [${PREREQUISITE_LEVEL_TEXT[c.level]}] ← ${c.dependents.map((d) => d.name).join(', ')}의 선수 개념`;
