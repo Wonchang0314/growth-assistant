@@ -1,0 +1,104 @@
+# 시드 개념: 생산·제조 (ADR-0042). 형식은 accounting.yaml 머리말
+
+track:
+  key: manufacturing
+  name: 생산·제조
+  weight: 0.2
+  description: 생산 방식(MTS·MTO·ETO), BOM·MRP, 작업지시·MES, 외주가공, 제조원가·개별원가, 프로젝트(호기) 관리, 품질·부적합, 기성 청구
+
+concepts:
+  - name: 생산 관리
+    aliases: [production management, 생산 계획, 제조 관리, 생산 운영]
+    description: 무엇을 언제 얼마나 만들지 정하고 자재·작업·원가·품질로 실행을 관리하는 일
+
+  # 계획
+  - name: 생산 방식
+    parent: 생산 관리
+    aliases:
+      [
+        MTS,
+        MTO,
+        ETO,
+        ATO,
+        계획생산,
+        수주생산,
+        수주설계생산,
+        수주조립생산,
+        make to stock,
+        make to order,
+        engineer to order,
+      ]
+    description: 재고를 보고 미리 만드는지, 주문을 받고 만드는지, 주문마다 설계부터 하는지에 따라 달라지는 계획과 원가 관리
+
+  - name: BOM
+    parent: 생산 관리
+    aliases: [자재명세서, Bill of Materials, BOM 레벨, 다단계 BOM, 정전개, 역전개, 소요량]
+    description: 완제품을 만드는 데 드는 반제품·원자재와 수량을 계층으로 적은 표, 정전개와 역전개
+
+  - name: MRP
+    parent: 생산 관리
+    aliases:
+      [자재소요계획, Material Requirements Planning, 총소요량, 순소요량, 리드타임 오프셋, 계획 발주, MPS, 기준생산계획]
+    description: 생산 계획과 BOM으로 총소요량을 구하고 재고·입고예정을 빼 순소요량과 발주 시점을 정하는 계산
+    requires: [BOM]
+    related: [안전재고와 재주문점, 발주서]
+
+  # 실행
+  - name: 작업지시
+    parent: 생산 관리
+    aliases: [작업지시서, 제조지시, 제조지시서, 생산지시, work order, 작업 완료 보고, 생산 실적]
+    description: 무엇을 얼마나 언제까지 만들지 현장에 내리는 지시와 진행·완료 보고, 수주가 취소됐을 때의 처리
+    requires: [BOM]
+    related: [수주와 수주 라인, 공정과 라우팅]
+
+  - name: 공정과 라우팅
+    parent: 생산 관리
+    aliases: [라우팅, routing, 공정 순서, 작업장, work center, 표준 공수, 공정 흐름도]
+    description: 품목을 만드는 공정 순서와 공정마다 쓰는 작업장·시간
+    related: [BOM]
+
+  - name: MES와 ERP의 역할
+    parent: 생산 관리
+    aliases: [MES, 제조실행시스템, Manufacturing Execution System, 생산 실적 수집, 현장 실행 기록]
+    description: 현장 실행을 기록하는 시스템과 계획·자재·회계를 맡는 시스템이 나누는 일과 주고받는 데이터
+    requires: [작업지시]
+
+  - name: 외주가공
+    parent: 생산 관리
+    aliases: [임가공, 외주 생산, 무상사급, 유상사급, 외주 발주, 외주처 재고, subcontracting]
+    description: 공정 일부를 외부에 맡길 때 자재를 무상·유상으로 공급하는 방식과 외주처에 있는 재고 관리
+    requires: [BOM]
+    related: [발주서]
+
+  # 원가
+  - name: 제조원가
+    parent: 생산 관리
+    aliases: [제조원가명세서, 재료비, 노무비, 제조경비, 제조간접비, 제조간접비 배부, 원가의 3요소, manufacturing cost]
+    description: 재료비·노무비·제조경비로 나눈 제품 원가와 제조간접비를 제품에 배부하는 기준
+    related: [매출원가]
+
+  - name: 개별원가계산과 종합원가계산
+    parent: 제조원가
+    aliases: [개별원가계산, 종합원가계산, job order costing, process costing, 호기별 원가, 공정별 원가, 완성품 환산량]
+    description: 주문·호기마다 원가를 모으는 방식과 공정별로 기간 원가를 모아 완성품에 나누는 방식
+    requires: [제조원가]
+
+  # 프로젝트형 제조
+  - name: 프로젝트(호기) 관리
+    parent: 생산 관리
+    aliases: [호기 번호, 호기 관리, 기종·호기, 프로젝트 번호, 제작 번호, 프로젝트 원가 집계]
+    description: 수주설계생산에서 호기 번호 하나로 도면·견적·수주·작업지시·원가를 묶어 추적하는 관리
+    requires: [생산 방식]
+    related: [개별원가계산과 종합원가계산, 수주잔고와 Book-to-Bill]
+
+  - name: 품질 검사와 부적합 관리
+    parent: 생산 관리
+    aliases: [품질 검사, 수입검사, 공정검사, 출하검사, 부적합, NCR, 부적합 보고서, 시정조치, CAPA, 시운전]
+    description: 들어올 때·만드는 중·나갈 때의 검사와, 부적합을 기록해 처리하고 원인을 고치는 절차
+
+  - name: 기성 청구
+    parent: 프로젝트(호기) 관리
+    aliases: [기성고, 기성 청구서, 진행 청구, progress billing, 마일스톤 청구, 중도금 청구]
+    description: 계약 단계마다 대금을 나눠 청구하는 방식과, 청구 시점과 수익 인식 시점이 어긋나는 이유
+    requires: [프로젝트(호기) 관리]
+    related: [인도기준과 진행기준, 선수금]

@@ -1,0 +1,117 @@
+# 시드 개념: 구매·재고·물류 (ADR-0042). 형식은 accounting.yaml 머리말
+
+track:
+  key: inventory
+  name: 구매·재고·물류
+  weight: 0.2
+  description: 구매 흐름·발주·입고 검수·3자 대사, 재고 수불, 재고 상태와 가용재고(ATP)·할당, 로트·FIFO·FEFO·소비기한, 안전재고, 창고 이동, 단위 환산, 실사, 재고회전·소진일
+
+concepts:
+  - name: 구매·재고 관리
+    aliases: [구매 관리, 재고 관리, 자재 관리, 구매·재고·물류, inventory management, SCM]
+    description: 물건을 사들이고 보관하고 내보내는 흐름을 수량과 상태로 관리하는 일
+
+  # 구매
+  - name: 구매 프로세스
+    parent: 구매·재고 관리
+    aliases: [P2P, Procure to Pay, 구매요청, 구매 요청서, 구매 흐름, 매입 확정]
+    description: 구매요청→발주→입고→매입 확정→대금 지급으로 이어지는 단계와 단계마다 남는 문서
+    related: [매입채무]
+
+  - name: 발주서
+    parent: 구매 프로세스
+    aliases: [PO, Purchase Order, 구매 발주, 발주 확정, 분할 납품, 발주 잔량]
+    description: 공급사·품목·수량·단가·납기를 확정하는 문서, 분할 입고와 발주 잔량 관리
+    requires: [구매 프로세스]
+
+  - name: 입고 검수와 3자 대사
+    parent: 구매 프로세스
+    aliases: [3-way 매칭, three-way match, 3자 대사, 2-way 매칭, 입고 검수, 입고 확인, 매입 송장 대사]
+    description: 발주·입고·공급사 송장의 수량과 금액을 맞춰 본 뒤에만 매입을 확정하는 통제
+    requires: [발주서]
+    related: [대사와 차이 분석, 매입채무]
+
+  # 재고 수불과 상태
+  - name: 재고 수불부
+    parent: 구매·재고 관리
+    aliases: [수불부, 재고수불부, 수불 원장, 재고 원장, stock ledger, 입출고 내역]
+    description: 기초+입고−출고=기말로 품목별 입출고를 시간순으로 쌓는 원장
+    related: [매출원가]
+
+  - name: 재고 상태
+    parent: 구매·재고 관리
+    aliases: [재고 상태 코드, 재고 구분, 보류 재고, 품질 보류, 불량 재고, 검사 대기, stock status]
+    description: 같은 현재고를 가용·할당·보류(검역·불량)·이동중으로 나눠 출고 가능 여부를 정하는 구분
+    requires: [재고 수불부]
+
+  - name: 재고 할당
+    parent: 구매·재고 관리
+    aliases: [할당재고, 예약재고, 재고 예약, allocation, 출고예정 수량, 하드 할당, 소프트 할당]
+    description: 확정 수주에 재고를 미리 묶어 다른 주문이 쓰지 못하게 하는 예약
+    requires: [재고 상태]
+    related: [수주와 수주 라인]
+
+  - name: 가용재고
+    parent: 구매·재고 관리
+    aliases: [ATP, Available to Promise, 가용 수량, 납기 약속 가능 수량, 총재고, 현재고]
+    description: 현재고−할당+입고예정으로 셈하는 약속 가능 수량, 지금 출고 가능한 수량과 계획 수량의 구분
+    requires: [재고 할당]
+
+  # 로트와 기한
+  - name: 로트 관리
+    parent: 구매·재고 관리
+    aliases: [LOT, 로트 번호, lot number, 배치 번호, batch number, 로트 추적, 추적성, traceability]
+    description: 같은 조건에서 만든 묶음에 번호를 붙여 제조일·기한·입출고를 추적하고 회수 범위를 좁히는 관리
+
+  - name: 선입선출 출고와 FEFO
+    parent: 로트 관리
+    aliases: [선입선출 출고, FIFO 출고, FEFO, First Expired First Out, 선만료 선출고, 출고 로트 지정, 출고 순서]
+    description: 먼저 들어온 것 또는 기한이 먼저 끝나는 것부터 꺼내는 실물 출고 순서. 회계의 원가흐름 가정과는 별개
+    requires: [로트 관리]
+    related: [재고자산 원가흐름 가정]
+
+  - name: 소비기한과 납품 잔여기한
+    parent: 로트 관리
+    aliases: [소비기한, 소비기한 표시제, 유통기한, 잔여 유통기한, 납품 잔여기한, 입고 허용 기한, 임박 재고, shelf life]
+    description: 식품표시광고법에 따라 2023년부터 유통기한 대신 표시하는 소비기한과, 납품처가 요구하는 입고 시 남은 기한
+    requires: [로트 관리]
+    related: [재고자산 평가]
+
+  # 보충과 이동
+  - name: 안전재고와 재주문점
+    parent: 구매·재고 관리
+    aliases: [안전재고, safety stock, 재주문점, 발주점, ROP, reorder point, 리드타임, lead time, 적정재고, 발주 제안]
+    description: 수요와 리드타임의 변동을 버틸 여유분과, 재고가 어디까지 줄면 발주할지 정하는 기준
+
+  - name: 창고 간 재고 이동
+    parent: 구매·재고 관리
+    aliases: [재고 이동, 창고 이동, 이동 전표, 재고 이관, 하치장 이동, stock transfer, 이동중 재고, in-transit]
+    description: 출고→이동중→도착 입고 검수로 위치를 옮기는 흐름과, 양쪽 창고에 두 번 잡히거나 사라지는 것을 막는 법
+    requires: [재고 상태]
+    related: [미착품]
+
+  - name: 재고 단위와 환산
+    parent: 구매·재고 관리
+    aliases: [재고 단위, 구매 단위, 판매 단위, 입수량, 단위 환산, 환산계수, 중량 환산, UOM, unit of measure]
+    description: 박스·낱개·kg처럼 구매·보관·판매 단위가 다를 때 기준 단위와 환산계수로 수량을 맞추는 법
+
+  # 점검과 지표
+  - name: 재고 실사
+    parent: 구매·재고 관리
+    aliases: [재고조사, 실사 차이 조정, 전수 실사, 순환 실사, cycle count, stocktaking, physical count]
+    description: 장부 재고와 실물을 세어 맞추고 차이를 원인별로 조정하는 절차
+    requires: [재고 수불부]
+    related: [재고자산 평가]
+
+  - name: 재고회전율과 재고소진일
+    parent: 구매·재고 관리
+    aliases: [재고회전율, inventory turnover, 재고회전일수, 재고소진일, DOI, Days of Inventory, DIO, 재고 일수]
+    description: 재고가 얼마나 빨리 팔려 나가는지와 지금 재고로 며칠을 버티는지 보는 지표
+    requires: [재고 수불부]
+    related: [매출원가, 셀인과 셀아웃]
+
+  - name: 세트 상품
+    parent: 구매·재고 관리
+    aliases: [기획세트, 세트 품목, 묶음 상품, 세트 구성품, 구성품 차감, kitting, bundle]
+    description: 단품을 묶어 파는 품목을 따로 두고, 세트가 나갈 때 구성품 재고를 차감하는 방식
+    related: [품목 마스터, BOM]

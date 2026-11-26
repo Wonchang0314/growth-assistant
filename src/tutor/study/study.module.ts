@@ -5,16 +5,16 @@ import { MemoryModule } from '../../core/memory/memory.module.js';
 import { MasteryModule } from '../mastery/mastery.module.js';
 import { GetLearningContextTool } from './mcp/get-learning-context.tool.js';
 import { RecordStudyNoteTool } from './mcp/record-study-note.tool.js';
-import { SearchExperienceTool } from './mcp/search-experience.tool.js';
 import { StudyNoteRepository } from './study-note.repository.js';
 import { StudyNoteService } from './study-note.service.js';
 
 /**
- * 학습 맥락 조회, 경험 카드 검색, 학습 기록 (MCP 도구). MCP 진입점이 import한다. 개념 병합 때 학습 기록 연결을 옮긴다.
+ * 학습 맥락 조회, 학습 기록 (MCP 도구). MCP 진입점이 import한다. 개념 병합 때 학습 기록 연결을 옮긴다.
+ * 경험 카드 검색(`search_experience`)은 Notion 수집을 끄면서 등록에서 뺐다(ADR-0042). 코드는 남긴다.
  */
 @Module({
   imports: [KnowledgeModule, MemoryModule, MasteryModule],
-  providers: [StudyNoteRepository, StudyNoteService, GetLearningContextTool, RecordStudyNoteTool, SearchExperienceTool],
+  providers: [StudyNoteRepository, StudyNoteService, GetLearningContextTool, RecordStudyNoteTool],
   exports: [StudyNoteService],
 })
 export class StudyModule implements OnModuleInit {

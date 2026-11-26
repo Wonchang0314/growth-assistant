@@ -1,0 +1,183 @@
+# 시드 개념: 회계 원리와 결산 (ADR-0042)
+# 형식 (모든 트랙 파일 공통)
+#   track: 트랙 키·이름·가중치·범위
+#   concepts[]:
+#     name         전체 트랙에서 유일한 개념 이름 (한국어 기준). 크기는 강의 한 편·책 한 절 정도
+#     parent       상위 개념 이름 (PART_OF). 없으면 트랙의 최상위 개념
+#     aliases      다른 표기 (영문, 약어, 세부 키워드). 학습 맥락 조회의 이름 매칭에 쓴다
+#     description  한 줄 설명. 무엇을 다루는 개념인지
+#     requires     먼저 알아야 하는 개념 이름 (PREREQUISITE). 다른 트랙의 개념도 된다
+#     related      관련 개념 이름 (RELATED)
+# 앞으로 배우고 싶은 것(커리큘럼)을 담는다. 이미 아는 것은 학습 기록이 채운다.
+# 한국 실무 기준이고 회계는 K-IFRS를 중심으로 쓰며, 일반기업회계기준과 갈리는 곳은 설명에 밝힌다.
+
+track:
+  key: accounting
+  name: 회계 원리와 결산
+  weight: 0.2
+  description: 복식부기·분개·전표·원장, 재무제표, 수익 인식, 매출원가와 재고자산 회계, 부가가치세·세금계산서, 결산·마감·역분개, 외화 환산, 연결·내부거래
+
+concepts:
+  # 기초
+  - name: 회계 원리
+    aliases: [재무회계, financial accounting, K-IFRS, 한국채택국제회계기준, 일반기업회계기준, 회계기준]
+    description: 거래를 기록·분류·요약해 재무제표로 보고하는 원리와, 상장사의 K-IFRS·비상장 중소기업의 일반기업회계기준
+
+  - name: 복식부기
+    parent: 회계 원리
+    aliases: [double-entry bookkeeping, 차변과 대변, debit and credit, 대차평균의 원리, 거래의 이중성, 차대변 일치]
+    description: 모든 거래를 차변과 대변에 같은 금액으로 나눠 적는 원리와 차대변 합계가 늘 맞는 이유
+
+  - name: 계정과목과 회계 요소
+    parent: 회계 원리
+    aliases: [계정과목, 계정과목표, chart of accounts, 회계 요소, 자산·부채·자본, 수익·비용, 계정 분류, 회계 등식]
+    description: 자산·부채·자본·수익·비용 다섯 요소와 계정과목 분류, 각 요소가 차변·대변 어느 쪽에서 늘어나는지
+    requires: [복식부기]
+
+  - name: 재무제표
+    parent: 회계 원리
+    aliases:
+      [financial statements, 재무상태표, 대차대조표, 손익계산서, 포괄손익계산서, 현금흐름표, 자본변동표, B/S, P/L]
+    description: 재무상태표·손익계산서·현금흐름표·자본변동표가 보여 주는 것과 당기순이익·이익잉여금으로 서로 이어지는 방식
+    requires: [계정과목과 회계 요소]
+
+  # 기록
+  - name: 분개와 전표
+    parent: 회계 원리
+    aliases: [journal entry, 회계 전표, 매입 전표, 매출 전표, 입금 전표, 출금 전표, 대체 전표, 전표 번호, 전표 입력]
+    description: 거래를 차변·대변 계정과 금액으로 옮기는 분개와, 입금·출금·대체 전표처럼 그것을 담는 전표의 종류
+    requires: [계정과목과 회계 요소]
+
+  - name: 원장과 시산표
+    parent: 회계 원리
+    aliases: [총계정원장, general ledger, 분개장, journal, 보조원장, 계정별원장, 시산표, trial balance, 원장 전기]
+    description: 분개장의 분개를 총계정원장 계정별로 옮겨 적는 전기, 거래처·품목별 보조원장, 시산표로 차대변 합계 확인
+    requires: [분개와 전표]
+
+  - name: 발생주의와 현금주의
+    parent: 회계 원리
+    aliases: [발생주의, 현금주의, accrual basis, cash basis, 발생기준]
+    description: 수익·비용을 현금이 오갈 때가 아니라 거래가 생긴 기간에 잡는 원칙과, 손익과 입금 시점이 어긋나는 이유
+
+  # 수익
+  - name: 수익 인식
+    parent: 회계 원리
+    aliases:
+      [
+        revenue recognition,
+        K-IFRS 1115,
+        '1115',
+        수익 인식 5단계,
+        수행의무,
+        performance obligation,
+        거래가격 배분,
+        통제 이전,
+      ]
+    description: K-IFRS 1115의 5단계(계약 식별·수행의무·거래가격·배분·이행)와 통제 이전 시점, 일반기업회계기준의 위험과 보상 이전 기준과의 차이
+    requires: [발생주의와 현금주의]
+
+  - name: 인도기준과 진행기준
+    parent: 회계 원리
+    aliases:
+      [인도기준, 출하기준, 선적기준, 진행기준, 진행률, percentage of completion, 한 시점에 인식, 기간에 걸쳐 인식]
+    description: 출하·선적·인도처럼 한 시점에 수익을 잡는 경우와 장기 제작·용역처럼 진행률로 기간에 걸쳐 잡는 경우의 구분
+    requires: [수익 인식]
+    related: [인코텀즈, 기성 청구]
+
+  - name: 매출 차감 항목
+    parent: 회계 원리
+    aliases: [매출에누리, 매출환입, 매출할인, 판매장려금, 변동대가, variable consideration, 순매출액]
+    description: 에누리·환입·할인·장려금을 총매출에서 빼 순매출을 만드는 방식, K-IFRS가 이를 변동대가로 추정해 수익에서 빼는 방식
+    requires: [수익 인식]
+
+  # 원가와 재고자산
+  - name: 매출원가
+    parent: 회계 원리
+    aliases: [COGS, cost of goods sold, 상품매출원가, 제품매출원가, 매출총이익]
+    description: 기초재고+당기매입(제조)−기말재고로 팔린 재고의 원가를 구하는 식과 매출총이익
+    requires: [계정과목과 회계 요소]
+    related: [재고 수불부]
+
+  - name: 재고자산 원가흐름 가정
+    parent: 회계 원리
+    aliases: [원가흐름 가정, 개별법, 선입선출법, 후입선출법, 총평균법, 이동평균법, 가중평균법, 단위원가 결정]
+    description: 팔린 재고와 남은 재고에 원가를 나누는 방법, K-IFRS는 후입선출법을 금지하고 일반기업회계기준은 허용하는 차이
+    requires: [매출원가]
+    related: [선입선출 출고와 FEFO]
+
+  - name: 재고자산 평가
+    parent: 회계 원리
+    aliases: [저가법, 순실현가능가치, NRV, net realizable value, 재고자산평가손실, 재고자산감모손실, 평가충당금]
+    description: 원가와 순실현가능가치 중 낮은 금액으로 재고를 적는 저가법, 진부화·기한 임박 재고의 평가손실과 실사 차이의 감모손실
+    requires: [재고자산 원가흐름 가정]
+    related: [재고 실사]
+
+  # 세금
+  - name: 부가가치세
+    parent: 회계 원리
+    aliases: [VAT, 부가세, 매출세액, 매입세액, 매입세액 공제, 부가세예수금, 부가세대급금, 영세율, 면세]
+    description: 매출세액에서 매입세액을 빼서 내는 구조, 부가세예수금·부가세대급금 계정, 수출 영세율과 면세의 차이
+    requires: [분개와 전표]
+    related: [수입 통관]
+
+  - name: 세금계산서
+    parent: 회계 원리
+    aliases: [전자세금계산서, 수정세금계산서, tax invoice, 공급가액, 공급시기, 계산서]
+    description: 공급가액·세액을 적어 공급시기에 발급하는 증빙, 전자 발급, 반품·단가 변경 때의 수정세금계산서, 면세 거래의 계산서
+    requires: [부가가치세]
+
+  - name: 충당부채와 충당금
+    parent: 회계 원리
+    aliases: [충당부채, provision, 반품충당부채, 반품충당금, 환불부채, 반환제품회수권, 판매보증충당부채]
+    description: 시기·금액이 불확실한 의무를 추정해 미리 잡는 충당부채, 반품 예상분을 K-IFRS는 환불부채·반환제품회수권으로 잡는 방식
+    requires: [발생주의와 현금주의]
+    related: [매출 차감 항목]
+
+  # 결산
+  - name: 결산 조정분개
+    parent: 회계 원리
+    aliases:
+      [결산 정리분개, 기말 수정분개, adjusting entry, 미지급비용, 선급비용, 미수수익, 선수수익, 감가상각, 감가상각비]
+    description: 기말에 발생·이연 항목(미지급비용·선급비용·미수수익·선수수익)과 감가상각을 반영해 기간 손익을 맞추는 분개
+    requires: [발생주의와 현금주의, 분개와 전표]
+
+  - name: 기간 귀속과 마감
+    parent: 회계 원리
+    aliases: [컷오프, cut-off, 기간 귀속, 월마감, 월결산, 가마감, 결산 마감, 마감 기준일]
+    description: 거래를 맞는 기간에 넣는 컷오프, 월마감·가마감의 순서와 기준일, 마감 뒤 들어온 거래의 처리
+    requires: [결산 조정분개]
+    related: [마감 통제]
+
+  - name: 역분개와 수정 전표
+    parent: 회계 원리
+    aliases: [역분개, reversing entry, 반대 분개, 수정 분개, 오류 수정 전표, 전표 취소, 일괄 역분개]
+    description: 원래 분개의 차대변을 뒤집어 취소하는 역분개, 전표를 지우지 않고 수정 전표로 고치는 이유, 기초의 발생 항목 역분개
+    requires: [분개와 전표]
+    related: [결산 조정분개]
+
+  - name: 단수차이와 잡이익·잡손실
+    parent: 회계 원리
+    aliases: [단수차이, 끝전 차이, rounding difference, 잡이익, 잡손실, 원 단위 미만 절사]
+    description: 반올림·절사로 생기는 작은 금액 차이를 허용 기준 안에서 잡이익·잡손실로 정리하는 처리
+    related: [입금 반제]
+
+  # 외화와 연결
+  - name: 외화 거래와 환산
+    parent: 회계 원리
+    aliases: [외화환산, 외화환산손익, 외환차손익, 화폐성 항목, 비화폐성 항목, 기능통화, functional currency]
+    description: 외화 거래를 거래일 환율로 적고 기말에 화폐성 항목을 마감환율로 환산하는 규칙, 결제 때의 외환차손익과 기말의 외화환산손익 구분
+    requires: [분개와 전표]
+    related: [환율]
+
+  - name: 연결재무제표
+    parent: 회계 원리
+    aliases: [consolidated financial statements, 연결재무제표 작성, 지배기업, 종속기업, 지배력, 연결 범위, 비지배지분]
+    description: 지배력이 있는 종속기업을 지배기업과 하나의 경제실체로 묶어 보고하는 재무제표와 연결 범위
+    requires: [재무제표]
+
+  - name: 내부거래 제거
+    parent: 회계 원리
+    aliases: [내부거래, intercompany transaction, 관계사 거래, 내부거래 상계, 미실현이익 제거, 연결 조정]
+    description: 연결 실체 안의 관계사 매출·매입과 채권·채무를 상계하고 아직 밖에 팔리지 않은 재고의 미실현이익을 빼는 연결 조정
+    requires: [연결재무제표]
+    related: [채권·채무 상계]

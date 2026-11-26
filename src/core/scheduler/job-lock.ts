@@ -3,7 +3,7 @@ import type { Pool } from 'pg';
 import { DB_POOL } from '../db/db.module.js';
 
 /**
- * 이름으로 거는 PostgreSQL 세션 advisory 잠금. 프로세스가 달라도(HTTP 서버의 예약 작업, stdio 서버의 `sync_now`)
+ * 이름으로 거는 PostgreSQL 세션 advisory 잠금. 프로세스가 달라도(예: HTTP 서버를 둘 띄웠을 때)
  * 같은 일이 겹쳐 돌지 않는다. 잡은 동안 풀의 연결 하나를 쓰고, 프로세스가 죽어 연결이 끊기면 저절로 풀린다.
  */
 @Injectable()

@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { inject } from 'vitest';
-import type { Db } from '../../src/core/db/db.module.js';
+import { type Db, MIGRATIONS_FOLDER } from '../../src/core/db/db.module.js';
 
 /**
  * 테스트 파일마다 공용 컨테이너(global-setup.ts)에 연결한다.
@@ -28,6 +30,11 @@ export function connectTestDb() {
         sql`SELECT count(*)::int AS count FROM ${sql.identifier(table)}`,
       );
       return result.rows[0]?.count;
+    },
+    /** 이미 적용된 마이그레이션 파일(`0013_….sql`)을 다시 돌린다. 옛 데이터를 넣은 뒤 데이터 마이그레이션의 효과를 볼 때 쓴다. */
+    async rerunMigration(file: string) {
+      const statements = readFileSync(join(MIGRATIONS_FOLDER, file), 'utf8').split('--> statement-breakpoint');
+      for (const statement of statements) await db.execute(sql.raw(statement));
     },
     close: () => pool.end(),
   };

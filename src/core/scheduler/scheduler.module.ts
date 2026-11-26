@@ -7,7 +7,7 @@ import { JobRunner } from './job-runner.js';
 import { ScheduledJobRepository } from './scheduled-job.repository.js';
 import { SchedulerHost } from './scheduler-host.js';
 
-/** 예약 작업 실행(잠금, 실행 기록, 실패 알림). 잠금을 함께 쓰는 모듈(`sync_now`)과 작업을 두는 모듈이 import한다. */
+/** 예약 작업 실행(잠금, 실행 기록, 실패 알림). 스케줄러(`SchedulerHostModule`)와 잠금을 함께 쓰는 모듈이 import한다. */
 @Module({
   imports: [AdminNotifierModule],
   providers: [JobLock, JobRunner, ScheduledJobRepository],

@@ -1,9 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { asc, sql } from 'drizzle-orm';
+import { asc } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectTestDb } from '../../../test/db/test-db.js';
-import { MIGRATIONS_FOLDER } from '../../core/db/db.module.js';
 import { ConceptRepository } from '../../core/knowledge/concept.repository.js';
 import type { NewQuestion } from './application/ports.js';
 import { DrizzleQuizAttemptRepository } from './infrastructure/drizzle-quiz-attempt.repository.js';
@@ -14,11 +11,6 @@ const testDb = connectTestDb();
 const questions = new DrizzleQuizQuestionRepository(testDb.db);
 const attempts = new DrizzleQuizAttemptRepository(testDb.db);
 const now = new Date('2026-10-20T00:00:00Z');
-
-/** 0013 마이그레이션의 SQL. 테스트 DB에는 이미 적용됐으므로, 옛 문제를 넣은 뒤 다시 돌려 효과를 본다. */
-const migration = readFileSync(join(MIGRATIONS_FOLDER, '0013_concept_only_quiz.sql'), 'utf8').split(
-  '--> statement-breakpoint',
-);
 
 const add = (overrides: Partial<Extract<NewQuestion, { type: 'MULTIPLE_CHOICE' }>> = {}) =>
   questions.add({
@@ -86,7 +78,8 @@ describe('0013 마이그레이션 (ADR-0038)', () => {
     });
     const fits = await add({ prompt: `${'가'.repeat(127)} 응답이 3.5초 걸린다. 무엇부터 볼까?` });
 
-    for (const statement of migration) await testDb.db.execute(sql.raw(statement));
+    // 테스트 DB에는 이미 적용됐으므로, 옛 문제를 넣은 뒤 다시 돌려 효과를 본다.
+    await testDb.rerunMigration('0013_concept_only_quiz.sql');
 
     const rows = await testDb.db
       .select({ id: quizQuestion.id, status: quizQuestion.validationStatus, note: quizQuestion.validationNote })

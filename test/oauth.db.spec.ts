@@ -172,7 +172,7 @@ describe('⑤ 토큰과 ⑥ /mcp', () => {
     expect(res.headers.get('x-powered-by')).toBeNull();
     expect(tokens).toMatchObject({ token_type: 'Bearer', expires_in: 3600 });
     const client = await connectMcp(baseUrl, tokens.access_token);
-    expect((await client.callTool({ name: 'sync_status', arguments: {} })).isError).toBeFalsy();
+    expect((await client.callTool({ name: 'get_weakness', arguments: {} })).isError).toBeFalsy();
     await client.close();
   });
 

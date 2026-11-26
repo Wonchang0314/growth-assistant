@@ -68,7 +68,7 @@ describe('sync_now', () => {
     await pipeline.idle();
   });
 
-  it('새벽 작업이 같은 잠금을 잡고 있으면 시작하지 않는다', async () => {
+  it('다른 곳에서 같은 잠금을 잡고 있으면 시작하지 않는다', async () => {
     const release = await lock.tryAcquire(INGESTION_LOCK);
 
     const result = await syncNow.handle();

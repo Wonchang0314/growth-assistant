@@ -104,8 +104,8 @@ describe('QuizGenerationService', () => {
     const [generation] = claude.requestsFor('QUIZ_GENERATION');
     expect(generation?.prompt).toContain('인덱스를 걸면 항상 빨라진다고 생각했다');
     expect(generation?.prompt).toContain('보기에 코드 조각을 넣지 않는다');
-    // 숙련도가 없는 개념은 동작 원리부터 묻고, 길이 상한을 싣는다.
-    expect(generation?.prompt).toContain('## 각도\n동작 원리(MECHANISM)');
+    // 숙련도가 없는 개념은 원리부터 묻고, 길이 상한을 싣는다.
+    expect(generation?.prompt).toContain('## 각도\n원리(MECHANISM)');
     expect(generation?.prompt).toContain('질문은 2문장, 150자 안으로 쓴다. 보기는 하나에 40자 안으로 쓴다.');
     // 경험 카드는 출제에 싣지 않는다. 문제에는 그 개념의 카드를 코드가 잇는다 (ADR-0038).
     expect(generation?.prompt).not.toMatch(/성별 인덱스가 안 탐|성별에 인덱스를 걸었다|선택도를 먼저 본다/);

@@ -4,7 +4,7 @@ import { JobLock } from '../scheduler/job-lock.js';
 import { ExtractionService } from './extraction.service.js';
 import { SyncService } from './sync.service.js';
 
-/** 수집(동기화·추출)을 하는 일이 함께 거는 잠금. 새벽 작업과 `sync_now`가 겹치지 않는다. */
+/** 수집(동기화·추출)을 하는 일이 거는 잠금. `sync_now`가 겹쳐 돌지 않는다. */
 export const INGESTION_LOCK = 'ingestion';
 
 /** 추출이 사용량 한도나 로그인 문제로 멈췄으면 단계를 실패로 둔다. 문서 하나의 실패는 다음 실행이 다시 하므로 요약에만 남긴다. */
@@ -15,6 +15,7 @@ function stopped(summary: string, reason: string | null): string {
 
 /**
  * 동기화 → 경험 카드 추출. `npm run sync`·`extract`가 쓰는 서비스를 차례로 부른다.
+ * 수집을 꺼 두어(ADR-0042) 지금은 어느 모듈도 provider로 두지 않는다. 다시 켜면 `IngestionModule`에 더한다.
  * 앞 단계가 실패해도 뒤 단계는 한다. 추출은 PENDING·FAILED 문서를 대상으로 하므로 이번에 바뀐 것과 지난번에 남은 것을 함께 처리한다.
  * 판단 사례 추상화는 문제에 쓰지 않게 돼 넣지 않는다. 손으로는 `npm run abstract`로 돌린다 (ADR-0038).
  */

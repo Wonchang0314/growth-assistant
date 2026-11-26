@@ -59,9 +59,9 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 | 이전 릴리스로 되돌리기 | `ls ~/.growth-assistant/app/releases` 후 `ln -sfn ~/.growth-assistant/app/releases/<이전> ~/.growth-assistant/app/current` → `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server`(상시 실행 서버) → (로컬 등록을 쓸 때만) Claude Desktop 다시 시작. DB 마이그레이션은 되돌리지 않으므로 스키마가 바뀐 릴리스 사이에서는 쓰지 않는다 |
 | 마이그레이션만 적용 | `npm run db:migrate` (작업 트리의 `.env` 기준) |
 | 시드 개념만 적재 | `npm run db:seed` (작업 트리의 `.env` 기준). 시드 YAML을 고친 뒤. 개념은 이름으로 찾아 트랙·별칭·설명을 고치고, 승인 상태는 건드리지 않으며, 시드 개념끼리의 관계는 YAML대로 맞추고, YAML에서 빠진 시드 개념(관계 포함)과 트랙은 지운다. 학습 기록이 연결된 개념을 지우려 하면 적재 전체가 취소된다 |
-| Notion 동기화 | 매일 04:00 새벽 작업이 하고(아래 "예약 작업"), 대화에서 바로 하려면 "Notion 지금 동기화해 줘"(`sync_now`, 추출까지). 손으로는 `npm run sync` (작업 트리의 `.env` 기준, `NOTION_TOKEN`과 `NOTION_ROOT_IDS`가 필요하다). 처음 실행은 백필이라 20분 남짓 걸리고, 그 뒤로는 Notion 수정 시각이 바뀐 문서만 읽는다. 실패한 문서는 다음 실행이 다시 읽는다. 상태는 `sync_status` 도구로 본다 |
-| 경험 카드 추출 | `npm run extract` (작업 트리의 `.env` 기준). 동기화한 뒤 아직 뽑지 않았거나 실패한 문서마다 `claude -p`(Sonnet)를 한 번 부른다. 구독 사용량을 쓰므로 `-- --limit 5`로 나눠 돌릴 수 있고, 한도에 걸리면 남은 문서를 그대로 두고 멈춘다. 프롬프트를 고친 뒤 특정 문서를 다시 뽑으려면 `-- --ids 3,7`. 추출이 만든 승인 대기 개념은 Desktop에서 "승인 대기 개념 보여줘"로 검토한다(`list_pending_concepts`, `review_concept`) |
-| 판단 사례 추상화 | `npm run abstract` (작업 트리의 `.env` 기준). 새벽 작업은 돌리지 않고 이 명령으로만 돈다. 판단 사례는 지금 문제로 내지 않는다(ADR-0038). 경험 카드를 40장씩 선별(Sonnet)하고, 판단이 분명한 카드마다 치환(Sonnet)·패턴 게이트·독립 검증(Opus)을 거쳐 `decision_case`에 저장한다. 경험 사례가 두 번 다 걸리면 가정 사례(Sonnet)·정답을 숨긴 풀이 검증(Opus)으로 폴백하고, 그것도 걸리면 PENDING으로 둔다(ADR-0026). 사용량이 크므로 `-- --limit 10`으로 나눠 돌리고, 프롬프트를 고친 뒤 특정 카드를 다시 하려면 `-- --ids 3,7`(경험 카드 id). 한도에 걸리면 남은 카드를 두고 멈춘다 |
+| Notion 동기화 | **꺼 둠(ADR-0042).** 새벽 작업은 하지 않고 `sync_now`·`sync_status` 도구도 등록하지 않는다. 필요하면 손으로 `npm run sync` (작업 트리의 `.env` 기준, `NOTION_TOKEN`과 `NOTION_ROOT_IDS`가 필요하다). 처음 실행은 백필이라 20분 남짓 걸리고, 그 뒤로는 Notion 수정 시각이 바뀐 문서만 읽는다. 실패한 문서는 다음 실행이 다시 읽는다 |
+| 경험 카드 추출 | `npm run extract` (작업 트리의 `.env` 기준). 동기화한 뒤 아직 뽑지 않았거나 실패한 문서마다 `claude -p`(Sonnet)를 한 번 부른다. 구독 사용량을 쓰므로 `-- --limit 5`로 나눠 돌릴 수 있고, 한도에 걸리면 남은 문서를 그대로 두고 멈춘다. 프롬프트를 고친 뒤 특정 문서를 다시 뽑으려면 `-- --ids 3,7`. 추출이 만든 승인 대기 개념은 Desktop에서 "승인 대기 개념 보여줘"로 검토한다(`list_pending_concepts`, `review_concept`). 지금 시드 트랙은 회계·업무 도메인이라(ADR-0042) 개발 문서를 추출하면 엉뚱한 트랙의 승인 대기 개념이 생긴다 |
+| 판단 사례 추상화 | `npm run abstract` (작업 트리의 `.env` 기준). 새벽 작업은 돌리지 않고 이 명령으로만 돈다. 판단 사례는 지금 문제로 내지 않고, 검토 도구(`list_pending_cases`, `review_case`)도 등록하지 않는다(ADR-0038·0042). 경험 카드를 40장씩 선별(Sonnet)하고, 판단이 분명한 카드마다 치환(Sonnet)·패턴 게이트·독립 검증(Opus)을 거쳐 `decision_case`에 저장한다. 경험 사례가 두 번 다 걸리면 가정 사례(Sonnet)·정답을 숨긴 풀이 검증(Opus)으로 폴백하고, 그것도 걸리면 PENDING으로 둔다(ADR-0026). 사용량이 크므로 `-- --limit 10`으로 나눠 돌리고, 프롬프트를 고친 뒤 특정 카드를 다시 하려면 `-- --ids 3,7`(경험 카드 id). 한도에 걸리면 남은 카드를 두고 멈춘다 |
 | MCP 로그 보기 | `tail -F <LOG_DIR>/mcp/current.log` (`LOG_DIR`를 주지 않았으면 Claude Desktop의 MCP 로그에 남는다). 상시 실행 서버는 `tail -F ~/.growth-assistant/logs/mcp-http/current.log` |
 | 상시 실행 서버 상태·재시작 | 아래 "상시 실행" |
 
@@ -139,16 +139,16 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 
 ### 예약 작업 (새벽 준비, 학습 알림)
 
-상시 실행 서버 안의 스케줄러가 매일 아래 작업을 돌린다([ADR-0036](adr/0036-scheduled-jobs.md), 설계 문서 7.4). 시각은 `Asia/Seoul`이다. stdio 서버와 CLI(`npm run sync` 등)에서는 돌지 않는다.
+상시 실행 서버 안의 스케줄러가 매일 아래 작업을 돌린다([ADR-0036](adr/0036-scheduled-jobs.md), 설계 문서 7.4). 시각은 `Asia/Seoul`이다. stdio 서버와 CLI(`npm run quiz` 등)에서는 돌지 않는다.
 
 | 작업(`name`) | 시각 | 하는 일 |
 |---|---|---|
-| `nightly-prep` | 04:00 | Notion 증분 동기화 → 경험 카드 추출 → 오늘 계획(낼 개념 20개, `review_plan`)을 정하고 지금 각도로 낼 문제가 없는 개념의 문제 미리 만들기(ADR-0040, 결과의 "문제가 없는 개념 N개 중 M개 만듦"에서 N−M이 아침에 "만드는 중"·"만들지 못함"으로 남는 수). 판단 사례 추상화는 하지 않는다(ADR-0038). 앞 단계가 실패해도 뒤 단계는 하고, 하나라도 실패하면 작업 실패로 알린다. 매일 구독 사용량을 쓴다 |
+| `nightly-prep` | 04:00 | 오늘 계획(낼 개념 20개, `review_plan`)을 정하고 지금 각도로 낼 문제가 없는 개념의 문제 미리 만들기(ADR-0040, 결과의 "문제가 없는 개념 N개 중 M개 만듦"에서 N−M이 아침에 "만드는 중"·"만들지 못함"으로 남는 수). Notion 동기화·추출(ADR-0042)과 판단 사례 추상화(ADR-0038)는 하지 않는다. 실패하면 작업 실패로 알린다. 매일 구독 사용량을 쓴다 |
 | `morning-alert` | 07:30 | 휴대폰에 "오늘 복습 N개". **기본은 꺼짐**(아래에서 켠다). 2026-10-20 Cowork 예약 작업을 지우면서 켰다. 복습할 개념이 없으면 보내지 않는다 |
 | `evening-alert` | 21:00 | 그날 푼 문제가 없고 복습할 개념이 있을 때만 "오늘 복습을 아직 하지 않았다". 기본은 켜짐. 토요일·일요일에는 보내지 않는다(실행 기록의 `result`는 `주말이라 보내지 않음`) |
 
 - **놓친 실행:** 작업마다 마지막 실행을 `scheduled_job` 테이블에 남긴다. 그 시각에 서버가 꺼져 있었으면 같은 날 안에 서버가 뜰 때 한 번만 따라잡고(예: 10시에 켜면 새벽 작업과 아침 알림이 한 번씩), 날이 바뀌면 건너뛴다. 도중에 서버가 죽어(배포의 `kickstart -k` 등) 기록이 `RUNNING`으로 남으면, 다시 뜰 때 끊긴 실행으로 보고 다시 돌린다. 실패(`FAILED`)한 몫은 그날 다시 돌리지 않는다.
-- **겹침:** 같은 작업은 겹쳐 돌지 않는다(DB advisory 잠금). 새벽 작업과 `sync_now`는 같은 잠금(`ingestion`)을 써서 한쪽이 돌면 다른 쪽은 건너뛴다. 건너뛴 예약 작업은 기록하지 않으므로 그날 서버를 다시 띄우면 따라잡는다.
+- **겹침:** 같은 작업은 겹쳐 돌지 않는다(DB advisory 잠금). 건너뛴 예약 작업은 기록하지 않으므로 그날 서버를 다시 띄우면 따라잡는다.
 - **학습 알림 내용:** 운영 알림과 같은 토픽이고, 개수와 시작하는 법(ChatGPT에서 "복습하자"라고 말한다)만 싣는다(개념 이름·문제 본문은 싣지 않는다). 묶지 않는다. `NTFY_TOPIC`이 없으면 로그(`[학습 알림]`)만 남는다. "오늘 복습 N개"의 N은 오늘(Asia/Seoul) 안에 때가 되는 개념까지 세고, 그날 `get_review_set`도 같은 기준으로 고른다.
 - **알림을 눌렀을 때:** 학습 알림에는 ntfy `Click` 헤더로 `https://chatgpt.com/`를 붙인다(2026-10-20 ChatGPT로 바꿨다가 Claude로 되돌렸고, 2026-10-25 사용자 요청으로 다시 ChatGPT로, ADR-0037). 누르면 ChatGPT 앱이 열리길 기대한다. **iOS에서 앱이 열리는지(Safari가 아니라)는 아직 확인하지 않았다.** 첫 학습 알림이 오면 눌러 보고, Safari로 열리면 앱의 유니버설 링크가 이 주소를 잡지 않는 것이니 다른 주소를 정한다(`src/tutor/outreach/study-notifier.ts`의 `OPEN_CHAT`). 운영 알림에는 링크를 붙이지 않는다.
 
@@ -157,8 +157,8 @@ Mac mini M4 한 대에서 운영한다 ([ADR-0010](adr/0010-local-mac-hosting.md
 | 작업 상태 보기 | `docker compose exec postgres psql -U growth growth -c "SELECT name, slot_date, status, started_at, finished_at, result FROM scheduled_job ORDER BY name"`. `result`는 성공이면 단계별 요약, 실패면 오류다. 로그는 `grep -E 'JobRunner\|SchedulerHost' ~/.growth-assistant/logs/mcp-http/current.log` |
 | 아침 알림 켜기 | `docker compose exec postgres psql -U growth growth -c "INSERT INTO app_setting (key, value) VALUES ('outreach.morning_alert', 'on') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"`. 끄려면 `'off'`. 다음 07:30부터 적용되고 서버를 다시 띄우지 않아도 된다 |
 | 저녁 알림 끄기 | 위와 같이 키 `outreach.evening_alert`에 `'off'`(다시 켜려면 `'on'`) |
-| 새벽 작업을 지금 다시 돌리기 | `docker compose exec postgres psql -U growth growth -c "DELETE FROM scheduled_job WHERE name = 'nightly-prep'"` 뒤 `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server`. 04:00이 지난 시각이면 서버가 뜰 때 한 번 돈다. 동기화·추출만이면 대화에서 "Notion 지금 동기화해 줘"(`sync_now`)나 `npm run sync && npm run extract` |
-| "예약 작업이 실패했다" 알림 | 위 상태 보기의 `result`와 로그를 본다. Notion 오류면 다음 새벽에 다시 하고, `중간에 멈춤`(사용량 한도·로그인)이면 한도가 풀리거나 `claude`에 다시 로그인한 뒤 다음 새벽에 이어서 한다 |
+| 새벽 작업을 지금 다시 돌리기 | `docker compose exec postgres psql -U growth growth -c "DELETE FROM scheduled_job WHERE name = 'nightly-prep'"` 뒤 `launchctl kickstart -k gui/$(id -u)/com.growthassistant.server`. 04:00이 지난 시각이면 서버가 뜰 때 한 번 돈다 |
+| "예약 작업이 실패했다" 알림 | 위 상태 보기의 `result`와 로그를 본다. `중간에 멈춤`(사용량 한도·로그인)이면 한도가 풀리거나 `claude`에 다시 로그인한 뒤 다음 새벽에 이어서 한다 |
 
 ## 로그
 
@@ -221,3 +221,5 @@ docker compose exec -T postgres pg_dump -U growth growth | gzip > ~/growth-$(dat
 ```
 
 복원: `gunzip -c <파일> | docker compose exec -T postgres psql -U growth growth` (빈 DB에서).
+
+**`0015_reset_curriculum` 배포 전 (ADR-0042):** 이 마이그레이션은 학습 기록·숙련도·문제·풀이·하루 계획·개념 그래프·트랙을 지운다. 배포 직전에 위 명령으로 꼭 백업하고, 지금 출제 지침(`docker compose exec postgres psql -U growth growth -c "SELECT value FROM app_setting WHERE key = 'quiz.guideline'"`, 마이그레이션이 지우지 않는다)에 개발에만 맞는 규칙이 있으면 지울지 정한다. 이 백업을 운영 DB에 복원한 뒤 마이그레이션을 돌리면(배포 포함) 0015가 다시 지우므로, 옛 데이터를 보려면 임시 컨테이너에 복원한다. 배포 뒤 Claude 프로젝트 지침도 `docs/claude-project-instructions.md` 본문으로 다시 붙여 넣는다.

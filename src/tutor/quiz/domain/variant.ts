@@ -45,14 +45,14 @@ export function nextQuestion(history: readonly QuestionHistory[]): NextQuestion 
   return { kind: 'NEW' };
 }
 
-/** 이 숙련도 점수부터 트레이드오프·설계 판단을 묻는다. */
+/** 이 숙련도 점수부터 트레이드오프·판단을 묻는다. */
 export const DEEP_MASTERY = 0.8;
 
 type AngleMastery = Pick<ConceptMastery, 'gradedAttempts' | 'weaknessScore' | 'masteryScore'> | undefined;
 
 /**
  * 숙련도 단계마다 묻는 각도. 가볍게 시작해서 깊이 들어간다 (ADR-0038).
- * - 일정이 없거나 미측정·약점 → 동작 원리(MECHANISM): 짧은 정의·원리 확인
+ * - 일정이 없거나 미측정·약점 → 원리(MECHANISM): 짧은 정의·원리 확인
  * - 양호하고 숙련도 [DEEP_MASTERY] 미만 → 왜(WHY)·언제 쓰나(WHEN)
  * - 숙련도 [DEEP_MASTERY] 이상 → 트레이드오프(TRADEOFF)
  *
